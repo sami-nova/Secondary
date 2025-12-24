@@ -62,6 +62,70 @@ function executeBulkSlackAutomation() {
 }
 
 /**
+ * VALIDATE BLOCKS - Checks blocks against Slack's requirements
+ */
+function validateBlocks(blocks) {
+  if (!blocks || !Array.isArray(blocks)) {
+    return { valid: false, error: "Blocks must be an array" };
+  }
+
+  if (blocks.length === 0) {
+    return { valid: false, error: "Blocks array cannot be empty" };
+  }
+
+  if (blocks.length > 50) {
+    return { valid: false, error: `Too many blocks: ${blocks.length} (max 50)` };
+  }
+
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+
+    if (!block.type) {
+      return { valid: false, error: `Block ${i} missing type` };
+    }
+
+    // Check section blocks have valid fields
+    if (block.type === "section" && block.fields) {
+      if (!Array.isArray(block.fields)) {
+        return { valid: false, error: `Block ${i} fields must be an array` };
+      }
+
+      if (block.fields.length > 10) {
+        return { valid: false, error: `Block ${i} has ${block.fields.length} fields (max 10)` };
+      }
+
+      // Check each field
+      for (let j = 0; j < block.fields.length; j++) {
+        const field = block.fields[j];
+        if (!field.type || !field.text) {
+          return { valid: false, error: `Block ${i}, field ${j} missing type or text` };
+        }
+
+        if (field.text.length > 3000) {
+          return { valid: false, error: `Block ${i}, field ${j} text too long: ${field.text.length} chars` };
+        }
+      }
+    }
+
+    // Check header blocks
+    if (block.type === "header" && block.text) {
+      if (block.text.text && block.text.text.length > 150) {
+        return { valid: false, error: `Header block ${i} text too long: ${block.text.text.length} chars (max 150)` };
+      }
+    }
+
+    // Check section text blocks
+    if (block.type === "section" && block.text) {
+      if (block.text.text && block.text.text.length > 3000) {
+        return { valid: false, error: `Section block ${i} text too long: ${block.text.text.length} chars` };
+      }
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
  * SEND SLACK MESSAGE - supports both single row and bulk formatting with beautiful Block Kit
  */
 function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRows = null) {
@@ -78,6 +142,13 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
     if (isBulk && allRows) {
       // USE BEAUTIFUL BLOCK KIT FORMAT FOR BULK MESSAGES
       payload = buildBeautifulReport(automation, allRows);
+
+      // Validate blocks before sending
+      const validation = validateBlocks(payload.blocks);
+      if (!validation.valid) {
+        Logger.log(`❌ Block validation failed: ${validation.error}`);
+        return { success: false, error: `Invalid Slack blocks: ${validation.error}` };
+      }
     } else {
       // SINGLE ROW MESSAGE
       const messageProcessor = SlackLib.createMessageProcessor();
@@ -147,6 +218,7 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
 
 /**
  * BUILD BEAUTIFUL REPORT - Clean sections with proper visual hierarchy
+ * Respects Slack's limits: max 50 blocks, max 10 fields per section
  */
 function buildBeautifulReport(automation, allRows) {
   const headers = allRows.headers;
@@ -163,13 +235,15 @@ function buildBeautifulReport(automation, allRows) {
   }
 
   const blocks = [];
+  const MAX_BLOCKS = 48; // Leave room for header/footer (Slack limit is 50)
+  const MAX_FIELDS_PER_SECTION = 10; // Slack limit
 
   // ==================== HEADER ====================
   blocks.push({
     type: "header",
     text: {
       type: "plain_text",
-      text: messageHeader,
+      text: truncateText(messageHeader, 150),
       emoji: true
     }
   });
@@ -179,14 +253,13 @@ function buildBeautifulReport(automation, allRows) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `📅 *Week Ending:* ${new Date().toLocaleDateString()} | 🕐 ${new Date().toLocaleTimeString()}`
+      text: `📅 ${new Date().toLocaleDateString()} | 🕐 ${new Date().toLocaleTimeString()}`
     }
   });
 
   blocks.push({ type: "divider" });
 
   // ==================== DETECT REPORT TYPE ====================
-  // Check if this looks like a metrics report (has specific columns)
   const hasMetrics = headers.some(h =>
     h.toLowerCase().includes("revenue") ||
     h.toLowerCase().includes("purchases") ||
@@ -199,26 +272,37 @@ function buildBeautifulReport(automation, allRows) {
     h.toLowerCase().includes("section")
   );
 
-  if (hasMetrics && validRows.length <= 10) {
-    // ==================== METRICS LAYOUT (for reports with key metrics) ====================
-    validRows.forEach(row => {
+  // Limit rows to prevent block overflow
+  const maxRows = Math.min(validRows.length, 15);
+  const limitedRows = validRows.slice(0, maxRows);
+
+  if (hasMetrics && limitedRows.length <= 10) {
+    // ==================== METRICS LAYOUT ====================
+    limitedRows.forEach(row => {
+      // Split fields into chunks of MAX_FIELDS_PER_SECTION
       const fields = [];
 
       headers.forEach((header, index) => {
         const value = row[index] || "N/A";
         fields.push({
           type: "mrkdwn",
-          text: `*${getEmojiForHeader(header)} ${header}*\n${formatValue(value, header)}`
+          text: truncateText(`*${getEmojiForHeader(header)} ${header}*\n${formatValue(value, header)}`, 300)
         });
       });
 
-      blocks.push({
-        type: "section",
-        fields: fields
-      });
+      // Add fields in chunks to respect 10 field limit
+      for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
+        const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
+        if (blocks.length < MAX_BLOCKS) {
+          blocks.push({
+            type: "section",
+            fields: chunk
+          });
+        }
+      }
     });
   } else if (hasCategories) {
-    // ==================== GROUPED LAYOUT (for category/section reports) ====================
+    // ==================== GROUPED LAYOUT ====================
     const categoryIndex = headers.findIndex(h =>
       h.toLowerCase().includes("category") ||
       h.toLowerCase().includes("type") ||
@@ -228,7 +312,7 @@ function buildBeautifulReport(automation, allRows) {
     const grouped = {};
     const order = [];
 
-    validRows.forEach(row => {
+    limitedRows.forEach(row => {
       const category = (row[categoryIndex] || "Other").toString().trim();
       if (!grouped[category]) {
         grouped[category] = [];
@@ -238,75 +322,123 @@ function buildBeautifulReport(automation, allRows) {
     });
 
     order.forEach((category, idx) => {
+      if (blocks.length >= MAX_BLOCKS) return;
+
       // Category Header
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*${getCategoryEmoji(category)} ${category}*`
+          text: truncateText(`*${getCategoryEmoji(category)} ${category}*`, 300)
         }
       });
 
-      // Category Data
+      // Category Data - each row as separate section
       grouped[category].forEach(row => {
+        if (blocks.length >= MAX_BLOCKS) return;
+
         const fields = [];
         headers.forEach((header, index) => {
-          if (index !== categoryIndex) { // Skip category column
+          if (index !== categoryIndex) {
             const value = row[index] || "N/A";
             fields.push({
               type: "mrkdwn",
-              text: `*${header}:* ${formatValue(value, header)}`
+              text: truncateText(`*${header}:* ${formatValue(value, header)}`, 300)
             });
           }
         });
 
-        if (fields.length > 0) {
-          blocks.push({
-            type: "section",
-            fields: fields
-          });
+        // Split into chunks of MAX_FIELDS_PER_SECTION
+        for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
+          const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
+          if (blocks.length < MAX_BLOCKS && chunk.length > 0) {
+            blocks.push({
+              type: "section",
+              fields: chunk
+            });
+          }
         }
       });
 
-      if (idx < order.length - 1) {
+      if (idx < order.length - 1 && blocks.length < MAX_BLOCKS) {
         blocks.push({ type: "divider" });
       }
     });
   } else {
-    // ==================== CARD LAYOUT (for general data) ====================
-    validRows.forEach((row, rowIdx) => {
-      const fields = [];
+    // ==================== CARD LAYOUT ====================
+    limitedRows.forEach((row, rowIdx) => {
+      if (blocks.length >= MAX_BLOCKS) return;
 
+      const fields = [];
       headers.forEach((header, index) => {
         const value = row[index] || "N/A";
         fields.push({
           type: "mrkdwn",
-          text: `*${header}:* ${formatValue(value, header)}`
+          text: truncateText(`*${header}:* ${formatValue(value, header)}`, 300)
         });
       });
 
-      blocks.push({
-        type: "section",
-        fields: fields
-      });
+      // Split into chunks of MAX_FIELDS_PER_SECTION
+      for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
+        const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
+        if (blocks.length < MAX_BLOCKS && chunk.length > 0) {
+          blocks.push({
+            type: "section",
+            fields: chunk
+          });
+        }
+      }
 
-      if (rowIdx < validRows.length - 1) {
+      if (rowIdx < limitedRows.length - 1 && blocks.length < MAX_BLOCKS) {
         blocks.push({ type: "divider" });
       }
     });
   }
 
   // ==================== FOOTER ====================
-  blocks.push({ type: "divider" });
-  blocks.push({
-    type: "context",
-    elements: [{
-      type: "mrkdwn",
-      text: `📊 Total Records: *${validRows.length}* | Generated by ${automation.name}`
-    }]
-  });
+  if (blocks.length < MAX_BLOCKS) {
+    blocks.push({ type: "divider" });
+  }
+
+  if (blocks.length < MAX_BLOCKS) {
+    const footerText = validRows.length > maxRows
+      ? `📊 Showing ${maxRows} of ${validRows.length} records | ${automation.name}`
+      : `📊 Total: ${validRows.length} records | ${automation.name}`;
+
+    blocks.push({
+      type: "context",
+      elements: [{
+        type: "mrkdwn",
+        text: truncateText(footerText, 300)
+      }]
+    });
+  }
+
+  Logger.log(`Built report with ${blocks.length} blocks`);
+
+  // Validate blocks before returning
+  if (blocks.length > 50) {
+    Logger.log(`⚠️ Warning: ${blocks.length} blocks exceeds Slack's 50 block limit`);
+    // Trim to 50 blocks
+    blocks.splice(50);
+  }
+
+  // Log first few blocks for debugging
+  if (blocks.length > 0) {
+    Logger.log(`First block: ${JSON.stringify(blocks[0]).substring(0, 200)}`);
+  }
 
   return { blocks: blocks };
+}
+
+/**
+ * TRUNCATE TEXT - Ensures text doesn't exceed Slack limits
+ */
+function truncateText(text, maxLength) {
+  if (!text) return "";
+  const str = text.toString();
+  if (str.length <= maxLength) return str;
+  return str.substring(0, maxLength - 3) + "...";
 }
 
 /**
