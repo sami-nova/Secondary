@@ -218,6 +218,7 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
 
 /**
  * BUILD BEAUTIFUL REPORT - Clean sections with proper visual hierarchy
+ * Works with ANY sheet structure - completely generic
  * Respects Slack's limits: max 50 blocks, max 10 fields per section
  */
 function buildBeautifulReport(automation, allRows) {
@@ -238,7 +239,7 @@ function buildBeautifulReport(automation, allRows) {
   const MAX_BLOCKS = 48; // Leave room for header/footer (Slack limit is 50)
   const MAX_FIELDS_PER_SECTION = 10; // Slack limit
 
-  // ==================== HEADER ====================
+  // ==================== HEADER (ONCE AT TOP) ====================
   blocks.push({
     type: "header",
     text: {
@@ -259,173 +260,56 @@ function buildBeautifulReport(automation, allRows) {
 
   blocks.push({ type: "divider" });
 
-  // ==================== DETECT REPORT TYPE ====================
-  const hasMetrics = headers.some(h =>
-    h.toLowerCase().includes("revenue") ||
-    h.toLowerCase().includes("purchases") ||
-    h.toLowerCase().includes("arpu")
-  );
-
-  const hasCategories = headers.some(h =>
-    h.toLowerCase().includes("category") ||
-    h.toLowerCase().includes("type") ||
-    h.toLowerCase().includes("section")
-  );
-
-  // Limit rows to prevent block overflow
-  const maxRows = Math.min(validRows.length, 15);
+  // ==================== LIMIT ROWS ====================
+  const maxRows = Math.min(validRows.length, 20);
   const limitedRows = validRows.slice(0, maxRows);
 
-  if (hasMetrics && limitedRows.length <= 10) {
-    // ==================== METRICS LAYOUT ====================
-    limitedRows.forEach(row => {
-      // Split fields into chunks of MAX_FIELDS_PER_SECTION
-      const fields = [];
+  // ==================== PROCESS EACH ROW AS A CARD ====================
+  limitedRows.forEach((row, rowIdx) => {
+    if (blocks.length >= MAX_BLOCKS - 2) return; // Leave room for footer
 
-      headers.forEach((header, index) => {
-        const value = row[index] || "N/A";
-        fields.push({
-          type: "mrkdwn",
-          text: truncateText(`*${getEmojiForHeader(header)} ${header}*\n${formatValue(value, header)}`, 300)
-        });
-      });
+    const fields = [];
 
-      // Add fields in chunks to respect 10 field limit
-      for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
-        const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
-        if (blocks.length < MAX_BLOCKS) {
-          blocks.push({
-            type: "section",
-            fields: chunk
-          });
-        }
-      }
-    });
-  } else if (hasCategories) {
-    // ==================== GROUPED LAYOUT ====================
-    const categoryIndex = headers.findIndex(h =>
-      h.toLowerCase().includes("category") ||
-      h.toLowerCase().includes("type") ||
-      h.toLowerCase().includes("section")
-    );
+    // Create fields for each column in this row
+    headers.forEach((header, colIdx) => {
+      const value = row[colIdx] || "N/A";
 
-    const grouped = {};
-    const order = [];
-
-    limitedRows.forEach(row => {
-      const category = (row[categoryIndex] || "Other").toString().trim();
-      if (!grouped[category]) {
-        grouped[category] = [];
-        order.push(category);
-      }
-      grouped[category].push(row);
-    });
-
-    order.forEach((category, idx) => {
-      if (blocks.length >= MAX_BLOCKS) return;
-
-      // Category Header
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: truncateText(`*${getCategoryEmoji(category)} ${category}*`, 300)
-        }
-      });
-
-      // Category Data - each row as separate section
-      grouped[category].forEach(row => {
-        if (blocks.length >= MAX_BLOCKS) return;
-
-        const fields = [];
-        headers.forEach((header, index) => {
-          if (index !== categoryIndex) {
-            const value = row[index] || "N/A";
-            fields.push({
-              type: "mrkdwn",
-              text: truncateText(`*${header}:* ${formatValue(value, header)}`, 300)
-            });
-          }
-        });
-
-        // Split into chunks of MAX_FIELDS_PER_SECTION
-        for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
-          const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
-          if (blocks.length < MAX_BLOCKS && chunk.length > 0) {
-            blocks.push({
-              type: "section",
-              fields: chunk
-            });
-          }
-        }
-      });
-
-      if (idx < order.length - 1 && blocks.length < MAX_BLOCKS) {
-        blocks.push({ type: "divider" });
-      }
-    });
-  } else {
-    // ==================== CARD LAYOUT ====================
-    limitedRows.forEach((row, rowIdx) => {
-      if (blocks.length >= MAX_BLOCKS) return;
-
-      const fields = [];
-      headers.forEach((header, index) => {
-        const value = row[index] || "N/A";
-        fields.push({
-          type: "mrkdwn",
-          text: truncateText(`*${header}:* ${formatValue(value, header)}`, 300)
-        });
-      });
-
-      // Split into chunks of MAX_FIELDS_PER_SECTION
-      for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
-        const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
-        if (blocks.length < MAX_BLOCKS && chunk.length > 0) {
-          blocks.push({
-            type: "section",
-            fields: chunk
-          });
-        }
-      }
-
-      if (rowIdx < limitedRows.length - 1 && blocks.length < MAX_BLOCKS) {
-        blocks.push({ type: "divider" });
-      }
-    });
-  }
-
-  // ==================== FOOTER ====================
-  if (blocks.length < MAX_BLOCKS) {
-    blocks.push({ type: "divider" });
-  }
-
-  if (blocks.length < MAX_BLOCKS) {
-    const footerText = validRows.length > maxRows
-      ? `📊 Showing ${maxRows} of ${validRows.length} records | ${automation.name}`
-      : `📊 Total: ${validRows.length} records | ${automation.name}`;
-
-    blocks.push({
-      type: "context",
-      elements: [{
+      // Format: "Label: Value" on same line for better alignment
+      fields.push({
         type: "mrkdwn",
-        text: truncateText(footerText, 300)
-      }]
+        text: truncateText(`*${header}:*\n${formatValue(value, header)}`, 300)
+      });
     });
-  }
 
-  Logger.log(`Built report with ${blocks.length} blocks`);
+    // Split fields into chunks of MAX_FIELDS_PER_SECTION
+    let chunkIndex = 0;
+    for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
+      const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
+
+      if (blocks.length < MAX_BLOCKS - 2 && chunk.length > 0) {
+        blocks.push({
+          type: "section",
+          fields: chunk
+        });
+        chunkIndex++;
+      }
+    }
+
+    // Add divider between rows (but not after last row)
+    if (rowIdx < limitedRows.length - 1 && blocks.length < MAX_BLOCKS - 1) {
+      blocks.push({ type: "divider" });
+    }
+  });
+
+  // ==================== NO FOOTER (as requested) ====================
+  // User doesn't want "Total Records" or automation name at the bottom
+
+  Logger.log(`Built report with ${blocks.length} blocks for ${limitedRows.length} rows`);
 
   // Validate blocks before returning
   if (blocks.length > 50) {
     Logger.log(`⚠️ Warning: ${blocks.length} blocks exceeds Slack's 50 block limit`);
-    // Trim to 50 blocks
     blocks.splice(50);
-  }
-
-  // Log first few blocks for debugging
-  if (blocks.length > 0) {
-    Logger.log(`First block: ${JSON.stringify(blocks[0]).substring(0, 200)}`);
   }
 
   return { blocks: blocks };
