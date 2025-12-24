@@ -1,17 +1,24 @@
 /**
  * SCHEDULED BULK AUTOMATION - Executes saved automations on schedule
+ * FIXED: Only runs automations that should run at this time
  */
 function executeBulkSlackAutomation() {
   try {
     const automations = getSlackAutomations();
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
 
-    // Find all enabled bulk automations
+    // Find all enabled bulk automations with scheduling enabled
     const bulkAutomations = automations.filter(a =>
-      a.enabled && a.triggerType === "bulkCriteria"
+      a.enabled &&
+      a.triggerType === "bulkCriteria" &&
+      a.schedule &&
+      a.schedule.enabled
     );
 
     if (bulkAutomations.length === 0) {
-      Logger.log("No enabled bulk automations found.");
+      Logger.log("No enabled bulk automations with scheduling found.");
       return;
     }
 
@@ -19,6 +26,14 @@ function executeBulkSlackAutomation() {
 
     bulkAutomations.forEach(automation => {
       try {
+        // ✅ CHECK IF THIS AUTOMATION SHOULD RUN NOW
+        if (!shouldAutomationRunNow(automation, currentHour, currentDay)) {
+          Logger.log(`⏭️ Skipping "${automation.name}" - not scheduled for this time`);
+          return;
+        }
+
+        Logger.log(`▶️ Running scheduled automation: ${automation.name}`);
+
         // GET THE CORRECT SHEET (from automation config, not active sheet)
         const sheet = ss.getSheetByName(automation.targetSheet);
 
@@ -59,6 +74,48 @@ function executeBulkSlackAutomation() {
   } catch (error) {
     Logger.log("Bulk Automation Error: " + error.message);
   }
+}
+
+/**
+ * CHECK IF AUTOMATION SHOULD RUN NOW
+ * Returns true if the automation's schedule matches current time
+ */
+function shouldAutomationRunNow(automation, currentHour, currentDay) {
+  if (!automation.schedule || !automation.schedule.enabled) {
+    return false;
+  }
+
+  const schedule = automation.schedule;
+
+  // For hourly: always run (handled by trigger frequency)
+  if (schedule.frequency === "hourly") {
+    return true;
+  }
+
+  // For daily: check if hour matches
+  if (schedule.frequency === "daily") {
+    return currentHour === (schedule.hour || 9);
+  }
+
+  // For weekly: check if hour AND day match
+  if (schedule.frequency === "weekly") {
+    const weekDayMap = {
+      "SUNDAY": 0,
+      "MONDAY": 1,
+      "TUESDAY": 2,
+      "WEDNESDAY": 3,
+      "THURSDAY": 4,
+      "FRIDAY": 5,
+      "SATURDAY": 6
+    };
+
+    const scheduledDay = weekDayMap[schedule.weekDay || "MONDAY"];
+    const scheduledHour = schedule.hour || 9;
+
+    return currentDay === scheduledDay && currentHour === scheduledHour;
+  }
+
+  return false;
 }
 
 /**
@@ -904,7 +961,8 @@ function createSlackTriggers(automation) {
       break;
     case "bulkCriteria":
       if (automation.schedule && automation.schedule.enabled) {
-        const schedId = createScheduledTrigger(automation.schedule);
+        // Create or reuse shared hourly trigger
+        const schedId = getOrCreateSharedScheduledTrigger();
         if (schedId) automation.triggerIds.push(schedId);
       }
       break;
@@ -912,20 +970,33 @@ function createSlackTriggers(automation) {
   return automation.triggerIds;
 }
 
-function createScheduledTrigger(schedule) {
-  let trigger = ScriptApp.newTrigger("executeBulkSlackAutomation").timeBased();
+/**
+ * GET OR CREATE SHARED SCHEDULED TRIGGER
+ * Creates ONE shared hourly trigger for ALL scheduled automations
+ * Each automation's schedule is checked in executeBulkSlackAutomation()
+ */
+function getOrCreateSharedScheduledTrigger() {
+  const triggers = ScriptApp.getProjectTriggers();
 
-  if (schedule.frequency === "daily") {
-    trigger = trigger.everyDays(1).atHour(schedule.hour || 9);
-  } else if (schedule.frequency === "weekly") {
-    trigger = trigger.everyWeeks(1)
-      .onWeekDay(ScriptApp.WeekDay[schedule.weekDay || "MONDAY"])
-      .atHour(schedule.hour || 9);
-  } else if (schedule.frequency === "hourly") {
-    trigger = trigger.everyHours(schedule.hours || 1);
+  // Check if shared trigger already exists
+  const existing = triggers.find(t =>
+    t.getHandlerFunction() === "executeBulkSlackAutomation" &&
+    t.getEventType() === ScriptApp.EventType.CLOCK
+  );
+
+  if (existing) {
+    Logger.log("Using existing shared scheduled trigger");
+    return existing.getUniqueId();
   }
 
-  return trigger.create().getUniqueId();
+  // Create new shared trigger that runs every hour
+  Logger.log("Creating new shared scheduled trigger (hourly)");
+  const trigger = ScriptApp.newTrigger("executeBulkSlackAutomation")
+    .timeBased()
+    .everyHours(1)
+    .create();
+
+  return trigger.getUniqueId();
 }
 
 function cleanupDuplicateTriggers() {
@@ -965,8 +1036,27 @@ function deleteSlackTriggers(automationId) {
     if (!auto || !auto.triggerIds) return;
 
     const triggers = ScriptApp.getProjectTriggers();
+
+    // Check if any other automations are using scheduled triggers
+    const otherScheduledAutomations = automations.filter(a =>
+      a.id !== automationId &&
+      a.enabled &&
+      a.triggerType === "bulkCriteria" &&
+      a.schedule &&
+      a.schedule.enabled
+    );
+
     triggers.forEach(t => {
       if (auto.triggerIds.includes(t.getUniqueId())) {
+        // Don't delete shared scheduled trigger if other automations need it
+        if (t.getHandlerFunction() === "executeBulkSlackAutomation" &&
+            t.getEventType() === ScriptApp.EventType.CLOCK &&
+            otherScheduledAutomations.length > 0) {
+          Logger.log("Keeping shared scheduled trigger (other automations need it)");
+          return;
+        }
+
+        Logger.log(`Deleting trigger: ${t.getHandlerFunction()}`);
         ScriptApp.deleteTrigger(t);
       }
     });
