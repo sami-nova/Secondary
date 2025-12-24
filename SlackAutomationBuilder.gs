@@ -139,18 +139,49 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
 
     let payload = {};
 
-    if (isBulk && allRows) {
-      // USE BEAUTIFUL BLOCK KIT FORMAT FOR BULK MESSAGES
-      payload = buildBeautifulReport(automation, allRows);
+    // Check if using formatted output (not legacy simple text)
+    const useFormattedOutput = automation.messageFormat &&
+                               automation.messageFormat !== "simple" &&
+                               automation.messageFormat !== "rich";
+
+    if (useFormattedOutput && (isBulk || !isBulk)) {
+      // USE SELECTED FORMAT FOR BOTH SINGLE AND BULK MESSAGES
+      if (isBulk && allRows) {
+        // Bulk message with all rows
+        payload = buildBeautifulReport(automation, allRows);
+      } else {
+        // Single row message - convert to allRows format
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
+        const sheet = ss.getSheetByName(automation.targetSheet);
+        if (sheet) {
+          const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getDisplayValues()[0];
+          const rowValues = Object.keys(rowData).map(key => rowData[key] || "");
+          payload = buildBeautifulReport(automation, {
+            headers: headers,
+            data: [rowValues]
+          });
+        } else {
+          // Fallback to plain text if sheet not found
+          const messageProcessor = SlackLib.createMessageProcessor();
+          const messageText = messageProcessor.processMessageTemplate(
+            automation.messageTemplate,
+            rowData,
+            rowNumber
+          );
+          payload = { text: messageText };
+        }
+      }
 
       // Validate blocks before sending
-      const validation = validateBlocks(payload.blocks);
-      if (!validation.valid) {
-        Logger.log(`❌ Block validation failed: ${validation.error}`);
-        return { success: false, error: `Invalid Slack blocks: ${validation.error}` };
+      if (payload.blocks) {
+        const validation = validateBlocks(payload.blocks);
+        if (!validation.valid) {
+          Logger.log(`❌ Block validation failed: ${validation.error}`);
+          return { success: false, error: `Invalid Slack blocks: ${validation.error}` };
+        }
       }
     } else {
-      // SINGLE ROW MESSAGE
+      // LEGACY SIMPLE TEXT MESSAGE
       const messageProcessor = SlackLib.createMessageProcessor();
       const messageText = messageProcessor.processMessageTemplate(
         automation.messageTemplate,
@@ -217,14 +248,75 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
 }
 
 /**
+ * EXTRACT FIELDS FROM TEMPLATE - Get field names from {{field}} placeholders
+ */
+function extractFieldsFromTemplate(template) {
+  if (!template) return null;
+
+  const fieldMatches = template.match(/\{\{([^}]+)\}\}/g);
+  if (!fieldMatches) return null;
+
+  const fields = [];
+  fieldMatches.forEach(match => {
+    const fieldName = match.replace(/\{\{|\}\}/g, '').trim();
+    // Exclude special placeholders
+    if (!['ROW_NUMBER', 'TIMESTAMP', 'DATE', 'TIME'].includes(fieldName)) {
+      if (!fields.includes(fieldName)) {
+        fields.push(fieldName);
+      }
+    }
+  });
+
+  return fields.length > 0 ? fields : null;
+}
+
+/**
+ * FILTER HEADERS AND ROWS - Keep only specified fields
+ */
+function filterDataByFields(headers, rows, fieldsToInclude) {
+  if (!fieldsToInclude || fieldsToInclude.length === 0) {
+    return { headers: headers, rows: rows };
+  }
+
+  const filteredIndices = [];
+  const filteredHeaders = [];
+
+  // Find indices of fields to include
+  fieldsToInclude.forEach(field => {
+    const index = headers.indexOf(field);
+    if (index !== -1) {
+      filteredIndices.push(index);
+      filteredHeaders.push(field);
+    }
+  });
+
+  // Filter rows to only include selected columns
+  const filteredRows = rows.map(row => {
+    return filteredIndices.map(index => row[index] || "");
+  });
+
+  return { headers: filteredHeaders, rows: filteredRows };
+}
+
+/**
  * BUILD BEAUTIFUL REPORT - Supports multiple format types
  * Format options: inline, table, list, cards, plain
  */
 function buildBeautifulReport(automation, allRows) {
-  const headers = allRows.headers;
-  const rows = allRows.data;
+  let headers = allRows.headers;
+  let rows = allRows.data;
   const messageHeader = automation.messageHeader || automation.name;
   const format = automation.messageFormat || "inline"; // Default to inline
+
+  // Extract fields from template if provided
+  const fieldsToInclude = extractFieldsFromTemplate(automation.messageTemplate);
+
+  // Filter data to only include fields mentioned in template
+  if (fieldsToInclude) {
+    const filtered = filterDataByFields(headers, rows, fieldsToInclude);
+    headers = filtered.headers;
+    rows = filtered.rows;
+  }
 
   // Filter out completely empty rows
   const validRows = rows.filter(row =>

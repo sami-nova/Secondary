@@ -481,13 +481,74 @@ function buildOrganizedReport(automation, allRows) {
 }
 
 /**
+ * EXTRACT FIELDS FROM TEMPLATE - Get field names from {{field}} placeholders
+ */
+function extractFieldsFromTemplate(template) {
+  if (!template) return null;
+
+  const fieldMatches = template.match(/\{\{([^}]+)\}\}/g);
+  if (!fieldMatches) return null;
+
+  const fields = [];
+  fieldMatches.forEach(match => {
+    const fieldName = match.replace(/\{\{|\}\}/g, '').trim();
+    // Exclude special placeholders
+    if (!['ROW_NUMBER', 'TIMESTAMP', 'DATE', 'TIME'].includes(fieldName)) {
+      if (!fields.includes(fieldName)) {
+        fields.push(fieldName);
+      }
+    }
+  });
+
+  return fields.length > 0 ? fields : null;
+}
+
+/**
+ * FILTER HEADERS AND ROWS - Keep only specified fields
+ */
+function filterDataByFields(headers, rows, fieldsToInclude) {
+  if (!fieldsToInclude || fieldsToInclude.length === 0) {
+    return { headers: headers, rows: rows };
+  }
+
+  const filteredIndices = [];
+  const filteredHeaders = [];
+
+  // Find indices of fields to include
+  fieldsToInclude.forEach(field => {
+    const index = headers.indexOf(field);
+    if (index !== -1) {
+      filteredIndices.push(index);
+      filteredHeaders.push(field);
+    }
+  });
+
+  // Filter rows to only include selected columns
+  const filteredRows = rows.map(row => {
+    return filteredIndices.map(index => row[index] || "");
+  });
+
+  return { headers: filteredHeaders, rows: filteredRows };
+}
+
+/**
  * BUILD BEAUTIFUL REPORT - Clean inline format (UPDATED)
  * Simple, clean text layout without boxes or repeated headers
  */
 function buildBeautifulReport(automation, allRows) {
-  const headers = allRows.headers;
-  const rows = allRows.data;
+  let headers = allRows.headers;
+  let rows = allRows.data;
   const messageHeader = automation.messageHeader || automation.name;
+
+  // Extract fields from template if provided
+  const fieldsToInclude = extractFieldsFromTemplate(automation.messageTemplate);
+
+  // Filter data to only include fields mentioned in template
+  if (fieldsToInclude) {
+    const filtered = filterDataByFields(headers, rows, fieldsToInclude);
+    headers = filtered.headers;
+    rows = filtered.rows;
+  }
 
   // Filter out completely empty rows
   const validRows = rows.filter(row =>
