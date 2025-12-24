@@ -532,101 +532,11 @@ function filterDataByFields(headers, rows, fieldsToInclude) {
 }
 
 /**
- * BUILD BEAUTIFUL REPORT - Clean inline format (UPDATED)
- * Simple, clean text layout without boxes or repeated headers
+ * BUILD BEAUTIFUL REPORT - REMOVED - Use version in SlackAutomationBuilder.gs
+ * This duplicate function was causing format selection to not work.
+ * SlackAutomationBuilder.gs has the correct version with all 5 formats.
  */
-function buildBeautifulReport(automation, allRows) {
-  let headers = allRows.headers;
-  let rows = allRows.data;
-  const messageHeader = automation.messageHeader || automation.name;
-
-  // Extract fields from template if provided
-  const fieldsToInclude = extractFieldsFromTemplate(automation.messageTemplate);
-
-  // Filter data to only include fields mentioned in template
-  if (fieldsToInclude) {
-    const filtered = filterDataByFields(headers, rows, fieldsToInclude);
-    headers = filtered.headers;
-    rows = filtered.rows;
-  }
-
-  // Filter out completely empty rows
-  const validRows = rows.filter(row =>
-    !row.every(cell => !cell || cell.toString().trim() === "")
-  );
-
-  if (validRows.length === 0) {
-    return { text: "No data to display." };
-  }
-
-  const blocks = [];
-  const MAX_BLOCKS = 48;
-
-  // ==================== HEADER (ONCE AT TOP) ====================
-  blocks.push({
-    type: "header",
-    text: {
-      type: "plain_text",
-      text: truncateText(messageHeader, 150),
-      emoji: true
-    }
-  });
-
-  // ==================== TIMESTAMP ====================
-  blocks.push({
-    type: "section",
-    text: {
-      type: "mrkdwn",
-      text: `📅 Generated: ${new Date().toLocaleString()}`
-    }
-  });
-
-  blocks.push({ type: "divider" });
-
-  // ==================== LIMIT ROWS ====================
-  const maxRows = Math.min(validRows.length, 25);
-  const limitedRows = validRows.slice(0, maxRows);
-
-  // ==================== PROCESS EACH ROW AS INLINE TEXT ====================
-  limitedRows.forEach((row, rowIdx) => {
-    if (blocks.length >= MAX_BLOCKS - 1) return;
-
-    // Build inline text for this row
-    let rowText = "";
-
-    headers.forEach((header, colIdx) => {
-      const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header);
-
-      // Format: "Label: Value  " (inline, space-separated)
-      rowText += `*${header}:* ${formattedValue}     `;
-    });
-
-    // Add as single text section
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: truncateText(rowText.trim(), 3000)
-      }
-    });
-
-    // Add divider between rows (but not after last row)
-    if (rowIdx < limitedRows.length - 1 && blocks.length < MAX_BLOCKS - 1) {
-      blocks.push({ type: "divider" });
-    }
-  });
-
-  Logger.log(`Built report with ${blocks.length} blocks for ${limitedRows.length} rows`);
-
-  // Validate blocks before returning
-  if (blocks.length > 50) {
-    Logger.log(`⚠️ Warning: ${blocks.length} blocks exceeds Slack's 50 block limit`);
-    blocks.splice(50);
-  }
-
-  return { blocks: blocks };
-}
+// Function removed - see SlackAutomationBuilder.gs for buildBeautifulReport()
 
 // Helper function if not already defined
 function truncateText(text, maxLength) {
