@@ -1,0 +1,1152 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- import CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/element-ui/lib/theme-chalk/index.css"
+    />
+    <style>
+      .automation-card {
+        margin-bottom: 20px;
+      }
+      .criteria-builder {
+        border: 1px solid #dcdfe6;
+        border-radius: 4px;
+        padding: 15px;
+        margin: 10px 0;
+        background: #f9f9f9;
+      }
+      .column-chips {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #dcdfe6;
+        border-radius: 4px;
+        padding: 10px;
+        background: #fafafa;
+      }
+      .column-chip {
+        margin: 2px;
+        cursor: pointer;
+      }
+      .template-editor {
+        position: relative;
+      }
+      .template-help {
+        font-size: 12px;
+        color: #606266;
+        margin-top: 5px;
+      }
+      .automation-list {
+        margin-bottom: 30px;
+      }
+      .status-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 8px;
+      }
+      .status-active {
+        background-color: #67c23a;
+      }
+      .status-inactive {
+        background-color: #f56c6c;
+      }
+      .template-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 15px;
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+      .template-card {
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+      }
+      .template-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        border-color: #409eff;
+      }
+      /* icon utilities (duplicated minimal set to make icons work on this page) */
+      .brand-icons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .icon-24 {
+        width: 24px;
+        height: 24px;
+      }
+      .icon-32 {
+        width: 32px;
+        height: 32px;
+      }
+      .icon-rounded {
+        border-radius: 8px;
+      }
+      .icon-circle {
+        border-radius: 50%;
+      }
+      .flow-sep {
+        opacity: 0.5;
+        margin: 0 2px;
+      }
+      .format-option-desc {
+        float: right;
+        color: #8492a6;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="app">
+      <el-container v-if="formDataFromSS != null">
+        <el-header
+          height="72px"
+          style="
+            background: #fbfdff;
+            color: rgb(2, 0, 38);
+            display: flex;
+            align-items: center;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 10px">
+            <img
+              alt="Gears"
+              src="https://drive.google.com/thumbnail?id=1bOYwjaSDD-kI8is67DSn6drK81MOxK4-&sz=200"
+              style="width: 36px; height: 36px; border-radius: 8px"
+            />
+            <h2 style="margin: 0">Slack Automation Workflow Builder</h2>
+          </div>
+          <div style="margin-left: auto">
+            <el-button
+              @click="reloadData"
+              type="success"
+              :icon="loading ? 'el-icon-loading' : 'el-icon-refresh'"
+              :loading="loading"
+              size="small"
+            >
+              {{ loading ? 'Loading...' : 'Refresh' }}
+            </el-button>
+            <a :href="viewTemplatesUrl" target="_blank"
+              ><el-button type="primary" icon="el-icon-document" size="small">
+                View Templates
+              </el-button></a
+            >
+            <el-button
+              @click="showCreateForm = true"
+              type="success"
+              icon="el-icon-plus"
+              size="small"
+              >New Automation
+            </el-button>
+          </div>
+        </el-header>
+
+        <el-main>
+          <!-- Existing Automations List -->
+          <div class="automation-list" v-if="existingAutomations.length > 0">
+            <h3>Existing Automation Workflows</h3>
+            <el-card
+              v-for="automation in existingAutomations"
+              :key="automation.id"
+              class="automation-card"
+            >
+              <div slot="header" class="clearfix">
+                <span style="display: inline-flex; align-items: center; gap: 8px">
+                  <div
+                    class="status-indicator"
+                    :class="automation.enabled ? 'status-active' : 'status-inactive'"
+                  ></div>
+                  <strong>{{ automation.name }}</strong>
+                  <span class="brand-icons" style="margin-left: 8px">
+                    <img
+                      class="icon-24 icon-rounded"
+                      alt="Google Sheets"
+                      src="https://drive.google.com/thumbnail?id=1kEiikj3bxDwa3xYTangQ9YvPAX9zA4QZ&sz=200"
+                    />
+                    <span class="flow-sep">→</span>
+                    <img
+                      class="icon-24 icon-circle"
+                      alt="Flow"
+                      src="https://drive.google.com/thumbnail?id=1uAcq3MM6iHCZnp-yWkXakxHX3AUiQ3o6&sz=200"
+                    />
+                    <span class="flow-sep">→</span>
+                    <img
+                      class="icon-24 icon-rounded"
+                      alt="Slack"
+                      src="https://drive.google.com/thumbnail?id=1VWbEg15pMHLUl9KqykgEJLuZvuIoSW1a&sz=200"
+                    />
+                  </span>
+                </span>
+                <div style="float: right">
+                  <el-button
+                    size="mini"
+                    @click="editAutomation(automation)"
+                    icon="el-icon-edit"
+                    >Edit</el-button
+                  >
+                  <el-button
+                    size="mini"
+                    type="success"
+                    @click="testAutomation(automation.id)"
+                    icon="el-icon-video-play"
+                    >Test</el-button
+                  >
+                  <el-button
+                    size="mini"
+                    :type="automation.enabled ? 'warning' : 'primary'"
+                    @click="toggleAutomation(automation.id)"
+                  >
+                    {{ automation.enabled ? 'Disable' : 'Enable' }}
+                  </el-button>
+                  <el-button
+                    size="mini"
+                    type="danger"
+                    @click="deleteAutomationConfirm(automation.id)"
+                    icon="el-icon-delete"
+                    >Delete</el-button
+                  >
+                </div>
+              </div>
+              <div>
+                <p><strong>Target Sheet:</strong> {{ automation.targetSheet }}</p>
+                <p>
+                  <strong>Trigger Type:</strong> {{
+                  getTriggerTypeLabel(automation.triggerType) }}
+                </p>
+                <p><strong>Slack Channel:</strong> {{ automation.slackChannel }}</p>
+                <p v-if="automation.messageFormat">
+                  <strong>Message Format:</strong> {{ getFormatLabel(automation.messageFormat) }}
+                </p>
+                <p v-if="automation.criteria && automation.criteria.length > 0">
+                  <strong>Criteria:</strong> {{ automation.criteria.length }} condition(s)
+                </p>
+              </div>
+            </el-card>
+          </div>
+
+          <!-- Create/Edit Automation Form -->
+          <el-dialog
+            :title="editingAutomation ? 'Edit Automation' : 'Create New Automation'"
+            :visible.sync="showCreateForm"
+            width="80%"
+            top="5vh"
+          >
+            <el-form ref="automationForm" :model="automationForm" label-width="200px">
+              <!-- Basic Settings -->
+              <el-card style="margin-bottom: 20px">
+                <div slot="header" style="display: flex; align-items: center; gap: 8px">
+                  <img
+                    class="icon-24 icon-rounded"
+                    alt="Settings"
+                    src="https://drive.google.com/thumbnail?id=1bOYwjaSDD-kI8is67DSn6drK81MOxK4-&sz=200"
+                  />
+                  <span>Basic Settings</span>
+                </div>
+
+                <el-form-item label="Automation Name" required>
+                  <el-input
+                    v-model="automationForm.name"
+                    placeholder="Enter automation name"
+                  ></el-input>
+                </el-form-item>
+
+                <el-form-item label="Enable Automation">
+                  <el-switch v-model="automationForm.enabled"></el-switch>
+                </el-form-item>
+
+                <el-form-item label="Target Sheet" required>
+                  <el-select
+                    v-model="automationForm.targetSheet"
+                    placeholder="Select sheet"
+                    @change="onSheetChange"
+                  >
+                    <el-option
+                      v-for="sheetName in Object.keys(formDataFromSS?.sheetObj || {})"
+                      :key="sheetName"
+                      :label="sheetName"
+                      :value="sheetName"
+                    >
+                    </el-option>
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="Trigger Type" required>
+                  <el-select
+                    v-model="automationForm.triggerType"
+                    placeholder="Select trigger type"
+                    @change="onTriggerTypeChange"
+                  >
+                    <el-option label="When new row is added" value="onNewRow"></el-option>
+                    <el-option
+                      label="When specific column is updated"
+                      value="onColumnUpdate"
+                    ></el-option>
+                    <el-option
+                      label="Bulk send based on criteria"
+                      value="bulkCriteria"
+                    ></el-option>
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item
+                  label="Watch Column"
+                  v-if="automationForm.triggerType === 'onColumnUpdate'"
+                  required
+                >
+                  <el-select
+                    v-model="automationForm.watchColumn"
+                    placeholder="Select column to watch"
+                  >
+                    <el-option
+                      v-for="column in availableColumns"
+                      :key="column"
+                      :label="column"
+                      :value="column"
+                    >
+                    </el-option>
+                  </el-select>
+                </el-form-item>
+              </el-card>
+
+              <!-- Slack Configuration -->
+              <el-card style="margin-bottom: 20px">
+                <div slot="header" style="display: flex; align-items: center; gap: 8px">
+                  <img
+                    class="icon-24 icon-circle"
+                    alt="Slack"
+                    src="https://drive.google.com/thumbnail?id=15Qz8BOPD6xnz0ha_K4GQt7FsRwkRmKL1&sz=200"
+                  />
+                  <span>Slack Configuration</span>
+                </div>
+
+                <el-form-item label="Slack Webhook URL" required>
+                  <el-input
+                    v-model="automationForm.slackWebhookUrl"
+                    placeholder="https://hooks.slack.com/services/..."
+                  ></el-input>
+                </el-form-item>
+
+                <el-form-item label="Slack Channel" required>
+                  <el-input
+                    v-model="automationForm.slackChannel"
+                    placeholder="#channel-name"
+                  >
+                    <template slot="prepend">#</template>
+                  </el-input>
+                </el-form-item>
+
+                <el-form-item label="Message Format" required>
+                  <el-select
+                    v-model="automationForm.messageFormat"
+                    placeholder="Select format style"
+                    style="width: 100%"
+                  >
+                    <el-option label="Inline Text (Default)" value="inline">
+                      <span style="float: left">Inline Text</span>
+                      <span class="format-option-desc">Compact, mobile-friendly</span>
+                    </el-option>
+                    <el-option label="Table Format" value="table">
+                      <span style="float: left">Table Format</span>
+                      <span class="format-option-desc">Aligned columns</span>
+                    </el-option>
+                    <el-option label="Bullet List" value="list">
+                      <span style="float: left">Bullet List</span>
+                      <span class="format-option-desc">Detailed view</span>
+                    </el-option>
+                    <el-option label="Compact Cards" value="cards">
+                      <span style="float: left">Compact Cards</span>
+                      <span class="format-option-desc">Visual layout</span>
+                    </el-option>
+                    <el-option label="Plain Text" value="plain">
+                      <span style="float: left">Plain Text</span>
+                      <span class="format-option-desc">No formatting</span>
+                    </el-option>
+                  </el-select>
+                  <div class="template-help">
+                    Choose how your message will be formatted in Slack.
+                    <strong>Inline Text</strong> is recommended for most use cases.
+                  </div>
+                </el-form-item>
+
+                <el-form-item label="Message Header">
+                  <el-input
+                    v-model="automationForm.messageHeader"
+                    placeholder="Optional header text (e.g., 'Weekly Sales Report')"
+                  ></el-input>
+                </el-form-item>
+
+                <!-- Advanced Slack Options -->
+                <el-collapse style="margin-top: 15px">
+                  <el-collapse-item title="Advanced Slack Options" name="slack-options">
+                    <el-form-item label="Bot Username">
+                      <el-input
+                        v-model="automationForm.slackOptions.username"
+                        placeholder="Custom bot name"
+                      ></el-input>
+                    </el-form-item>
+                    <el-form-item label="Bot Icon Emoji">
+                      <el-input
+                        v-model="automationForm.slackOptions.icon_emoji"
+                        placeholder=":robot_face:"
+                      ></el-input>
+                    </el-form-item>
+                    <el-form-item label="Bot Icon URL">
+                      <el-input
+                        v-model="automationForm.slackOptions.icon_url"
+                        placeholder="https://..."
+                      ></el-input>
+                    </el-form-item>
+                  </el-collapse-item>
+                </el-collapse>
+              </el-card>
+
+              <!-- Message Template Builder -->
+              <el-card style="margin-bottom: 20px">
+                <div slot="header" style="display: flex; align-items: center; gap: 8px">
+                  <img
+                    class="icon-24 icon-circle"
+                    alt="Template"
+                    src="https://drive.google.com/thumbnail?id=1uAcq3MM6iHCZnp-yWkXakxHX3AUiQ3o6&sz=200"
+                  />
+                  <span>Message Template</span>
+                </div>
+
+                <!-- Available Fields -->
+                <el-form-item label="Available Fields">
+                  <div class="column-chips">
+                    <el-tag
+                      v-for="column in availableColumns"
+                      :key="column"
+                      class="column-chip"
+                      @click="insertField(column)"
+                      size="small"
+                      type="info"
+                    >
+                      {{ column }}
+                    </el-tag>
+                    <el-tag
+                      class="column-chip"
+                      @click="insertField('ROW_NUMBER')"
+                      size="small"
+                      type="warning"
+                    >
+                      ROW_NUMBER
+                    </el-tag>
+                    <el-tag
+                      class="column-chip"
+                      @click="insertField('TIMESTAMP')"
+                      size="small"
+                      type="warning"
+                    >
+                      TIMESTAMP
+                    </el-tag>
+                    <el-tag
+                      class="column-chip"
+                      @click="insertField('DATE')"
+                      size="small"
+                      type="warning"
+                    >
+                      DATE
+                    </el-tag>
+                    <el-tag
+                      class="column-chip"
+                      @click="insertField('TIME')"
+                      size="small"
+                      type="warning"
+                    >
+                      TIME
+                    </el-tag>
+                  </div>
+                  <div class="template-help">
+                    Click on any field above to insert it into your message template
+                  </div>
+                </el-form-item>
+
+                <el-form-item label="Message Template" required>
+                  <el-input
+                    ref="messageTemplate"
+                    v-model="automationForm.messageTemplate"
+                    type="textarea"
+                    :rows="6"
+                    :placeholder="templatePlaceholder"
+                  >
+                  </el-input>
+                  <div class="template-help" v-text="templateHelpText"></div>
+                </el-form-item>
+              </el-card>
+
+              <!-- Criteria Builder -->
+              <el-card style="margin-bottom: 20px">
+                <div slot="header" style="display: flex; align-items: center; gap: 8px">
+                  <img
+                    class="icon-24 icon-rounded"
+                    alt="Flow"
+                    src="https://drive.google.com/thumbnail?id=1dMHt4aEkGEnsPEx72PXa5jRzioG-4cu1&sz=200"
+                  />
+                  <span>Trigger Criteria (Optional)</span>
+                  <el-button
+                    style="margin-left: auto; margin-top: -5px"
+                    type="primary"
+                    size="mini"
+                    @click="addCriterion"
+                    icon="el-icon-plus"
+                  >
+                    Add Criterion
+                  </el-button>
+                </div>
+
+                <div
+                  v-if="automationForm.criteria.length === 0"
+                  style="text-align: center; color: #909399; padding: 20px"
+                >
+                  No criteria set. Automation will trigger for all rows.
+                </div>
+
+                <div
+                  v-for="(criterion, index) in automationForm.criteria"
+                  :key="index"
+                  class="criteria-builder"
+                >
+                  <el-row :gutter="10">
+                    <el-col :span="6">
+                      <el-select
+                        v-model="criterion.field"
+                        placeholder="Select field"
+                        size="small"
+                      >
+                        <el-option
+                          v-for="column in availableColumns"
+                          :key="column"
+                          :label="column"
+                          :value="column"
+                        >
+                        </el-option>
+                      </el-select>
+                    </el-col>
+                    <el-col :span="6">
+                      <el-select
+                        v-model="criterion.operator"
+                        placeholder="Operator"
+                        size="small"
+                      >
+                        <el-option
+                          v-for="op in criteriaOperators"
+                          :key="op.value"
+                          :label="op.label"
+                          :value="op.value"
+                        >
+                        </el-option>
+                      </el-select>
+                    </el-col>
+                    <el-col :span="8">
+                      <el-input
+                        v-model="criterion.value"
+                        placeholder="Value"
+                        size="small"
+                        v-if="!['is_empty', 'is_not_empty', 'true', 'false'].includes(criterion.operator)"
+                      >
+                      </el-input>
+                    </el-col>
+                    <el-col :span="4">
+                      <el-button
+                        type="danger"
+                        size="mini"
+                        @click="removeCriterion(index)"
+                        icon="el-icon-delete"
+                      >
+                      </el-button>
+                    </el-col>
+                  </el-row>
+                </div>
+              </el-card>
+
+              <!-- Bulk Criteria Settings -->
+              <el-card
+                v-if="automationForm.triggerType === 'bulkCriteria'"
+                style="margin-bottom: 20px"
+              >
+                <div slot="header" style="display: flex; align-items: center; gap: 8px">
+                  <img
+                    class="icon-24 icon-rounded"
+                    alt="Schedule"
+                    src="https://drive.google.com/thumbnail?id=1dMHt4aEkGEnsPEx72PXa5jRzioG-4cu1&sz=200"
+                  />
+                  <span>Bulk Processing Settings</span>
+                </div>
+
+                <el-form-item label="Status Column">
+                  <el-select
+                    v-model="automationForm.statusColumn"
+                    placeholder="Select status column (optional)"
+                  >
+                    <el-option label="None" value=""></el-option>
+                    <el-option
+                      v-for="column in availableColumns"
+                      :key="column"
+                      :label="column"
+                      :value="column"
+                    >
+                    </el-option>
+                  </el-select>
+                </el-form-item>
+
+                <el-form-item label="Status Value" v-if="automationForm.statusColumn">
+                  <el-input
+                    v-model="automationForm.statusValue"
+                    placeholder="Value to set after sending (default: SENT)"
+                  ></el-input>
+                </el-form-item>
+
+                <el-form-item label="Schedule">
+                  <el-switch
+                    v-model="automationForm.schedule.enabled"
+                    active-text="Enable scheduling"
+                  ></el-switch>
+                </el-form-item>
+
+                <div v-if="automationForm.schedule.enabled">
+                  <el-form-item label="Frequency">
+                    <el-select v-model="automationForm.schedule.frequency">
+                      <el-option label="Hourly" value="hourly"></el-option>
+                      <el-option label="Daily" value="daily"></el-option>
+                      <el-option label="Weekly" value="weekly"></el-option>
+                    </el-select>
+                  </el-form-item>
+
+                  <el-form-item
+                    label="Hour"
+                    v-if="automationForm.schedule.frequency !== 'hourly'"
+                  >
+                    <el-select v-model="automationForm.schedule.hour">
+                      <el-option
+                        v-for="hour in 24"
+                        :key="hour-1"
+                        :label="(hour-1) + ':00'"
+                        :value="hour-1"
+                      >
+                      </el-option>
+                    </el-select>
+                  </el-form-item>
+
+                  <el-form-item
+                    label="Every X Hours"
+                    v-if="automationForm.schedule.frequency === 'hourly'"
+                  >
+                    <el-input-number
+                      v-model="automationForm.schedule.hours"
+                      :min="1"
+                      :max="12"
+                    ></el-input-number>
+                  </el-form-item>
+
+                  <el-form-item
+                    label="Week Day"
+                    v-if="automationForm.schedule.frequency === 'weekly'"
+                  >
+                    <el-select v-model="automationForm.schedule.weekDay">
+                      <el-option label="Monday" value="MONDAY"></el-option>
+                      <el-option label="Tuesday" value="TUESDAY"></el-option>
+                      <el-option label="Wednesday" value="WEDNESDAY"></el-option>
+                      <el-option label="Thursday" value="THURSDAY"></el-option>
+                      <el-option label="Friday" value="FRIDAY"></el-option>
+                      <el-option label="Saturday" value="SATURDAY"></el-option>
+                      <el-option label="Sunday" value="SUNDAY"></el-option>
+                    </el-select>
+                  </el-form-item>
+                </div>
+              </el-card>
+
+              <!-- Form Actions -->
+              <el-form-item>
+                <el-button type="primary" @click="saveAutomation" :loading="saving">
+                  {{ editingAutomation ? 'Update' : 'Create' }} Automation
+                </el-button>
+                <el-button @click="cancelEdit">Cancel</el-button>
+                <el-button
+                  type="success"
+                  @click="previewMessage"
+                  v-if="automationForm.targetSheet"
+                >
+                  Preview Message
+                </el-button>
+              </el-form-item>
+            </el-form>
+          </el-dialog>
+
+          <!-- Message Preview Dialog -->
+          <el-dialog title="Message Preview" :visible.sync="showPreview" width="60%">
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 4px">
+              <h4>Processed Message:</h4>
+              <div
+                style="
+                  background: white;
+                  padding: 10px;
+                  border-radius: 4px;
+                  white-space: pre-wrap;
+                "
+              >
+                {{ previewText }}
+              </div>
+            </div>
+            <span slot="footer" class="dialog-footer">
+              <el-button @click="showPreview = false">Close</el-button>
+            </span>
+          </el-dialog>
+
+          <!-- Template Selection Dialog -->
+          <!-- <el-dialog title="Select Template" :visible.sync="showTemplateDialog" width="80%" top="5vh">
+            <div class="template-grid">
+              <el-card v-for="template in availableTemplates" :key="template.key" class="template-card" @click.native="selectTemplate(template)" style="cursor: pointer; margin-bottom: 15px">
+                <div slot="header" class="clearfix">
+                  <span style="font-weight: bold; color: #409eff">{{ template.title }}</span>
+                </div>
+                <div>
+                  <p style="color: #606266; margin: 8px 0">{{ template.subtitle }}</p>
+                  <div style="margin: 10px 0">
+                    <el-tag v-for="header in template.headers" :key="header" size="mini" style="margin: 2px">{{ header }}</el-tag>
+                  </div>
+                  <div style="color: #909399; font-size: 12px; margin-top: 8px"><strong>Suggested triggers:</strong> {{ template.triggers }}</div>
+                </div>
+              </el-card>
+            </div>
+            <span slot="footer" class="dialog-footer">
+              <el-button @click="showTemplateDialog = false">Cancel</el-button>
+            </span>
+          </el-dialog> -->
+        </el-main>
+      </el-container>
+
+      <el-skeleton :rows="6" animated v-else />
+    </div>
+  </body>
+
+  <script src="https://unpkg.com/vue@2/dist/vue.js"></script>
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  <script src="//unpkg.com/element-ui/lib/umd/locale/en.js"></script>
+
+  <script>
+    ELEMENT.locale(ELEMENT.lang.en);
+  </script>
+  <script>
+    new Vue({
+      el: "#app",
+      data() {
+        return {
+          formDataFromSS: null,
+          existingAutomations: [],
+          showCreateForm: false,
+          editingAutomation: null,
+          saving: false,
+          loading: false,
+          showPreview: false,
+          previewText: "",
+          // showTemplateDialog: false,
+          viewTemplatesUrl: "",
+          automationForm: {
+            id: null,
+            name: "",
+            enabled: true,
+            targetSheet: "",
+            triggerType: "",
+            watchColumn: "",
+            slackWebhookUrl: "",
+            slackChannel: "",
+            messageFormat: "inline", // Default to inline format
+            messageHeader: "",
+            messageTemplate: "",
+            criteria: [],
+            statusColumn: "",
+            statusValue: "SENT",
+            schedule: {
+              enabled: false,
+              frequency: "daily",
+              hour: 9,
+              hours: 1,
+              weekDay: "MONDAY",
+            },
+            slackOptions: {
+              username: "",
+              icon_emoji: "",
+              icon_url: "",
+            },
+          },
+          criteriaOperators: [
+            { value: "equals", label: "Equals" },
+            { value: "not_equals", label: "Not Equals" },
+            { value: "contains", label: "Contains" },
+            { value: "not_contains", label: "Does Not Contain" },
+            { value: "starts_with", label: "Starts With" },
+            { value: "ends_with", label: "Ends With" },
+            { value: "is_empty", label: "Is Empty" },
+            { value: "is_not_empty", label: "Is Not Empty" },
+            { value: "greater_than", label: "Greater Than" },
+            { value: "less_than", label: "Less Than" },
+            { value: "true", label: "Is True" },
+            { value: "false", label: "Is False" },
+          ],
+          templateData: null,
+        };
+      },
+      computed: {
+        availableColumns() {
+          if (!this.automationForm.targetSheet || !this.formDataFromSS?.sheetObj) {
+            return [];
+          }
+          return this.formDataFromSS.sheetObj[this.automationForm.targetSheet] || [];
+        },
+        availableTemplates() {
+          return Object.values(this.templateData);
+        },
+        templateHelpText() {
+          return `Use double curly braces around field names: {{column_name}}\nAvailable placeholders: {{ROW_NUMBER}}, {{TIMESTAMP}}, {{DATE}}, {{TIME}}`;
+        },
+        templatePlaceholder() {
+          return "Enter your message template. Use {{field_name}} for dynamic content.";
+        },
+      },
+      mounted() {
+        this.loadData();
+        this.getWebAppUrl();
+        this.getUseCases();
+      },
+      methods: {
+        loadData() {
+          this.loading = true;
+          google.script.run
+            .withSuccessHandler((data) => {
+              console.log("Form data:", data);
+              this.formDataFromSS = data;
+              this.existingAutomations = data.existingAutomations || [];
+              this.loading = false;
+            })
+            .withFailureHandler((error) => {
+              console.error("Error loading data:", error);
+              this.$message.error(
+                "Error loading data: " + (error && error.message ? error.message : error)
+              );
+              this.loading = false;
+            })
+            .getDataForSlackAutomationForm();
+        },
+
+        onSheetChange() {
+          // Reset form when sheet changes
+          this.automationForm.watchColumn = "";
+          this.automationForm.criteria = [];
+          this.automationForm.statusColumn = "";
+        },
+
+        onTriggerTypeChange() {
+          // Reset relevant fields when trigger type changes
+          this.automationForm.watchColumn = "";
+          this.automationForm.schedule.enabled = false;
+        },
+
+        addCriterion() {
+          this.automationForm.criteria.push({
+            field: "",
+            operator: "equals",
+            value: "",
+          });
+        },
+
+        removeCriterion(index) {
+          this.automationForm.criteria.splice(index, 1);
+        },
+
+        insertField(fieldName) {
+          const template = this.$refs.messageTemplate.$el.querySelector("textarea");
+          const start = template.selectionStart;
+          const end = template.selectionEnd;
+          const value = this.automationForm.messageTemplate;
+          const before = value.substring(0, start);
+          const after = value.substring(end);
+          const fieldText = `{{${fieldName}}}`;
+
+          this.automationForm.messageTemplate = before + fieldText + after;
+
+          // Set cursor position after inserted text
+          this.$nextTick(() => {
+            template.focus();
+            template.setSelectionRange(
+              start + fieldText.length,
+              start + fieldText.length
+            );
+          });
+        },
+
+        saveAutomation() {
+          // Validate form
+          if (
+            !this.automationForm.name ||
+            !this.automationForm.targetSheet ||
+            !this.automationForm.triggerType ||
+            !this.automationForm.slackWebhookUrl ||
+            !this.automationForm.slackChannel ||
+            !this.automationForm.messageTemplate
+          ) {
+            this.$message.error("Please fill in all required fields");
+            return;
+          }
+
+          if (
+            this.automationForm.triggerType === "onColumnUpdate" &&
+            !this.automationForm.watchColumn
+          ) {
+            this.$message.error("Please select a column to watch");
+            return;
+          }
+
+          this.saving = true;
+
+          google.script.run
+            .withSuccessHandler((result) => {
+              console.log("Save result:", result);
+              this.saving = false;
+
+              if (result.success) {
+                this.$message.success(
+                  this.editingAutomation
+                    ? "Automation updated successfully"
+                    : "Automation created successfully"
+                );
+                this.showCreateForm = false;
+                this.showPreview = false;
+                this.loadData(); // Refresh the list
+                this.resetForm();
+              } else {
+                this.$message.error("Error saving automation: " + result.error);
+              }
+            })
+            .withFailureHandler((error) => {
+              console.error("Error saving automation:", error);
+              this.saving = false;
+              this.$message.error("Error saving automation: " + error.message);
+              this.showPreview = false;
+            })
+            .saveAutomation(this.automationForm);
+        },
+
+        editAutomation(automation) {
+          this.editingAutomation = automation;
+          this.automationForm = JSON.parse(JSON.stringify(automation));
+
+          // Ensure all required properties exist
+          if (!this.automationForm.criteria) this.automationForm.criteria = [];
+          if (!this.automationForm.schedule) {
+            this.automationForm.schedule = {
+              enabled: false,
+              frequency: "daily",
+              hour: 9,
+              hours: 1,
+              weekDay: "MONDAY",
+            };
+          }
+          if (!this.automationForm.slackOptions) {
+            this.automationForm.slackOptions = {
+              username: "",
+              icon_emoji: "",
+              icon_url: "",
+            };
+          }
+          // Set default format if not specified
+          if (!this.automationForm.messageFormat) {
+            this.automationForm.messageFormat = "inline";
+          }
+
+          this.showCreateForm = true;
+        },
+
+        deleteAutomationConfirm(automationId) {
+          this.$confirm(
+            "Are you sure you want to delete this automation?",
+            "Confirm Delete",
+            {
+              confirmButtonText: "Delete",
+              cancelButtonText: "Cancel",
+              type: "warning",
+            }
+          ).then(() => {
+            this.deleteAutomation(automationId);
+          });
+        },
+
+        deleteAutomation(automationId) {
+          google.script.run
+            .withSuccessHandler((result) => {
+              if (result.success) {
+                this.$message.success("Automation deleted successfully");
+                this.loadData(); // Refresh the list
+              } else {
+                this.$message.error("Error deleting automation: " + result.error);
+              }
+            })
+            .deleteSlackAutomation(automationId);
+        },
+
+        toggleAutomation(automationId) {
+          const automation = this.existingAutomations.find((a) => a.id === automationId);
+          if (automation) {
+            automation.enabled = !automation.enabled;
+            google.script.run
+              .withSuccessHandler((result) => {
+                if (result.success) {
+                  this.$message.success(
+                    automation.enabled ? "Automation enabled" : "Automation disabled"
+                  );
+                  this.loadData(); // Refresh the list
+                } else {
+                  this.$message.error("Error updating automation: " + result.error);
+                  automation.enabled = !automation.enabled; // Revert on error
+                }
+              })
+              .saveSlackAutomation(automation);
+          }
+        },
+
+        testAutomation(automationId) {
+          google.script.run
+            .withSuccessHandler((result) => {
+              if (result.success) {
+                this.$message.success("Test message sent successfully");
+              } else {
+                this.$message.error("Error sending test message: " + result.error);
+              }
+            })
+            .testSlackAutomation(automationId);
+        },
+
+        previewMessage() {
+          if (!this.automationForm.messageTemplate) {
+            this.$message.warning("Please enter a message template first");
+            return;
+          }
+
+          // Get sample data from first row
+          const columns = this.availableColumns;
+          const sampleData = {};
+          columns.forEach((col, index) => {
+            sampleData[col] = `Sample ${col}`;
+          });
+
+          // Process template
+          let preview = this.automationForm.messageTemplate;
+          preview = preview.replace(/\{\{([^}]+)\}\}/g, (match, columnName) => {
+            const trimmed = columnName.trim();
+            if (trimmed === "ROW_NUMBER") return "2";
+            if (trimmed === "TIMESTAMP") return new Date().toLocaleString();
+            if (trimmed === "DATE") return new Date().toLocaleDateString();
+            if (trimmed === "TIME") return new Date().toLocaleTimeString();
+            return sampleData[trimmed] || `[${trimmed}]`;
+          });
+
+          this.previewText = preview;
+          this.showPreview = true;
+        },
+
+        cancelEdit() {
+          this.showCreateForm = false;
+          this.resetForm();
+        },
+
+        resetForm() {
+          this.editingAutomation = null;
+          this.automationForm = {
+            id: null,
+            name: "",
+            enabled: true,
+            targetSheet: "",
+            triggerType: "",
+            watchColumn: "",
+            slackWebhookUrl: "",
+            slackChannel: "",
+            messageFormat: "inline", // Default to inline
+            messageHeader: "",
+            messageTemplate: "",
+            criteria: [],
+            statusColumn: "",
+            statusValue: "SENT",
+            schedule: {
+              enabled: false,
+              frequency: "daily",
+              hour: 9,
+              hours: 1,
+              weekDay: "MONDAY",
+            },
+            slackOptions: {
+              username: "",
+              icon_emoji: "",
+              icon_url: "",
+            },
+          };
+        },
+
+        getTriggerTypeLabel(triggerType) {
+          const labels = {
+            onNewRow: "When new row is added",
+            onColumnUpdate: "When specific column is updated",
+            bulkCriteria: "Bulk send based on criteria",
+          };
+          return labels[triggerType] || triggerType;
+        },
+
+        getFormatLabel(format) {
+          const labels = {
+            inline: "Inline Text",
+            table: "Table Format",
+            list: "Bullet List",
+            cards: "Compact Cards",
+            plain: "Plain Text",
+            // Legacy formats (for backward compatibility)
+            simple: "Simple Text (Legacy)",
+            rich: "Rich Formatted (Legacy)",
+          };
+          return labels[format] || format;
+        },
+
+        // selectTemplate(template) {
+        //   // Reset form first
+        //   this.resetForm();
+
+        //   // Populate form with template data
+        //   this.automationForm.name = template.title;
+        //   this.automationForm.messageTemplate = template.messageTemplate;
+        //   this.automationForm.slackChannel = template.suggestedChannel;
+        //   this.automationForm.messageFormat = "inline";
+        //   this.automationForm.triggerType = "onNewRow"; // Default trigger type
+
+        //   // Close template dialog and open create form
+        //   this.showTemplateDialog = false;
+        //   this.showCreateForm = true;
+
+        //   this.$message.success(`Template "${template.title}" loaded successfully!`);
+        // },
+        getWebAppUrl() {
+          google.script.run
+            .withSuccessHandler((data) => {
+              console.log("Script URL:", data);
+              this.viewTemplatesUrl = `${data}?page=templates`;
+            })
+            .getWebAppUrl();
+        },
+        getUseCases() {
+          google.script.run
+            .withSuccessHandler((data) => {
+              console.log("Use Cases:", data);
+              this.templateData = data || null;
+            })
+            .getUseCases();
+        },
+        reloadData() {
+          this.loadData();
+        },
+      },
+    });
+  </script>
+</html>
