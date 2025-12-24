@@ -481,13 +481,13 @@ function buildOrganizedReport(automation, allRows) {
 }
 
 /**
- * BUILD BEAUTIFUL REPORT - General purpose beautiful formatting
- * (This is called from SlackAutomationBuilder.gs)
+ * BUILD BEAUTIFUL REPORT - Clean inline format (UPDATED)
+ * Simple, clean text layout without boxes or repeated headers
  */
 function buildBeautifulReport(automation, allRows) {
   const headers = allRows.headers;
   const rows = allRows.data;
-  const messageHeader = automation.messageHeader || `📊 ${automation.name}`;
+  const messageHeader = automation.messageHeader || automation.name;
 
   // Filter out completely empty rows
   const validRows = rows.filter(row =>
@@ -499,118 +499,115 @@ function buildBeautifulReport(automation, allRows) {
   }
 
   const blocks = [];
+  const MAX_BLOCKS = 48;
 
-  // Header
+  // ==================== HEADER (ONCE AT TOP) ====================
   blocks.push({
     type: "header",
     text: {
       type: "plain_text",
-      text: messageHeader,
+      text: truncateText(messageHeader, 150),
       emoji: true
     }
   });
 
-  // Timestamp
+  // ==================== TIMESTAMP ====================
   blocks.push({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `📅 *Generated:* ${new Date().toLocaleString()}`
+      text: `📅 Generated: ${new Date().toLocaleString()}`
     }
   });
 
   blocks.push({ type: "divider" });
 
-  // Check for grouping column
-  const categoryIndex = headers.findIndex(h =>
-    h.toLowerCase().includes('category') ||
-    h.toLowerCase().includes('type') ||
-    h.toLowerCase().includes('section')
-  );
+  // ==================== LIMIT ROWS ====================
+  const maxRows = Math.min(validRows.length, 25);
+  const limitedRows = validRows.slice(0, maxRows);
 
-  if (categoryIndex !== -1 && validRows.length > 3) {
-    // GROUPED LAYOUT
-    const grouped = {};
-    const order = [];
+  // ==================== PROCESS EACH ROW AS INLINE TEXT ====================
+  limitedRows.forEach((row, rowIdx) => {
+    if (blocks.length >= MAX_BLOCKS - 1) return;
 
-    validRows.forEach(row => {
-      const category = (row[categoryIndex] || "Other").toString().trim();
-      if (!grouped[category]) {
-        grouped[category] = [];
-        order.push(category);
-      }
-      grouped[category].push(row);
+    // Build inline text for this row
+    let rowText = "";
+
+    headers.forEach((header, colIdx) => {
+      const value = row[colIdx] || "N/A";
+      const formattedValue = formatValue(value, header);
+
+      // Format: "Label: Value  " (inline, space-separated)
+      rowText += `*${header}:* ${formattedValue}     `;
     });
 
-    order.forEach((category, idx) => {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*${getCategoryEmoji(category)} ${category}*`
-        }
-      });
-
-      grouped[category].forEach(row => {
-        const fields = [];
-        headers.forEach((header, index) => {
-          if (index !== categoryIndex) {
-            const value = row[index] || "N/A";
-            fields.push({
-              type: "mrkdwn",
-              text: `*${header}:* ${value}`
-            });
-          }
-        });
-
-        if (fields.length > 0) {
-          blocks.push({
-            type: "section",
-            fields: fields
-          });
-        }
-      });
-
-      if (idx < order.length - 1) {
-        blocks.push({ type: "divider" });
+    // Add as single text section
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: truncateText(rowText.trim(), 3000)
       }
     });
-  } else {
-    // CARD LAYOUT
-    validRows.forEach((row, rowIdx) => {
-      const fields = [];
 
-      headers.forEach((header, index) => {
-        const value = row[index] || "N/A";
-        const emoji = getEmojiForHeader(header);
-        fields.push({
-          type: "mrkdwn",
-          text: `*${emoji} ${header}*\n${value}`
-        });
-      });
-
-      blocks.push({
-        type: "section",
-        fields: fields
-      });
-
-      if (rowIdx < validRows.length - 1) {
-        blocks.push({ type: "divider" });
-      }
-    });
-  }
-
-  // Footer
-  blocks.push({ type: "divider" });
-  blocks.push({
-    type: "context",
-    elements: [{
-      type: "mrkdwn",
-      text: `📊 Total Records: *${validRows.length}* | ${automation.name}`
-    }]
+    // Add divider between rows (but not after last row)
+    if (rowIdx < limitedRows.length - 1 && blocks.length < MAX_BLOCKS - 1) {
+      blocks.push({ type: "divider" });
+    }
   });
 
+  Logger.log(`Built report with ${blocks.length} blocks for ${limitedRows.length} rows`);
+
+  // Validate blocks before returning
+  if (blocks.length > 50) {
+    Logger.log(`⚠️ Warning: ${blocks.length} blocks exceeds Slack's 50 block limit`);
+    blocks.splice(50);
+  }
+
   return { blocks: blocks };
+}
+
+// Helper function if not already defined
+function truncateText(text, maxLength) {
+  if (!text) return "";
+  const str = text.toString();
+  if (str.length <= maxLength) return str;
+  return str.substring(0, maxLength - 3) + "...";
+}
+
+/**
+ * FORMAT VALUE - Simple, clean formatting without emojis
+ */
+function formatValue(value, header) {
+  const str = value.toString().trim();
+  const lower = header.toLowerCase();
+
+  // Currency formatting
+  if (lower.includes("revenue") || lower.includes("arpu") || lower.includes("price") || lower.includes("amount")) {
+    const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
+    if (!isNaN(num)) {
+      return `$${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    }
+  }
+
+  // Percentage formatting (no emojis)
+  if (lower.includes("percent") || lower.includes("%") || lower.includes("rate") || lower.includes("plan") || lower.includes("forecast") || lower.includes("today") || lower.includes("yesterday")) {
+    const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
+    if (!isNaN(num)) {
+      return `${num.toFixed(2)}%`;
+    }
+  }
+
+  // Number formatting
+  if (lower.includes("purchase") || lower.includes("count") || lower.includes("total") || lower.includes("quantity")) {
+    const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
+    if (!isNaN(num)) {
+      return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    }
+  }
+
+  // Return as-is (no emoji additions)
+  return str;
 }
 
 /**
