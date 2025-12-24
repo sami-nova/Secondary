@@ -217,14 +217,14 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
 }
 
 /**
- * BUILD BEAUTIFUL REPORT - Clean sections with proper visual hierarchy
+ * BUILD BEAUTIFUL REPORT - Clean inline format
  * Works with ANY sheet structure - completely generic
- * Respects Slack's limits: max 50 blocks, max 10 fields per section
+ * Simple, clean text layout without boxes or repeated headers
  */
 function buildBeautifulReport(automation, allRows) {
   const headers = allRows.headers;
   const rows = allRows.data;
-  const messageHeader = automation.messageHeader || `📊 ${automation.name}`;
+  const messageHeader = automation.messageHeader || automation.name;
 
   // Filter out completely empty rows
   const validRows = rows.filter(row =>
@@ -236,8 +236,7 @@ function buildBeautifulReport(automation, allRows) {
   }
 
   const blocks = [];
-  const MAX_BLOCKS = 48; // Leave room for header/footer (Slack limit is 50)
-  const MAX_FIELDS_PER_SECTION = 10; // Slack limit
+  const MAX_BLOCKS = 48;
 
   // ==================== HEADER (ONCE AT TOP) ====================
   blocks.push({
@@ -254,55 +253,45 @@ function buildBeautifulReport(automation, allRows) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `📅 ${new Date().toLocaleDateString()} | 🕐 ${new Date().toLocaleTimeString()}`
+      text: `📅 Generated: ${new Date().toLocaleString()}`
     }
   });
 
   blocks.push({ type: "divider" });
 
   // ==================== LIMIT ROWS ====================
-  const maxRows = Math.min(validRows.length, 20);
+  const maxRows = Math.min(validRows.length, 25);
   const limitedRows = validRows.slice(0, maxRows);
 
-  // ==================== PROCESS EACH ROW AS A CARD ====================
+  // ==================== PROCESS EACH ROW AS INLINE TEXT ====================
   limitedRows.forEach((row, rowIdx) => {
-    if (blocks.length >= MAX_BLOCKS - 2) return; // Leave room for footer
+    if (blocks.length >= MAX_BLOCKS - 1) return;
 
-    const fields = [];
+    // Build inline text for this row
+    let rowText = "";
 
-    // Create fields for each column in this row
     headers.forEach((header, colIdx) => {
       const value = row[colIdx] || "N/A";
+      const formattedValue = formatValue(value, header);
 
-      // Format: "Label: Value" on same line for better alignment
-      fields.push({
-        type: "mrkdwn",
-        text: truncateText(`*${header}:*\n${formatValue(value, header)}`, 300)
-      });
+      // Format: "Label: Value  " (inline, space-separated)
+      rowText += `*${header}:* ${formattedValue}     `;
     });
 
-    // Split fields into chunks of MAX_FIELDS_PER_SECTION
-    let chunkIndex = 0;
-    for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
-      const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
-
-      if (blocks.length < MAX_BLOCKS - 2 && chunk.length > 0) {
-        blocks.push({
-          type: "section",
-          fields: chunk
-        });
-        chunkIndex++;
+    // Add as single text section
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: truncateText(rowText.trim(), 3000)
       }
-    }
+    });
 
     // Add divider between rows (but not after last row)
     if (rowIdx < limitedRows.length - 1 && blocks.length < MAX_BLOCKS - 1) {
       blocks.push({ type: "divider" });
     }
   });
-
-  // ==================== NO FOOTER (as requested) ====================
-  // User doesn't want "Total Records" or automation name at the bottom
 
   Logger.log(`Built report with ${blocks.length} blocks for ${limitedRows.length} rows`);
 
@@ -326,7 +315,7 @@ function truncateText(text, maxLength) {
 }
 
 /**
- * FORMAT VALUE - Smart formatting based on content
+ * FORMAT VALUE - Simple, clean formatting without emojis
  */
 function formatValue(value, header) {
   const str = value.toString().trim();
@@ -340,22 +329,15 @@ function formatValue(value, header) {
     }
   }
 
-  // Percentage formatting
-  if (lower.includes("percent") || lower.includes("%") || lower.includes("rate") || lower.includes("plan")) {
+  // Percentage formatting (no emojis)
+  if (lower.includes("percent") || lower.includes("%") || lower.includes("rate") || lower.includes("plan") || lower.includes("forecast") || lower.includes("today") || lower.includes("yesterday")) {
     const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
     if (!isNaN(num)) {
-      // Add trend emoji
-      if (num >= 100 || num >= 90) {
-        return `${num.toFixed(1)}% 📈`;
-      } else if (num >= 80) {
-        return `${num.toFixed(1)}% ⚠️`;
-      } else {
-        return `${num.toFixed(1)}% 📉`;
-      }
+      return `${num.toFixed(2)}%`;
     }
   }
 
-  // Number formatting (purchases, count, etc)
+  // Number formatting
   if (lower.includes("purchase") || lower.includes("count") || lower.includes("total") || lower.includes("quantity")) {
     const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
     if (!isNaN(num)) {
@@ -363,19 +345,7 @@ function formatValue(value, header) {
     }
   }
 
-  // Status formatting
-  if (lower.includes("status")) {
-    if (str.toLowerCase().includes("complete") || str.toLowerCase().includes("success") || str.toLowerCase().includes("approved")) {
-      return `✅ ${str}`;
-    } else if (str.toLowerCase().includes("pending") || str.toLowerCase().includes("progress")) {
-      return `⏳ ${str}`;
-    } else if (str.toLowerCase().includes("fail") || str.toLowerCase().includes("error") || str.toLowerCase().includes("reject")) {
-      return `❌ ${str}`;
-    } else if (str.toLowerCase().includes("below")) {
-      return `⚠️ ${str}`;
-    }
-  }
-
+  // Return as-is (no emoji additions)
   return str;
 }
 
