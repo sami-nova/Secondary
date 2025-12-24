@@ -109,20 +109,39 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
     };
 
     const url = botToken ? "https://slack.com/api/chat.postMessage" : (webhookUrl || "");
-    if (!url) throw new Error("No Slack endpoint configured.");
-
-    const response = UrlFetchApp.fetch(url, options);
-    const result = botToken ? JSON.parse(response.getContentText()) : response;
-
-    if (botToken && !result.ok) {
-      throw new Error(`Slack API error: ${result.error}`);
+    if (!url) {
+      const errorMsg = "No Slack endpoint configured. Please set a webhook URL in the automation.";
+      Logger.log(errorMsg);
+      return { success: false, error: errorMsg };
     }
 
-    Logger.log("✅ Message sent successfully");
+    Logger.log(`Sending to Slack: ${url.substring(0, 40)}...`);
+
+    const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+
+    Logger.log(`Slack response code: ${responseCode}`);
+
+    if (responseCode !== 200) {
+      const errorMsg = `Slack returned error code ${responseCode}: ${response.getContentText()}`;
+      Logger.log(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    const result = botToken ? JSON.parse(response.getContentText()) : { ok: true };
+
+    if (botToken && !result.ok) {
+      const errorMsg = `Slack API error: ${result.error}`;
+      Logger.log(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    Logger.log("✅ Message sent successfully to Slack");
     return { success: true };
   } catch (error) {
     Logger.log("Error sending Slack message: " + error.message);
-    throw error;
+    Logger.log("Error stack: " + error.stack);
+    return { success: false, error: error.message };
   }
 }
 
@@ -386,48 +405,111 @@ function getCategoryEmoji(category) {
 }
 
 /**
+ * FILTER ROWS BY CRITERIA - Helper function (also in SlackTrigger.gs)
+ */
+function filterRowsByCriteria(rows, criteria, headers) {
+  if (!criteria || criteria.length === 0) {
+    return rows;
+  }
+
+  return rows.filter(row => {
+    return criteria.every(crit => evaluateCriterion(row, crit, headers));
+  });
+}
+
+/**
+ * EVALUATE SINGLE CRITERION - Helper function (also in SlackTrigger.gs)
+ */
+function evaluateCriterion(row, criterion, headers) {
+  const fieldIndex = headers.indexOf(criterion.field);
+  if (fieldIndex === -1) return true;
+
+  const cellValue = row[fieldIndex] ? row[fieldIndex].toString().trim() : "";
+  const compareValue = criterion.value ? criterion.value.toString().trim() : "";
+
+  switch (criterion.operator) {
+    case "equals":
+      return cellValue === compareValue;
+    case "not_equals":
+      return cellValue !== compareValue;
+    case "contains":
+      return cellValue.includes(compareValue);
+    case "not_contains":
+      return !cellValue.includes(compareValue);
+    case "starts_with":
+      return cellValue.startsWith(compareValue);
+    case "ends_with":
+      return cellValue.endsWith(compareValue);
+    case "is_empty":
+      return cellValue === "";
+    case "is_not_empty":
+      return cellValue !== "";
+    case "greater_than":
+      return parseFloat(cellValue) > parseFloat(compareValue);
+    case "less_than":
+      return parseFloat(cellValue) < parseFloat(compareValue);
+    default:
+      return true;
+  }
+}
+
+/**
  * TEST AUTOMATION - sends ALL rows as consolidated message
  */
 function testSlackAutomation(automationId) {
   try {
+    Logger.log(`Testing automation: ${automationId}`);
+
     const automations = getSlackAutomations();
+    Logger.log(`Found ${automations.length} automations`);
+
     const automation = automations.find(a => a.id === automationId);
 
     if (!automation) {
-      throw new Error(`Automation with ID ${automationId} not found.`);
+      return { success: false, error: `Automation with ID ${automationId} not found.` };
     }
 
-    if (!automation.messageTemplate) {
-      throw new Error("Automation is missing messageTemplate. Please edit and re-save it.");
-    }
+    Logger.log(`Testing automation: ${automation.name}`);
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName(automation.targetSheet);
 
     if (!sheet) {
-      throw new Error(`Sheet "${automation.targetSheet}" not found.`);
+      return { success: false, error: `Sheet "${automation.targetSheet}" not found.` };
     }
 
     const data = sheet.getDataRange().getDisplayValues();
     if (data.length < 2) {
-      throw new Error("Sheet has no data rows to test with.");
+      return { success: false, error: "Sheet has no data rows to test with." };
     }
 
     const headers = data[0];
     const rows = data.slice(1);
 
+    Logger.log(`Sheet has ${rows.length} rows`);
+
     // Filter by criteria if any
     const matchingRows = filterRowsByCriteria(rows, automation.criteria, headers);
 
+    Logger.log(`Matched ${matchingRows.length} rows after filtering`);
+
     if (matchingRows.length === 0) {
-      throw new Error("No rows match the automation criteria.");
+      return { success: false, error: "No rows match the automation criteria. Check your filter settings or remove criteria to send all rows." };
     }
 
     // Send consolidated message with beautiful formatting
-    sendSlackMessage(automation, {}, 0, true, {
+    Logger.log(`Sending Slack message with ${matchingRows.length} rows`);
+
+    const result = sendSlackMessage(automation, {}, 0, true, {
       headers: headers,
       data: matchingRows
     });
+
+    if (!result.success) {
+      return { success: false, error: `Failed to send to Slack: ${result.error || 'Unknown error'}` };
+    }
+
+    Logger.log("Test completed successfully");
 
     return {
       success: true,
@@ -435,7 +517,8 @@ function testSlackAutomation(automationId) {
     };
   } catch (error) {
     Logger.log("Test Error: " + error.message);
-    return { success: false, error: error.message };
+    Logger.log("Error stack: " + error.stack);
+    return { success: false, error: error.message || "Unknown error occurred during test" };
   }
 }
 
