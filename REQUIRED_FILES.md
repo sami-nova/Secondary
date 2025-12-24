@@ -1,5 +1,16 @@
 # REQUIRED FILES FOR YOUR GOOGLE APPS SCRIPT PROJECT
 
+## 🎉 NEW FEATURE: Multiple Message Formats!
+
+You can now choose from **5 different message formats** for your Slack automations:
+1. **Inline Text** (default) - Compact, clean format
+2. **Table Format** - ASCII table with aligned columns
+3. **Bullet List** - Detailed view with bullet points
+4. **Compact Cards** - Visual 2-column layout
+5. **Plain Text** - Simple text without markdown
+
+See **MESSAGE_FORMAT_GUIDE.md** for details and examples!
+
 ## 🔴 THE PROBLEM THAT WAS FIXED
 
 You had **TWO different versions** of `buildBeautifulReport()` function:
@@ -19,10 +30,12 @@ This has your menu and configuration functions. Don't change this.
 **Location:** `/home/user/Secondary/SlackAutomationBuilder.gs`
 
 **What it does:**
-- Main message building logic
+- Main message building logic with **5 format options**
 - Block validation
 - Test automation function
 - Helper functions (filterRowsByCriteria, etc.)
+
+**NEW:** Now supports multiple message formats (inline, table, list, cards, plain)!
 
 **IMPORTANT:** Replace your existing version completely!
 
@@ -48,8 +61,11 @@ This has your menu and configuration functions. Don't change this.
 ### 5. **SlackTrigger.gs** (Your existing file - keep it)
 This handles triggers when you edit sheets.
 
-### 6. **SlackAutomationScheduler.html** (Your existing file - keep it)
+### 6. **SlackAutomationScheduler.html** ⚠️ **OPTIONAL UPDATE**
 This is your UI for creating automations.
+
+**NEW:** Add message format dropdown to choose between 5 formats (see MESSAGE_FORMAT_GUIDE.md)
+**Note:** This is optional - automations will use inline format by default if you don't add the dropdown.
 
 ## 📋 STEP-BY-STEP SETUP
 

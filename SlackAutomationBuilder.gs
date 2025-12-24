@@ -217,14 +217,14 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
 }
 
 /**
- * BUILD BEAUTIFUL REPORT - Clean inline format
- * Works with ANY sheet structure - completely generic
- * Simple, clean text layout without boxes or repeated headers
+ * BUILD BEAUTIFUL REPORT - Supports multiple format types
+ * Format options: inline, table, list, cards, plain
  */
 function buildBeautifulReport(automation, allRows) {
   const headers = allRows.headers;
   const rows = allRows.data;
   const messageHeader = automation.messageHeader || automation.name;
+  const format = automation.messageFormat || "inline"; // Default to inline
 
   // Filter out completely empty rows
   const validRows = rows.filter(row =>
@@ -235,10 +235,31 @@ function buildBeautifulReport(automation, allRows) {
     return { text: "No data to display." };
   }
 
+  // Route to appropriate formatter based on selected format
+  switch (format) {
+    case "table":
+      return buildTableFormat(messageHeader, headers, validRows);
+    case "list":
+      return buildListFormat(messageHeader, headers, validRows);
+    case "cards":
+      return buildCardsFormat(messageHeader, headers, validRows);
+    case "plain":
+      return buildPlainFormat(messageHeader, headers, validRows);
+    case "inline":
+    default:
+      return buildInlineFormat(messageHeader, headers, validRows);
+  }
+}
+
+/**
+ * FORMAT 1: INLINE TEXT (current default)
+ * Example: *Label:* Value  *Label:* Value
+ */
+function buildInlineFormat(messageHeader, headers, validRows) {
   const blocks = [];
   const MAX_BLOCKS = 48;
 
-  // ==================== HEADER (ONCE AT TOP) ====================
+  // Header
   blocks.push({
     type: "header",
     text: {
@@ -248,7 +269,7 @@ function buildBeautifulReport(automation, allRows) {
     }
   });
 
-  // ==================== TIMESTAMP ====================
+  // Timestamp
   blocks.push({
     type: "section",
     text: {
@@ -259,26 +280,21 @@ function buildBeautifulReport(automation, allRows) {
 
   blocks.push({ type: "divider" });
 
-  // ==================== LIMIT ROWS ====================
+  // Limit rows
   const maxRows = Math.min(validRows.length, 25);
   const limitedRows = validRows.slice(0, maxRows);
 
-  // ==================== PROCESS EACH ROW AS INLINE TEXT ====================
+  // Process each row as inline text
   limitedRows.forEach((row, rowIdx) => {
     if (blocks.length >= MAX_BLOCKS - 1) return;
 
-    // Build inline text for this row
     let rowText = "";
-
     headers.forEach((header, colIdx) => {
       const value = row[colIdx] || "N/A";
       const formattedValue = formatValue(value, header);
-
-      // Format: "Label: Value  " (inline, space-separated)
       rowText += `*${header}:* ${formattedValue}     `;
     });
 
-    // Add as single text section
     blocks.push({
       type: "section",
       text: {
@@ -287,20 +303,264 @@ function buildBeautifulReport(automation, allRows) {
       }
     });
 
-    // Add divider between rows (but not after last row)
     if (rowIdx < limitedRows.length - 1 && blocks.length < MAX_BLOCKS - 1) {
       blocks.push({ type: "divider" });
     }
   });
 
-  Logger.log(`Built report with ${blocks.length} blocks for ${limitedRows.length} rows`);
+  Logger.log(`Built inline format with ${blocks.length} blocks`);
+  return { blocks: blocks };
+}
 
-  // Validate blocks before returning
-  if (blocks.length > 50) {
-    Logger.log(`⚠️ Warning: ${blocks.length} blocks exceeds Slack's 50 block limit`);
-    blocks.splice(50);
-  }
+/**
+ * FORMAT 2: TABLE IN CODE BLOCK
+ * Creates a formatted ASCII table
+ */
+function buildTableFormat(messageHeader, headers, validRows) {
+  const blocks = [];
 
+  // Header
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: truncateText(messageHeader, 150),
+      emoji: true
+    }
+  });
+
+  // Timestamp
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: `📅 Generated: ${new Date().toLocaleString()}`
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  // Build table
+  const maxRows = Math.min(validRows.length, 30);
+  const limitedRows = validRows.slice(0, maxRows);
+
+  // Calculate column widths
+  const colWidths = headers.map((h, i) => {
+    let maxWidth = h.length;
+    limitedRows.forEach(row => {
+      const cellWidth = (row[i] || "").toString().length;
+      if (cellWidth > maxWidth) maxWidth = cellWidth;
+    });
+    return Math.min(maxWidth, 15); // Cap at 15 chars
+  });
+
+  // Build table text
+  let tableText = "```\n";
+
+  // Header row
+  tableText += headers.map((h, i) => h.substring(0, colWidths[i]).padEnd(colWidths[i])).join(" | ") + "\n";
+
+  // Separator
+  tableText += colWidths.map(w => "─".repeat(w)).join("─┼─") + "\n";
+
+  // Data rows
+  limitedRows.forEach(row => {
+    tableText += row.map((cell, i) =>
+      formatValue(cell || "", headers[i]).substring(0, colWidths[i]).padEnd(colWidths[i])
+    ).join(" | ") + "\n";
+  });
+
+  tableText += "```";
+
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: tableText
+    }
+  });
+
+  Logger.log(`Built table format with ${blocks.length} blocks`);
+  return { blocks: blocks };
+}
+
+/**
+ * FORMAT 3: BULLET LIST
+ * Each row as bullet point with sub-items
+ */
+function buildListFormat(messageHeader, headers, validRows) {
+  const blocks = [];
+
+  // Header
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: truncateText(messageHeader, 150),
+      emoji: true
+    }
+  });
+
+  // Timestamp
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: `📅 Generated: ${new Date().toLocaleString()}`
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  const maxRows = Math.min(validRows.length, 25);
+  const limitedRows = validRows.slice(0, maxRows);
+
+  limitedRows.forEach((row, rowIdx) => {
+    if (blocks.length >= 47) return;
+
+    let listText = "";
+
+    headers.forEach((header, colIdx) => {
+      const value = row[colIdx] || "N/A";
+      const formattedValue = formatValue(value, header);
+      listText += `• *${header}:* ${formattedValue}\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: truncateText(listText.trim(), 3000)
+      }
+    });
+
+    if (rowIdx < limitedRows.length - 1 && blocks.length < 47) {
+      blocks.push({ type: "divider" });
+    }
+  });
+
+  Logger.log(`Built list format with ${blocks.length} blocks`);
+  return { blocks: blocks };
+}
+
+/**
+ * FORMAT 4: COMPACT CARDS
+ * 2-column card layout
+ */
+function buildCardsFormat(messageHeader, headers, validRows) {
+  const blocks = [];
+  const MAX_FIELDS_PER_SECTION = 10;
+
+  // Header
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: truncateText(messageHeader, 150),
+      emoji: true
+    }
+  });
+
+  // Timestamp
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: `📅 Generated: ${new Date().toLocaleString()}`
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  const maxRows = Math.min(validRows.length, 20);
+  const limitedRows = validRows.slice(0, maxRows);
+
+  limitedRows.forEach((row, rowIdx) => {
+    if (blocks.length >= 47) return;
+
+    const fields = [];
+    headers.forEach((header, colIdx) => {
+      const value = row[colIdx] || "N/A";
+      fields.push({
+        type: "mrkdwn",
+        text: truncateText(`*${header}:*\n${formatValue(value, header)}`, 300)
+      });
+    });
+
+    // Split into chunks of 10 fields
+    for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
+      const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
+      if (blocks.length < 47 && chunk.length > 0) {
+        blocks.push({
+          type: "section",
+          fields: chunk
+        });
+      }
+    }
+
+    if (rowIdx < limitedRows.length - 1 && blocks.length < 47) {
+      blocks.push({ type: "divider" });
+    }
+  });
+
+  Logger.log(`Built cards format with ${blocks.length} blocks`);
+  return { blocks: blocks };
+}
+
+/**
+ * FORMAT 5: PLAIN TEXT
+ * Simple text without markdown
+ */
+function buildPlainFormat(messageHeader, headers, validRows) {
+  const blocks = [];
+
+  // Header
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: truncateText(messageHeader, 150),
+      emoji: true
+    }
+  });
+
+  // Timestamp
+  blocks.push({
+    type: "section",
+    text: {
+      type: "plain_text",
+      text: `Generated: ${new Date().toLocaleString()}`
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  const maxRows = Math.min(validRows.length, 30);
+  const limitedRows = validRows.slice(0, maxRows);
+
+  limitedRows.forEach((row, rowIdx) => {
+    if (blocks.length >= 47) return;
+
+    let plainText = "";
+    headers.forEach((header, colIdx) => {
+      const value = row[colIdx] || "N/A";
+      plainText += `${header}: ${formatValue(value, header)}  `;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "plain_text",
+        text: truncateText(plainText.trim(), 3000)
+      }
+    });
+
+    if (rowIdx < limitedRows.length - 1 && blocks.length < 47) {
+      blocks.push({ type: "divider" });
+    }
+  });
+
+  Logger.log(`Built plain format with ${blocks.length} blocks`);
   return { blocks: blocks };
 }
 
