@@ -9,7 +9,7 @@ This project provides Google Apps Script solutions to automatically send your Se
 ## ✨ Features
 
 - **📊 Beautiful Formatting**: Uses Slack Block Kit for professional, readable messages
-- **🎨 Multiple Format Options**: Choose from 5 different message formats (inline, table, list, cards, plain)
+- **🎨 9 Format Options**: Choose from 9 different message formats (inline, table, list, cards, plain, context, quote, compact, rich)
 - **🔄 Automatic Scheduling**: Set up weekly automatic reports
 - **📱 Mobile Friendly**: Looks great on desktop and mobile
 - **🎯 Visual Indicators**: Emojis for metrics, trends, and categories
@@ -88,7 +88,9 @@ See [SETUP_GUIDE.md](SETUP_GUIDE.md) for customization options.
 ## 📖 Documentation
 
 - [REQUIRED_FILES.md](REQUIRED_FILES.md) - Which files to copy and update
-- [MESSAGE_FORMAT_GUIDE.md](MESSAGE_FORMAT_GUIDE.md) - Choose between 5 message formats with examples
+- [ALL_FORMAT_EXAMPLES.md](ALL_FORMAT_EXAMPLES.md) - ⭐ Complete guide to all 9 message formats with examples
+- [MESSAGE_FORMAT_GUIDE.md](MESSAGE_FORMAT_GUIDE.md) - Original format guide
+- [HOW_TO_USE_FORMATS.md](HOW_TO_USE_FORMATS.md) - Step-by-step usage instructions
 - [SETUP_GUIDE.md](SETUP_GUIDE.md) - Complete setup and troubleshooting guide
 - [TROUBLESHOOTING.md](TROUBLESHOOTING.md) - Fix common issues (test button, errors, etc.)
 - [Slack Block Kit](https://api.slack.com/block-kit) - Learn about Slack formatting
