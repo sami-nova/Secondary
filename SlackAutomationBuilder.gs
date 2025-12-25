@@ -295,6 +295,18 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
       return { success: false, error: errorMsg };
     }
 
+    // Store message timestamp for deletion capability (only with bot token)
+    if (botToken && result.ok && result.ts && result.channel) {
+      storeSentMessage({
+        automationId: automation.id,
+        automationName: automation.name,
+        timestamp: result.ts,
+        channel: result.channel,
+        sentAt: new Date().toISOString(),
+        rowCount: (allRows && allRows.data) ? allRows.data.length : 1
+      });
+    }
+
     Logger.log("✅ Message sent successfully to Slack");
     return { success: true };
   } catch (error) {
@@ -1327,39 +1339,154 @@ function getOrCreateOnEditTrigger(ss) {
 }
 
 /**
- * Deletes a specific Slack message.
- * @param {string} channelId The ID of the channel containing the message.
- * @param {string} timestamp The 'ts' value of the message to be deleted.
+ * STORE SENT MESSAGE - Save message metadata for deletion capability
+ */
+function storeSentMessage(messageData) {
+  try {
+    const messages = getSentMessages();
+    messages.unshift(messageData); // Add to beginning
+
+    // Keep only last 100 messages
+    if (messages.length > 100) {
+      messages.splice(100);
+    }
+
+    PropertiesService.getScriptProperties().setProperty(
+      "sentSlackMessages",
+      JSON.stringify(messages)
+    );
+  } catch (e) {
+    Logger.log("Error storing message: " + e.message);
+  }
+}
+
+/**
+ * GET SENT MESSAGES - Retrieve list of sent messages
+ */
+function getSentMessages() {
+  try {
+    const stored = PropertiesService.getScriptProperties().getProperty("sentSlackMessages");
+    return stored ? JSON.parse(stored) : [];
+  } catch (e) {
+    Logger.log("Error getting sent messages: " + e.message);
+    return [];
+  }
+}
+
+/**
+ * DELETE SLACK MESSAGE - Delete a specific message using bot token
  */
 function deleteSlackMessage(channelId, timestamp) {
-  const token = "YOUR_SLACK_BOT_TOKEN"; // Use your Bot User OAuth Token
-  const url = "https://slack.com/api/chat.delete";
-
-  const payload = {
-    "channel": channelId,
-    "ts": timestamp
-  };
-
-  const options = {
-    "method": "post",
-    "contentType": "application/json",
-    "headers": {
-      "Authorization": "Bearer " + token
-    },
-    "payload": JSON.stringify(payload),
-    "muteHttpExceptions": true
-  };
-
   try {
+    const botToken = PropertiesService.getScriptProperties().getProperty("SLACK_BOT_TOKEN");
+
+    if (!botToken) {
+      return {
+        success: false,
+        error: "Slack Bot Token not configured. Please add SLACK_BOT_TOKEN to Script Properties."
+      };
+    }
+
+    const url = "https://slack.com/api/chat.delete";
+
+    const payload = {
+      "channel": channelId,
+      "ts": timestamp
+    };
+
+    const options = {
+      "method": "post",
+      "contentType": "application/json",
+      "headers": {
+        "Authorization": "Bearer " + botToken
+      },
+      "payload": JSON.stringify(payload),
+      "muteHttpExceptions": true
+    };
+
     const response = UrlFetchApp.fetch(url, options);
     const result = JSON.parse(response.getContentText());
 
     if (result.ok) {
-      console.log("Message deleted successfully.");
+      // Remove from stored messages
+      removeSentMessage(timestamp);
+      Logger.log("✅ Message deleted successfully.");
+      return { success: true, message: "Message deleted successfully" };
     } else {
-      console.error("Error deleting message: " + result.error);
+      Logger.log("❌ Error deleting message: " + result.error);
+      return { success: false, error: `Slack API error: ${result.error}` };
     }
   } catch (e) {
-    console.error("Request failed: " + e.toString());
+    Logger.log("❌ Request failed: " + e.toString());
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * REMOVE SENT MESSAGE - Remove message from stored list after deletion
+ */
+function removeSentMessage(timestamp) {
+  try {
+    const messages = getSentMessages();
+    const filtered = messages.filter(m => m.timestamp !== timestamp);
+    PropertiesService.getScriptProperties().setProperty(
+      "sentSlackMessages",
+      JSON.stringify(filtered)
+    );
+  } catch (e) {
+    Logger.log("Error removing message from list: " + e.message);
+  }
+}
+
+/**
+ * DELETE MULTIPLE MESSAGES - Bulk delete messages
+ */
+function deleteMultipleMessages(messageIds) {
+  try {
+    const messages = getSentMessages();
+    const results = [];
+
+    messageIds.forEach(id => {
+      const message = messages.find(m => m.timestamp === id);
+      if (message) {
+        const result = deleteSlackMessage(message.channel, message.timestamp);
+        results.push({
+          timestamp: id,
+          ...result
+        });
+      }
+    });
+
+    const successCount = results.filter(r => r.success).length;
+    return {
+      success: true,
+      deleted: successCount,
+      failed: results.length - successCount,
+      details: results
+    };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * CLEAR OLD MESSAGES - Delete messages older than specified days
+ */
+function clearOldMessages(daysOld) {
+  try {
+    const messages = getSentMessages();
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+
+    const toDelete = messages.filter(m => new Date(m.sentAt) < cutoffDate);
+
+    if (toDelete.length === 0) {
+      return { success: true, message: "No old messages to delete", deleted: 0 };
+    }
+
+    const results = deleteMultipleMessages(toDelete.map(m => m.timestamp));
+    return results;
+  } catch (e) {
+    return { success: false, error: e.message };
   }
 }
