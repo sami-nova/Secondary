@@ -453,15 +453,37 @@ function buildInlineFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 25);
   const limitedRows = validRows.slice(0, maxRows);
 
+  // Find region column for emoji support
+  const regionCol = headers.findIndex(h => h.toLowerCase().includes("region"));
+
   // Process each row as inline text
   limitedRows.forEach((row, rowIdx) => {
     if (blocks.length >= MAX_BLOCKS - 1) return;
 
     let rowText = "";
+
+    // Add region header with flag if present
+    if (regionCol >= 0) {
+      const regionName = row[regionCol];
+      const regionFlag = getRegionFlag(regionName);
+      rowText = `${regionFlag} *${regionName}*\n`;
+    }
+
     headers.forEach((header, colIdx) => {
+      // Skip region column if already shown in header
+      if (colIdx === regionCol) return;
+
       const value = row[colIdx] || "N/A";
       const formattedValue = formatValue(value, header);
-      rowText += `*${header}:* ${formattedValue}     `;
+      const emoji = getEmojiForHeader(header);
+
+      // Add performance emoji for percentage columns
+      let displayValue = formattedValue;
+      if (header.toLowerCase().includes("%")) {
+        displayValue += getPerformanceEmoji(value);
+      }
+
+      rowText += `${emoji} *${header}:* ${displayValue}     `;
     });
 
     blocks.push({
@@ -498,12 +520,12 @@ function buildTableFormat(messageHeader, headers, validRows) {
     }
   });
 
-  // Timestamp
+  // Timestamp with record count
   blocks.push({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `📅 Generated: ${new Date().toLocaleString()}`
+      text: `📅 *Generated:* ${new Date().toLocaleString()} | 📊 *Records:* ${validRows.length}`
     }
   });
 
@@ -513,17 +535,23 @@ function buildTableFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 30);
   const limitedRows = validRows.slice(0, maxRows);
 
-  // Calculate column widths
+  // Find region and percentage columns for emoji support
+  const regionCol = headers.findIndex(h => h.toLowerCase().includes("region"));
+  const percentCols = headers.map((h, i) => h.toLowerCase().includes("%") ? i : -1).filter(i => i >= 0);
+
+  // Calculate column widths (add extra space for emojis in percentage columns)
   const colWidths = headers.map((h, i) => {
     let maxWidth = h.length;
     limitedRows.forEach(row => {
-      const cellWidth = (row[i] || "").toString().length;
+      let cellWidth = (row[i] || "").toString().length;
+      // Add 2 chars for emoji if percentage column
+      if (percentCols.includes(i)) cellWidth += 2;
       if (cellWidth > maxWidth) maxWidth = cellWidth;
     });
-    return Math.min(maxWidth, 15); // Cap at 15 chars
+    return Math.min(maxWidth, 18); // Cap at 18 chars (allows for emoji)
   });
 
-  // Build table text
+  // Build table text with emojis
   let tableText = "```\n";
 
   // Header row
@@ -532,11 +560,19 @@ function buildTableFormat(messageHeader, headers, validRows) {
   // Separator
   tableText += colWidths.map(w => "─".repeat(w)).join("─┼─") + "\n";
 
-  // Data rows
+  // Data rows with performance emojis
   limitedRows.forEach(row => {
-    tableText += row.map((cell, i) =>
-      formatValue(cell || "", headers[i]).substring(0, colWidths[i]).padEnd(colWidths[i])
-    ).join(" | ") + "\n";
+    tableText += row.map((cell, i) => {
+      let formattedCell = formatValue(cell || "", headers[i]);
+
+      // Add performance emoji for percentage columns
+      if (percentCols.includes(i)) {
+        const emoji = getPerformanceEmoji(cell);
+        formattedCell += emoji;
+      }
+
+      return formattedCell.substring(0, colWidths[i]).padEnd(colWidths[i]);
+    }).join(" | ") + "\n";
   });
 
   tableText += "```";
@@ -549,7 +585,41 @@ function buildTableFormat(messageHeader, headers, validRows) {
     }
   });
 
-  Logger.log(`Built table format with ${blocks.length} blocks`);
+  // Add performance summary if there are percentage columns
+  if (percentCols.length > 0 && limitedRows.length > 0) {
+    let summaryText = "*Performance Legend:* ✅ ≥100% | ⚠️ 90-99% | ❌ <90%";
+
+    // Find total/summary row (usually first row)
+    if (regionCol >= 0 && limitedRows[0] && limitedRows[0][regionCol]) {
+      const firstRegion = String(limitedRows[0][regionCol]).toUpperCase();
+      if (firstRegion === "TOTAL" || firstRegion.includes("TOTAL")) {
+        const totalRow = limitedRows[0];
+        const highlights = [];
+
+        percentCols.forEach(colIdx => {
+          const value = totalRow[colIdx];
+          if (value) {
+            const emoji = getPerformanceEmoji(value);
+            highlights.push(`${headers[colIdx]}: ${value}${emoji}`);
+          }
+        });
+
+        if (highlights.length > 0) {
+          summaryText = `*Overall:* ${highlights.join(" • ")}\n` + summaryText;
+        }
+      }
+    }
+
+    blocks.push({
+      type: "context",
+      elements: [{
+        type: "mrkdwn",
+        text: summaryText
+      }]
+    });
+  }
+
+  Logger.log(`Built table format with ${blocks.length} blocks for ${limitedRows.length} rows`);
   return { blocks: blocks };
 }
 
@@ -584,15 +654,38 @@ function buildListFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 25);
   const limitedRows = validRows.slice(0, maxRows);
 
+  // Find region column for emoji support
+  const regionCol = headers.findIndex(h => h.toLowerCase().includes("region"));
+
   limitedRows.forEach((row, rowIdx) => {
     if (blocks.length >= 47) return;
 
     let listText = "";
 
+    // Add region header with flag emoji
+    if (regionCol >= 0) {
+      const regionName = row[regionCol];
+      const regionFlag = getRegionFlag(regionName);
+      listText += `${regionFlag} *${regionName}*\n`;
+    } else {
+      listText += `📍 *Record ${rowIdx + 1}*\n`;
+    }
+
     headers.forEach((header, colIdx) => {
+      // Skip region column (already in header)
+      if (colIdx === regionCol) return;
+
       const value = row[colIdx] || "N/A";
       const formattedValue = formatValue(value, header);
-      listText += `• *${header}:* ${formattedValue}\n`;
+      const emoji = getEmojiForHeader(header);
+
+      // Add performance emoji for percentage columns
+      let displayValue = formattedValue;
+      if (header.toLowerCase().includes("%")) {
+        displayValue += getPerformanceEmoji(value);
+      }
+
+      listText += `${emoji} *${header}:* ${displayValue}\n`;
     });
 
     blocks.push({
@@ -618,7 +711,6 @@ function buildListFormat(messageHeader, headers, validRows) {
  */
 function buildCardsFormat(messageHeader, headers, validRows) {
   const blocks = [];
-  const MAX_FIELDS_PER_SECTION = 10;
 
   // Header
   blocks.push({
@@ -630,12 +722,12 @@ function buildCardsFormat(messageHeader, headers, validRows) {
     }
   });
 
-  // Timestamp
+  // Timestamp with total count
   blocks.push({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `📅 Generated: ${new Date().toLocaleString()}`
+      text: `📅 *Generated:* ${new Date().toLocaleString()} | 📊 *Records:* ${validRows.length}`
     }
   });
 
@@ -644,21 +736,66 @@ function buildCardsFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 20);
   const limitedRows = validRows.slice(0, maxRows);
 
+  // Find key columns for better display
+  const regionCol = headers.findIndex(h => h.toLowerCase().includes("region"));
+  const purchasePercentCol = headers.findIndex(h =>
+    h.toLowerCase().includes("purchase") && h.toLowerCase().includes("%")
+  );
+  const revenuePercentCol = headers.findIndex(h =>
+    h.toLowerCase().includes("revenue") && h.toLowerCase().includes("%")
+  );
+
   limitedRows.forEach((row, rowIdx) => {
     if (blocks.length >= 47) return;
 
+    // Get region name and flag
+    const regionName = regionCol >= 0 ? row[regionCol] : `Record ${rowIdx + 1}`;
+    const regionFlag = getRegionFlag(regionName);
+
+    // Build card header with region name
+    let cardHeader = `${regionFlag} *${regionName}*`;
+
+    // Add performance indicators for key metrics
+    if (purchasePercentCol >= 0) {
+      const purchasePercent = row[purchasePercentCol];
+      cardHeader += getPerformanceEmoji(purchasePercent);
+    }
+
+    // Create organized fields (limit to 8 most important fields)
     const fields = [];
     headers.forEach((header, colIdx) => {
+      // Skip region column (already in header)
+      if (colIdx === regionCol) return;
+
       const value = row[colIdx] || "N/A";
+      const formattedValue = formatValue(value, header);
+      const emoji = getEmojiForHeader(header);
+
+      // Add performance emoji for percentage columns
+      let displayValue = formattedValue;
+      if (header.toLowerCase().includes("%")) {
+        displayValue += getPerformanceEmoji(value);
+      }
+
       fields.push({
         type: "mrkdwn",
-        text: truncateText(`*${header}:*\n${formatValue(value, header)}`, 300)
+        text: `${emoji} *${header}:*\n${displayValue}`
       });
     });
 
-    // Split into chunks of 10 fields
-    for (let i = 0; i < fields.length; i += MAX_FIELDS_PER_SECTION) {
-      const chunk = fields.slice(i, i + MAX_FIELDS_PER_SECTION);
+    // Add card header section
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: cardHeader
+      }
+    });
+
+    // Add fields in organized groups (max 10 fields per section)
+    const MAX_FIELDS = 10;
+    for (let i = 0; i < fields.length; i += MAX_FIELDS) {
+      const chunk = fields.slice(i, i + MAX_FIELDS);
       if (blocks.length < 47 && chunk.length > 0) {
         blocks.push({
           type: "section",
@@ -667,12 +804,13 @@ function buildCardsFormat(messageHeader, headers, validRows) {
       }
     }
 
+    // Add divider between cards (except after last card)
     if (rowIdx < limitedRows.length - 1 && blocks.length < 47) {
       blocks.push({ type: "divider" });
     }
   });
 
-  Logger.log(`Built cards format with ${blocks.length} blocks`);
+  Logger.log(`Built cards format with ${blocks.length} blocks for ${limitedRows.length} rows`);
   return { blocks: blocks };
 }
 
@@ -1028,6 +1166,8 @@ function getEmojiForHeader(header) {
   if (lower.includes("arpu")) return "📊";
   if (lower.includes("plan") || lower.includes("achievement")) return "📈";
   if (lower.includes("call")) return "📞";
+  if (lower.includes("response")) return "💬";
+  if (lower.includes("payment")) return "💳";
   if (lower.includes("process")) return "⚙️";
   if (lower.includes("paid")) return "💳";
   if (lower.includes("target")) return "🎯";
@@ -1038,6 +1178,65 @@ function getEmojiForHeader(header) {
   if (lower.includes("performance")) return "📊";
 
   return "▪️";
+}
+
+/**
+ * GET PERFORMANCE EMOJI - Returns emoji based on percentage achievement
+ * ✅ >= 100% (Excellent)
+ * ⚠️ 90-99% (Warning)
+ * ❌ < 90% (Critical)
+ */
+function getPerformanceEmoji(valueStr) {
+  // Handle various formats: "99.0%", "99%", "0.99", 99, etc.
+  if (!valueStr || valueStr === "N/A") return "";
+
+  let numValue;
+  const str = String(valueStr).trim();
+
+  // Remove percentage sign if present and convert
+  if (str.includes("%")) {
+    numValue = parseFloat(str.replace("%", "").trim());
+  } else {
+    numValue = parseFloat(str);
+    // If value is between 0 and 1, assume it's decimal format (0.99 = 99%)
+    if (numValue > 0 && numValue <= 1) {
+      numValue = numValue * 100;
+    }
+  }
+
+  if (isNaN(numValue)) return "";
+
+  if (numValue >= 100) return " ✅";
+  if (numValue >= 90) return " ⚠️";
+  return " ❌";
+}
+
+/**
+ * GET REGION FLAG - Returns flag emoji for region code
+ */
+function getRegionFlag(region) {
+  const r = String(region).toUpperCase().trim();
+
+  if (r === "TR" || r.includes("TURKEY")) return "🇹🇷";
+  if (r === "PL" || r.includes("POLAND")) return "🇵🇱";
+  if (r === "IL" || r.includes("ISRAEL")) return "🇮🇱";
+  if (r === "FR" || r.includes("FRANCE")) return "🇫🇷";
+  if (r === "IT" || r.includes("ITALY")) return "🇮🇹";
+  if (r === "RO" || r.includes("ROMANIA")) return "🇷🇴";
+  if (r === "ES" || r.includes("SPAIN")) return "🇪🇸";
+  if (r === "RU" || r.includes("RUSSIA")) return "🇷🇺";
+  if (r.includes("DE") || r.includes("GERMANY")) return "🇩🇪";
+  if (r.includes("NL") || r.includes("NETHERLANDS")) return "🇳🇱";
+  if (r.includes("CH") || r.includes("SWITZERLAND")) return "🇨🇭";
+  if (r.includes("AT") || r.includes("AUSTRIA")) return "🇦🇹";
+  if (r.includes("CZ") || r.includes("CZECH")) return "🇨🇿";
+  if (r.includes("SK") || r.includes("SLOVAK")) return "🇸🇰";
+  if (r.includes("AE") || r.includes("EMIRATES")) return "🇦🇪";
+  if (r.includes("AR") || r.includes("ARGENTINA")) return "🇦🇷";
+  if (r.includes("SA") || r.includes("SAUDI")) return "🇸🇦";
+  if (r === "TOTAL" || r.includes("GLOBAL")) return "🌍";
+
+  return "📍";
 }
 
 /**
