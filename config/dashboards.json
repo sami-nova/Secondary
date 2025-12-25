@@ -1,0 +1,16 @@
+{
+  "dashboards": [
+    {
+      "id": 1,
+      "title": "Sales Overview Dashboard"
+    },
+    {
+      "id": 2,
+      "title": "Team Performance Metrics"
+    },
+    {
+      "id": 3,
+      "title": "Revenue Analytics"
+    }
+  ]
+}

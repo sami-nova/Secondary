@@ -1,0 +1,14 @@
+[
+  {
+    "question_id": 123,
+    "title": "Daily Sales Summary"
+  },
+  {
+    "question_id": 456,
+    "title": "Weekly Revenue Report"
+  },
+  {
+    "question_id": 789,
+    "title": "Monthly KPIs"
+  }
+]

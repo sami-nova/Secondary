@@ -1,0 +1,30 @@
+[
+  {
+    "name": "Monthly Sales Target - $100K",
+    "metric": "Amount",
+    "threshold": 100000,
+    "comparison": ">=",
+    "alert_once": true
+  },
+  {
+    "name": "Quarterly Goal - $250K",
+    "metric": "Amount",
+    "threshold": 250000,
+    "comparison": ">=",
+    "alert_once": true
+  },
+  {
+    "name": "Deal Count Target - 50 Deals",
+    "metric": "Total Rows",
+    "threshold": 50,
+    "comparison": ">=",
+    "alert_once": false
+  },
+  {
+    "name": "Average Deal Size - $5K",
+    "metric": "Amount (Average)",
+    "threshold": 5000,
+    "comparison": ">=",
+    "alert_once": false
+  }
+]
