@@ -453,37 +453,15 @@ function buildInlineFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 25);
   const limitedRows = validRows.slice(0, maxRows);
 
-  // Find region column for emoji support
-  const regionCol = headers.findIndex(h => h.toLowerCase().includes("region"));
-
   // Process each row as inline text
   limitedRows.forEach((row, rowIdx) => {
     if (blocks.length >= MAX_BLOCKS - 1) return;
 
     let rowText = "";
-
-    // Add region header with flag if present
-    if (regionCol >= 0) {
-      const regionName = row[regionCol];
-      const regionFlag = getRegionFlag(regionName);
-      rowText = `${regionFlag} *${regionName}*\n`;
-    }
-
     headers.forEach((header, colIdx) => {
-      // Skip region column if already shown in header
-      if (colIdx === regionCol) return;
-
       const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header);
-      const emoji = getEmojiForHeader(header);
-
-      // Add performance emoji for percentage columns
-      let displayValue = formattedValue;
-      if (header.toLowerCase().includes("%")) {
-        displayValue += getPerformanceEmoji(value);
-      }
-
-      rowText += `${emoji} *${header}:* ${displayValue}     `;
+      const formattedValue = formatValue(value, header); // Preserves emojis from sheet
+      rowText += `*${header}:* ${formattedValue}     `;
     });
 
     blocks.push({
@@ -520,12 +498,12 @@ function buildTableFormat(messageHeader, headers, validRows) {
     }
   });
 
-  // Timestamp with record count
+  // Timestamp
   blocks.push({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `📅 *Generated:* ${new Date().toLocaleString()} | 📊 *Records:* ${validRows.length}`
+      text: `📅 *Generated:* ${new Date().toLocaleString()}`
     }
   });
 
@@ -535,23 +513,17 @@ function buildTableFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 30);
   const limitedRows = validRows.slice(0, maxRows);
 
-  // Find region and percentage columns for emoji support
-  const regionCol = headers.findIndex(h => h.toLowerCase().includes("region"));
-  const percentCols = headers.map((h, i) => h.toLowerCase().includes("%") ? i : -1).filter(i => i >= 0);
-
-  // Calculate column widths (add extra space for emojis in percentage columns)
+  // Calculate column widths
   const colWidths = headers.map((h, i) => {
     let maxWidth = h.length;
     limitedRows.forEach(row => {
-      let cellWidth = (row[i] || "").toString().length;
-      // Add 2 chars for emoji if percentage column
-      if (percentCols.includes(i)) cellWidth += 2;
+      const cellWidth = formatValue(row[i] || "", h).length;
       if (cellWidth > maxWidth) maxWidth = cellWidth;
     });
-    return Math.min(maxWidth, 18); // Cap at 18 chars (allows for emoji)
+    return Math.min(maxWidth, 18); // Cap at 18 chars
   });
 
-  // Build table text with emojis
+  // Build table text
   let tableText = "```\n";
 
   // Header row
@@ -560,17 +532,10 @@ function buildTableFormat(messageHeader, headers, validRows) {
   // Separator
   tableText += colWidths.map(w => "─".repeat(w)).join("─┼─") + "\n";
 
-  // Data rows with performance emojis
+  // Data rows (emojis from sheet are preserved by formatValue)
   limitedRows.forEach(row => {
     tableText += row.map((cell, i) => {
-      let formattedCell = formatValue(cell || "", headers[i]);
-
-      // Add performance emoji for percentage columns
-      if (percentCols.includes(i)) {
-        const emoji = getPerformanceEmoji(cell);
-        formattedCell += emoji;
-      }
-
+      const formattedCell = formatValue(cell || "", headers[i]);
       return formattedCell.substring(0, colWidths[i]).padEnd(colWidths[i]);
     }).join(" | ") + "\n";
   });
@@ -584,40 +549,6 @@ function buildTableFormat(messageHeader, headers, validRows) {
       text: tableText
     }
   });
-
-  // Add performance summary if there are percentage columns
-  if (percentCols.length > 0 && limitedRows.length > 0) {
-    let summaryText = "*Performance Legend:* ✅ ≥100% | ⚠️ 90-99% | ❌ <90%";
-
-    // Find total/summary row (usually first row)
-    if (regionCol >= 0 && limitedRows[0] && limitedRows[0][regionCol]) {
-      const firstRegion = String(limitedRows[0][regionCol]).toUpperCase();
-      if (firstRegion === "TOTAL" || firstRegion.includes("TOTAL")) {
-        const totalRow = limitedRows[0];
-        const highlights = [];
-
-        percentCols.forEach(colIdx => {
-          const value = totalRow[colIdx];
-          if (value) {
-            const emoji = getPerformanceEmoji(value);
-            highlights.push(`${headers[colIdx]}: ${value}${emoji}`);
-          }
-        });
-
-        if (highlights.length > 0) {
-          summaryText = `*Overall:* ${highlights.join(" • ")}\n` + summaryText;
-        }
-      }
-    }
-
-    blocks.push({
-      type: "context",
-      elements: [{
-        type: "mrkdwn",
-        text: summaryText
-      }]
-    });
-  }
 
   Logger.log(`Built table format with ${blocks.length} blocks for ${limitedRows.length} rows`);
   return { blocks: blocks };
@@ -654,38 +585,15 @@ function buildListFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 25);
   const limitedRows = validRows.slice(0, maxRows);
 
-  // Find region column for emoji support
-  const regionCol = headers.findIndex(h => h.toLowerCase().includes("region"));
-
   limitedRows.forEach((row, rowIdx) => {
     if (blocks.length >= 47) return;
 
     let listText = "";
 
-    // Add region header with flag emoji
-    if (regionCol >= 0) {
-      const regionName = row[regionCol];
-      const regionFlag = getRegionFlag(regionName);
-      listText += `${regionFlag} *${regionName}*\n`;
-    } else {
-      listText += `📍 *Record ${rowIdx + 1}*\n`;
-    }
-
     headers.forEach((header, colIdx) => {
-      // Skip region column (already in header)
-      if (colIdx === regionCol) return;
-
       const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header);
-      const emoji = getEmojiForHeader(header);
-
-      // Add performance emoji for percentage columns
-      let displayValue = formattedValue;
-      if (header.toLowerCase().includes("%")) {
-        displayValue += getPerformanceEmoji(value);
-      }
-
-      listText += `${emoji} *${header}:* ${displayValue}\n`;
+      const formattedValue = formatValue(value, header); // Preserves emojis from sheet
+      listText += `• *${header}:* ${formattedValue}\n`;
     });
 
     blocks.push({
@@ -722,12 +630,12 @@ function buildCardsFormat(messageHeader, headers, validRows) {
     }
   });
 
-  // Timestamp with total count
+  // Timestamp
   blocks.push({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `📅 *Generated:* ${new Date().toLocaleString()} | 📊 *Records:* ${validRows.length}`
+      text: `📅 *Generated:* ${new Date().toLocaleString()}`
     }
   });
 
@@ -736,63 +644,25 @@ function buildCardsFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 20);
   const limitedRows = validRows.slice(0, maxRows);
 
-  // Find key columns for better display
+  // Find region column for header
   const regionCol = headers.findIndex(h => h.toLowerCase().includes("region"));
-  const purchasePercentCol = headers.findIndex(h =>
-    h.toLowerCase().includes("purchase") && h.toLowerCase().includes("%")
-  );
-  const revenuePercentCol = headers.findIndex(h =>
-    h.toLowerCase().includes("revenue") && h.toLowerCase().includes("%")
-  );
 
   limitedRows.forEach((row, rowIdx) => {
     if (blocks.length >= 47) return;
 
-    // Get region name and flag
-    const regionName = regionCol >= 0 ? row[regionCol] : `Record ${rowIdx + 1}`;
-    const regionFlag = getRegionFlag(regionName);
-
-    // Build card header with region name
-    let cardHeader = `${regionFlag} *${regionName}*`;
-
-    // Add performance indicators for key metrics
-    if (purchasePercentCol >= 0) {
-      const purchasePercent = row[purchasePercentCol];
-      cardHeader += getPerformanceEmoji(purchasePercent);
-    }
-
-    // Create organized fields (limit to 8 most important fields)
+    // Build card fields
     const fields = [];
     headers.forEach((header, colIdx) => {
-      // Skip region column (already in header)
-      if (colIdx === regionCol) return;
-
       const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header);
-      const emoji = getEmojiForHeader(header);
-
-      // Add performance emoji for percentage columns
-      let displayValue = formattedValue;
-      if (header.toLowerCase().includes("%")) {
-        displayValue += getPerformanceEmoji(value);
-      }
+      const formattedValue = formatValue(value, header); // This preserves emojis from sheet
 
       fields.push({
         type: "mrkdwn",
-        text: `${emoji} *${header}:*\n${displayValue}`
+        text: `*${header}:*\n${formattedValue}`
       });
     });
 
-    // Add card header section
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: cardHeader
-      }
-    });
-
-    // Add fields in organized groups (max 10 fields per section)
+    // Add fields in organized groups (max 10 fields per section for proper 2-column layout)
     const MAX_FIELDS = 10;
     for (let i = 0; i < fields.length; i += MAX_FIELDS) {
       const chunk = fields.slice(i, i + MAX_FIELDS);
@@ -1010,7 +880,7 @@ function buildCompactFormat(messageHeader, headers, validRows) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `📅 Generated: ${new Date().toLocaleString()} | Total Records: ${validRows.length}`
+      text: `📅 Generated: ${new Date().toLocaleString()}`
     }
   });
 
@@ -1127,19 +997,26 @@ function formatValue(value, header) {
   const str = value.toString().trim();
   const lower = header.toLowerCase();
 
+  // Extract any emojis from the original value to preserve them
+  const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]|[\u{1F100}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F910}-\u{1F96B}]|[\u{1F980}-\u{1F9E0}]|🔴|🟢|🟡|🟠|🔵|🟣|⚫|⚪|🟤|✅|❌|⚠️|🚦|📅|📊|💰|🛒|📞|💬|💳/gu;
+  const emojis = str.match(emojiRegex) || [];
+  const emojiPrefix = emojis.join(' ');
+
   // Currency formatting
   if (lower.includes("revenue") || lower.includes("arpu") || lower.includes("price") || lower.includes("amount")) {
     const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
     if (!isNaN(num)) {
-      return `$${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+      const formatted = `$${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+      return emojiPrefix ? `${emojiPrefix} ${formatted}` : formatted;
     }
   }
 
-  // Percentage formatting (no emojis)
+  // Percentage formatting - PRESERVE EMOJIS FROM SHEET
   if (lower.includes("percent") || lower.includes("%") || lower.includes("rate") || lower.includes("plan") || lower.includes("forecast") || lower.includes("today") || lower.includes("yesterday")) {
     const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
     if (!isNaN(num)) {
-      return `${num.toFixed(2)}%`;
+      const formatted = `${num.toFixed(2)}%`;
+      return emojiPrefix ? `${emojiPrefix} ${formatted}` : formatted;
     }
   }
 
@@ -1147,11 +1024,12 @@ function formatValue(value, header) {
   if (lower.includes("purchase") || lower.includes("count") || lower.includes("total") || lower.includes("quantity")) {
     const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
     if (!isNaN(num)) {
-      return num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+      return emojiPrefix ? `${emojiPrefix} ${formatted}` : formatted;
     }
   }
 
-  // Return as-is (no emoji additions)
+  // Return as-is (emojis already preserved)
   return str;
 }
 
