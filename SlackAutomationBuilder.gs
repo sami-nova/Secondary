@@ -357,7 +357,7 @@ function filterDataByFields(headers, rows, fieldsToInclude) {
 
 /**
  * BUILD BEAUTIFUL REPORT - Supports multiple format types
- * Format options: inline, table, list, cards, plain
+ * Format options: inline, table, list, cards, plain, context, quote, compact, rich
  */
 function buildBeautifulReport(automation, allRows) {
   let headers = allRows.headers;
@@ -394,6 +394,14 @@ function buildBeautifulReport(automation, allRows) {
       return buildCardsFormat(messageHeader, headers, validRows);
     case "plain":
       return buildPlainFormat(messageHeader, headers, validRows);
+    case "context":
+      return buildContextFormat(messageHeader, headers, validRows);
+    case "quote":
+      return buildQuoteFormat(messageHeader, headers, validRows);
+    case "compact":
+      return buildCompactFormat(messageHeader, headers, validRows);
+    case "rich":
+      return buildRichFormat(messageHeader, headers, validRows);
     case "inline":
     default:
       return buildInlineFormat(messageHeader, headers, validRows);
@@ -710,6 +718,245 @@ function buildPlainFormat(messageHeader, headers, validRows) {
   });
 
   Logger.log(`Built plain format with ${blocks.length} blocks`);
+  return { blocks: blocks };
+}
+
+/**
+ * FORMAT 6: CONTEXT FORMAT
+ * Compact, subtle format using context blocks (smaller text)
+ * Perfect for large datasets or secondary information
+ */
+function buildContextFormat(messageHeader, headers, validRows) {
+  const blocks = [];
+
+  // Header
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: truncateText(messageHeader, 150),
+      emoji: true
+    }
+  });
+
+  // Timestamp
+  blocks.push({
+    type: "context",
+    elements: [{
+      type: "mrkdwn",
+      text: `📅 Generated: ${new Date().toLocaleString()}`
+    }]
+  });
+
+  blocks.push({ type: "divider" });
+
+  const maxRows = Math.min(validRows.length, 40);
+  const limitedRows = validRows.slice(0, maxRows);
+
+  limitedRows.forEach((row, rowIdx) => {
+    if (blocks.length >= 47) return;
+
+    const elements = [];
+    headers.forEach((header, colIdx) => {
+      const value = row[colIdx] || "N/A";
+      const formattedValue = formatValue(value, header);
+      elements.push({
+        type: "mrkdwn",
+        text: `*${header}:* ${formattedValue}`
+      });
+    });
+
+    // Context blocks can have up to 10 elements
+    const maxElements = Math.min(elements.length, 10);
+    blocks.push({
+      type: "context",
+      elements: elements.slice(0, maxElements)
+    });
+  });
+
+  Logger.log(`Built context format with ${blocks.length} blocks`);
+  return { blocks: blocks };
+}
+
+/**
+ * FORMAT 7: QUOTE FORMAT
+ * Highlighted format using block quotes (> prefix)
+ * Great for emphasis and important data
+ */
+function buildQuoteFormat(messageHeader, headers, validRows) {
+  const blocks = [];
+
+  // Header
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: truncateText(messageHeader, 150),
+      emoji: true
+    }
+  });
+
+  // Timestamp
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: `📅 Generated: ${new Date().toLocaleString()}`
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  const maxRows = Math.min(validRows.length, 25);
+  const limitedRows = validRows.slice(0, maxRows);
+
+  limitedRows.forEach((row, rowIdx) => {
+    if (blocks.length >= 47) return;
+
+    let quoteText = "";
+    headers.forEach((header, colIdx) => {
+      const value = row[colIdx] || "N/A";
+      const formattedValue = formatValue(value, header);
+      quoteText += `> *${header}:* ${formattedValue}\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: truncateText(quoteText.trim(), 3000)
+      }
+    });
+
+    if (rowIdx < limitedRows.length - 1 && blocks.length < 47) {
+      blocks.push({ type: "divider" });
+    }
+  });
+
+  Logger.log(`Built quote format with ${blocks.length} blocks`);
+  return { blocks: blocks };
+}
+
+/**
+ * FORMAT 8: COMPACT FORMAT
+ * Multiple rows per block - maximizes data density
+ * Perfect for large datasets (50+ rows)
+ */
+function buildCompactFormat(messageHeader, headers, validRows) {
+  const blocks = [];
+
+  // Header
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: truncateText(messageHeader, 150),
+      emoji: true
+    }
+  });
+
+  // Timestamp
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: `📅 Generated: ${new Date().toLocaleString()} | Total Records: ${validRows.length}`
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  // Process multiple rows per block (up to 5 rows per block)
+  const maxRows = Math.min(validRows.length, 50);
+  const limitedRows = validRows.slice(0, maxRows);
+  const rowsPerBlock = 5;
+
+  for (let i = 0; i < limitedRows.length; i += rowsPerBlock) {
+    if (blocks.length >= 47) break;
+
+    let combinedText = "";
+    const blockRows = limitedRows.slice(i, i + rowsPerBlock);
+
+    blockRows.forEach((row, localIdx) => {
+      let rowText = `*#${i + localIdx + 1}:* `;
+      headers.forEach((header, colIdx) => {
+        const value = row[colIdx] || "N/A";
+        const formattedValue = formatValue(value, header);
+        rowText += `${header}: ${formattedValue} • `;
+      });
+      combinedText += rowText.slice(0, -3) + "\n"; // Remove last bullet
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: truncateText(combinedText.trim(), 3000)
+      }
+    });
+  }
+
+  Logger.log(`Built compact format with ${blocks.length} blocks for ${limitedRows.length} rows`);
+  return { blocks: blocks };
+}
+
+/**
+ * FORMAT 9: RICH FORMAT
+ * Enhanced with emojis and visual elements
+ * Automatically adds relevant emojis based on field names and values
+ */
+function buildRichFormat(messageHeader, headers, validRows) {
+  const blocks = [];
+
+  // Header with emoji
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: `📊 ${truncateText(messageHeader, 145)}`,
+      emoji: true
+    }
+  });
+
+  // Timestamp with emoji
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: `📅 *Generated:* ${new Date().toLocaleString()} | 📈 *Total:* ${validRows.length} records`
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  const maxRows = Math.min(validRows.length, 25);
+  const limitedRows = validRows.slice(0, maxRows);
+
+  limitedRows.forEach((row, rowIdx) => {
+    if (blocks.length >= 47) return;
+
+    let richText = "";
+    headers.forEach((header, colIdx) => {
+      const value = row[colIdx] || "N/A";
+      const formattedValue = formatValue(value, header);
+      const emoji = getEmojiForHeader(header);
+      richText += `${emoji} *${header}:* ${formattedValue}     `;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: truncateText(richText.trim(), 3000)
+      }
+    });
+
+    if (rowIdx < limitedRows.length - 1 && blocks.length < 47) {
+      blocks.push({ type: "divider" });
+    }
+  });
+
+  Logger.log(`Built rich format with ${blocks.length} blocks`);
   return { blocks: blocks };
 }
 

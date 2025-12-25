@@ -367,10 +367,27 @@
                       <span style="float: left">Plain Text</span>
                       <span class="format-option-desc">No formatting</span>
                     </el-option>
+                    <el-option label="Context Format" value="context">
+                      <span style="float: left">Context Format</span>
+                      <span class="format-option-desc">Compact, subtle (large data)</span>
+                    </el-option>
+                    <el-option label="Quote Format" value="quote">
+                      <span style="float: left">Quote Format</span>
+                      <span class="format-option-desc">Highlighted emphasis</span>
+                    </el-option>
+                    <el-option label="Compact Format" value="compact">
+                      <span style="float: left">Compact Format</span>
+                      <span class="format-option-desc">Multiple rows/block</span>
+                    </el-option>
+                    <el-option label="Rich Format" value="rich">
+                      <span style="float: left">Rich Format</span>
+                      <span class="format-option-desc">With emojis</span>
+                    </el-option>
                   </el-select>
                   <div class="template-help">
                     Choose how your message will be formatted in Slack.
                     <strong>Inline Text</strong> is recommended for most use cases.
+                    <strong>Context</strong> and <strong>Compact</strong> are best for large datasets.
                   </div>
                 </el-form-item>
 
@@ -1103,9 +1120,12 @@
             list: "Bullet List",
             cards: "Compact Cards",
             plain: "Plain Text",
+            context: "Context Format",
+            quote: "Quote Format",
+            compact: "Compact Format",
+            rich: "Rich Format",
             // Legacy formats (for backward compatibility)
             simple: "Simple Text (Legacy)",
-            rich: "Rich Formatted (Legacy)",
           };
           return labels[format] || format;
         },
