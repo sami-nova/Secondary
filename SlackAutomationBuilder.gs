@@ -459,9 +459,8 @@ function buildInlineFormat(messageHeader, headers, validRows) {
 
     let rowText = "";
     headers.forEach((header, colIdx) => {
-      const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header); // Preserves emojis from sheet
-      rowText += `*${header}:* ${formattedValue}     `;
+      const rawValue = String(row[colIdx] || "N/A"); // Use raw value from sheet to preserve emojis
+      rowText += `*${header}:* ${rawValue}     `;
     });
 
     blocks.push({
@@ -513,22 +512,34 @@ function buildTableFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 30);
   const limitedRows = validRows.slice(0, maxRows);
 
-  // Build table WITHOUT code blocks (so emojis render properly)
-  let tableText = "*";
+  // Calculate column widths
+  const colWidths = headers.map((h, i) => {
+    let maxWidth = h.length;
+    limitedRows.forEach(row => {
+      const cellWidth = String(row[i] || "").length; // Use raw value length
+      if (cellWidth > maxWidth) maxWidth = cellWidth;
+    });
+    return Math.min(maxWidth, 20); // Cap at 20 chars to allow space for emojis
+  });
 
-  // Header row (bold)
-  tableText += headers.map(h => h.substring(0, 15)).join(" | ") + "*\n";
+  // Build table text with code blocks (RESTORED)
+  let tableText = "```\n";
 
-  // Separator line
-  tableText += headers.map(() => "━━━━━━━━━").join("┼") + "\n";
+  // Header row
+  tableText += headers.map((h, i) => h.substring(0, colWidths[i]).padEnd(colWidths[i])).join(" | ") + "\n";
 
-  // Data rows (emojis from sheet are preserved by formatValue)
+  // Separator
+  tableText += colWidths.map(w => "─".repeat(w)).join("─┼─") + "\n";
+
+  // Data rows - use RAW VALUES from sheet to preserve emojis
   limitedRows.forEach(row => {
     tableText += row.map((cell, i) => {
-      const formattedCell = formatValue(cell || "", headers[i]);
-      return formattedCell.substring(0, 15).padEnd(15);
-    }).join(" │ ") + "\n";
+      const rawValue = String(cell || ""); // Keep original value with emojis as-is
+      return rawValue.substring(0, colWidths[i]).padEnd(colWidths[i]);
+    }).join(" | ") + "\n";
   });
+
+  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -579,9 +590,8 @@ function buildListFormat(messageHeader, headers, validRows) {
     let listText = "";
 
     headers.forEach((header, colIdx) => {
-      const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header); // Preserves emojis from sheet
-      listText += `• *${header}:* ${formattedValue}\n`;
+      const rawValue = String(row[colIdx] || "N/A"); // Use raw value from sheet to preserve emojis
+      listText += `• *${header}:* ${rawValue}\n`;
     });
 
     blocks.push({
@@ -641,12 +651,11 @@ function buildCardsFormat(messageHeader, headers, validRows) {
     // Build card fields
     const fields = [];
     headers.forEach((header, colIdx) => {
-      const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header); // This preserves emojis from sheet
+      const rawValue = String(row[colIdx] || "N/A"); // Use raw value from sheet to preserve emojis
 
       fields.push({
         type: "mrkdwn",
-        text: `*${header}:*\n${formattedValue}`
+        text: `*${header}:*\n${rawValue}`
       });
     });
 
@@ -708,8 +717,8 @@ function buildPlainFormat(messageHeader, headers, validRows) {
 
     let plainText = "";
     headers.forEach((header, colIdx) => {
-      const value = row[colIdx] || "N/A";
-      plainText += `${header}: ${formatValue(value, header)}  `;
+      const rawValue = String(row[colIdx] || "N/A"); // Use raw value from sheet to preserve emojis
+      plainText += `${header}: ${rawValue}  `;
     });
 
     blocks.push({
@@ -766,11 +775,10 @@ function buildContextFormat(messageHeader, headers, validRows) {
 
     const elements = [];
     headers.forEach((header, colIdx) => {
-      const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header);
+      const rawValue = String(row[colIdx] || "N/A"); // Use raw value from sheet to preserve emojis
       elements.push({
         type: "mrkdwn",
-        text: `*${header}:* ${formattedValue}`
+        text: `*${header}:* ${rawValue}`
       });
     });
 
@@ -823,9 +831,8 @@ function buildQuoteFormat(messageHeader, headers, validRows) {
 
     let quoteText = "";
     headers.forEach((header, colIdx) => {
-      const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header);
-      quoteText += `> *${header}:* ${formattedValue}\n`;
+      const rawValue = String(row[colIdx] || "N/A"); // Use raw value from sheet to preserve emojis
+      quoteText += `> *${header}:* ${rawValue}\n`;
     });
 
     blocks.push({
@@ -888,9 +895,8 @@ function buildCompactFormat(messageHeader, headers, validRows) {
     blockRows.forEach((row, localIdx) => {
       let rowText = `*#${i + localIdx + 1}:* `;
       headers.forEach((header, colIdx) => {
-        const value = row[colIdx] || "N/A";
-        const formattedValue = formatValue(value, header);
-        rowText += `${header}: ${formattedValue} • `;
+        const rawValue = String(row[colIdx] || "N/A"); // Use raw value from sheet to preserve emojis
+        rowText += `${header}: ${rawValue} • `;
       });
       combinedText += rowText.slice(0, -3) + "\n"; // Remove last bullet
     });
@@ -945,10 +951,8 @@ function buildRichFormat(messageHeader, headers, validRows) {
 
     let richText = "";
     headers.forEach((header, colIdx) => {
-      const value = row[colIdx] || "N/A";
-      const formattedValue = formatValue(value, header);
-      const emoji = getEmojiForHeader(header);
-      richText += `${emoji} *${header}:* ${formattedValue}     `;
+      const rawValue = String(row[colIdx] || "N/A"); // Use raw value from sheet to preserve emojis
+      richText += `*${header}:* ${rawValue}     `;
     });
 
     blocks.push({
