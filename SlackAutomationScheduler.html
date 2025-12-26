@@ -965,12 +965,60 @@
         },
       },
       mounted() {
-        this.loadData();
-        this.getWebAppUrl();
-        this.getUseCases();
-        this.loadSlackConfig();
+        console.log("=== SLACK AUTOMATION UI MOUNTED ===");
+
+        // Load Slack config FIRST and WAIT for it
+        this.loadSlackConfigAndThenData();
       },
       methods: {
+        loadSlackConfigAndThenData() {
+          // CRITICAL: Load Slack config FIRST before anything else
+          console.log("Step 1: Loading Slack configuration...");
+          google.script.run
+            .withSuccessHandler((config) => {
+              console.log("✅ Slack config loaded:", config);
+
+              this.hasBotToken = config.hasBotToken || false;
+              this.availableChannels = config.channels || [];
+              this.slackConfigLoaded = true;
+
+              console.log("  - hasBotToken:", this.hasBotToken);
+              console.log("  - availableChannels:", this.availableChannels);
+              console.log("  - slackConfigLoaded:", this.slackConfigLoaded);
+
+              if (this.hasBotToken) {
+                this.$message({
+                  message: `✅ Bot Token configured! Found ${config.channels.length} channel(s): ${config.channels.join(', ')}`,
+                  type: 'success',
+                  duration: 5000,
+                  showClose: true
+                });
+              }
+
+              // NOW load other data
+              this.loadData();
+              this.getWebAppUrl();
+              this.getUseCases();
+            })
+            .withFailureHandler((error) => {
+              console.error("❌ Error loading Slack config:", error);
+              this.slackConfigLoaded = true;
+              this.hasBotToken = false;
+
+              this.$message({
+                message: '⚠️ No Bot Token found - Webhook URL is required for all automations',
+                type: 'warning',
+                duration: 5000,
+                showClose: true
+              });
+
+              // Still load other data even if Slack config fails
+              this.loadData();
+              this.getWebAppUrl();
+              this.getUseCases();
+            })
+            .getSlackConfiguration();
+        },
         loadData() {
           this.loading = true;
           google.script.run
@@ -1053,20 +1101,35 @@
           const webhookUrl = (this.automationForm.slackWebhookUrl || '').trim();
 
           // Check if either webhook URL or bot token is configured
-          // Only validate if Slack config has been loaded to avoid false errors
+          console.log("=== VALIDATION CHECK ===");
+          console.log("  webhookUrl:", webhookUrl ? "PROVIDED" : "EMPTY");
+          console.log("  hasBotToken:", this.hasBotToken);
+          console.log("  slackConfigLoaded:", this.slackConfigLoaded);
+
           if (!webhookUrl && !this.hasBotToken) {
-            if (this.slackConfigLoaded) {
-              this.$message.error("Please provide either a Slack Webhook URL or configure SLACK_BOT_TOKEN in Script Properties");
+            if (!this.slackConfigLoaded) {
+              // Config hasn't loaded yet - this should rarely happen
+              this.$message({
+                message: '⏳ Slack configuration still loading... Please wait a moment and try again.',
+                type: 'warning',
+                duration: 3000
+              });
               return;
             } else {
-              // Config still loading, wait a moment
-              this.$message.warning("Loading Slack configuration, please wait...");
+              // Config loaded but no bot token found
+              this.$message({
+                message: '⚠️ Either provide a Webhook URL OR configure SLACK_BOT_TOKEN in Script Properties',
+                type: 'error',
+                duration: 5000,
+                showClose: true
+              });
               return;
             }
           }
 
           // Update the form with trimmed webhook URL
           this.automationForm.slackWebhookUrl = webhookUrl;
+          console.log("✅ Validation passed - saving automation...");
 
           if (
             this.automationForm.triggerType === "onColumnUpdate" &&
@@ -1321,42 +1384,6 @@
         },
         reloadData() {
           this.loadData();
-        },
-
-        loadSlackConfig() {
-          // Load Slack configuration from Script Properties
-          console.log("Loading Slack configuration...");
-          google.script.run
-            .withSuccessHandler((config) => {
-              console.log("Slack config loaded successfully:", config);
-              console.log("  - hasBotToken:", config.hasBotToken);
-              console.log("  - channels:", config.channels);
-              console.log("  - defaultChannel:", config.defaultChannel);
-
-              this.hasBotToken = config.hasBotToken || false;
-              this.availableChannels = config.channels || [];
-              this.slackConfigLoaded = true; // Mark config as loaded
-
-              if (this.hasBotToken) {
-                this.$message({
-                  message: `Bot Token configured! Found ${config.channels.length} channel(s): ${config.channels.join(', ')}`,
-                  type: 'success',
-                  duration: 5000
-                });
-              } else {
-                this.$message({
-                  message: 'No Bot Token found - Webhook URL is required',
-                  type: 'warning',
-                  duration: 3000
-                });
-              }
-            })
-            .withFailureHandler((error) => {
-              console.error("Error loading Slack config:", error);
-              this.$message.error("Failed to load Slack configuration: " + error.message);
-              this.slackConfigLoaded = true; // Mark as loaded even on error
-            })
-            .getSlackConfiguration();
         },
 
         openMessageManager() {
