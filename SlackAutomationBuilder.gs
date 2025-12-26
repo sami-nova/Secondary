@@ -257,12 +257,14 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
 
     // IMPORTANT: When using bot token, channel is REQUIRED
     if (botToken) {
-      // Get channel from automation config or script properties
+      // Get channel from automation config or script properties (check multiple variations)
+      const properties = PropertiesService.getScriptProperties();
       const channel = automation.slackChannel ||
-                     PropertiesService.getScriptProperties().getProperty("SLACK_CHANNEL");
+                     properties.getProperty("SLACK_CHANNEL") ||
+                     properties.getProperty("SlackChannel");
 
       if (!channel) {
-        throw new Error("Slack channel is required when using bot token. Please set SLACK_CHANNEL in Script Properties or add slackChannel to automation.");
+        throw new Error("Slack channel is required when using bot token. Please set SLACK_CHANNEL or SlackChannel in Script Properties, or add slackChannel to automation.");
       }
 
       payload.channel = channel;
@@ -1467,6 +1469,27 @@ function getSentMessages() {
 }
 
 /**
+ * TEST SLACK CONFIGURATION - Run this to test if Slack config is being read correctly
+ * Open Execution log to see results
+ */
+function testSlackConfiguration() {
+  const properties = PropertiesService.getScriptProperties();
+
+  Logger.log("=== SLACK CONFIGURATION TEST ===");
+  Logger.log("SLACK_BOT_TOKEN: " + (properties.getProperty("SLACK_BOT_TOKEN") ? "EXISTS (length: " + properties.getProperty("SLACK_BOT_TOKEN").length + ")" : "NOT FOUND"));
+  Logger.log("SLACK_CHANNELS: " + properties.getProperty("SLACK_CHANNELS"));
+  Logger.log("SLACK_CHANNEL: " + properties.getProperty("SLACK_CHANNEL"));
+  Logger.log("SlackChannel (PascalCase): " + properties.getProperty("SlackChannel"));
+  Logger.log("SLACK_WEBHOOK_URL: " + (properties.getProperty("SLACK_WEBHOOK_URL") ? "EXISTS" : "NOT FOUND"));
+
+  Logger.log("\n=== CALLING getSlackConfiguration() ===");
+  const config = getSlackConfiguration();
+  Logger.log("Result: " + JSON.stringify(config, null, 2));
+
+  return config;
+}
+
+/**
  * GET SLACK CONFIGURATION - Returns bot token status and available channels
  * Used by UI to configure Slack settings
  */
@@ -1474,29 +1497,39 @@ function getSlackConfiguration() {
   try {
     const properties = PropertiesService.getScriptProperties();
     const botToken = properties.getProperty("SLACK_BOT_TOKEN");
+
+    // Check multiple property name variations for channels
     const channelsString = properties.getProperty("SLACK_CHANNELS"); // Plural - preferred
-    const defaultChannel = properties.getProperty("SLACK_CHANNEL");  // Singular - fallback
+    const defaultChannel = properties.getProperty("SLACK_CHANNEL") ||  // UPPER_CASE
+                          properties.getProperty("SlackChannel");      // PascalCase (fallback)
+
+    Logger.log("Bot Token exists: " + !!botToken);
+    Logger.log("SLACK_CHANNELS: " + channelsString);
+    Logger.log("SLACK_CHANNEL/SlackChannel: " + defaultChannel);
 
     // Parse channels (comma-separated list)
     let channels = [];
 
     // First, check SLACK_CHANNELS (plural) - preferred property
-    if (channelsString) {
+    if (channelsString && channelsString.trim()) {
       channels = channelsString.split(',').map(c => c.trim()).filter(c => c);
     }
     // If SLACK_CHANNELS doesn't exist, check if SLACK_CHANNEL has comma-separated values
-    else if (defaultChannel && defaultChannel.includes(',')) {
+    else if (defaultChannel && defaultChannel.trim() && defaultChannel.includes(',')) {
       channels = defaultChannel.split(',').map(c => c.trim()).filter(c => c);
     }
     // If SLACK_CHANNEL is a single value, use it
-    else if (defaultChannel) {
-      channels = [defaultChannel];
+    else if (defaultChannel && defaultChannel.trim()) {
+      channels = [defaultChannel.trim()];
     }
 
     // Add some common channel formats as examples if no channels configured
     if (channels.length === 0) {
+      Logger.log("No channels configured, using examples");
       channels = ['#weekly-updates', '#daily-reports', '#alerts'];
     }
+
+    Logger.log("Final channels array: " + JSON.stringify(channels));
 
     return {
       hasBotToken: !!botToken,
