@@ -513,34 +513,22 @@ function buildTableFormat(messageHeader, headers, validRows) {
   const maxRows = Math.min(validRows.length, 30);
   const limitedRows = validRows.slice(0, maxRows);
 
-  // Calculate column widths
-  const colWidths = headers.map((h, i) => {
-    let maxWidth = h.length;
-    limitedRows.forEach(row => {
-      const cellWidth = formatValue(row[i] || "", h).length;
-      if (cellWidth > maxWidth) maxWidth = cellWidth;
-    });
-    return Math.min(maxWidth, 18); // Cap at 18 chars
-  });
+  // Build table WITHOUT code blocks (so emojis render properly)
+  let tableText = "*";
 
-  // Build table text
-  let tableText = "```\n";
+  // Header row (bold)
+  tableText += headers.map(h => h.substring(0, 15)).join(" | ") + "*\n";
 
-  // Header row
-  tableText += headers.map((h, i) => h.substring(0, colWidths[i]).padEnd(colWidths[i])).join(" | ") + "\n";
-
-  // Separator
-  tableText += colWidths.map(w => "─".repeat(w)).join("─┼─") + "\n";
+  // Separator line
+  tableText += headers.map(() => "━━━━━━━━━").join("┼") + "\n";
 
   // Data rows (emojis from sheet are preserved by formatValue)
   limitedRows.forEach(row => {
     tableText += row.map((cell, i) => {
       const formattedCell = formatValue(cell || "", headers[i]);
-      return formattedCell.substring(0, colWidths[i]).padEnd(colWidths[i]);
-    }).join(" | ") + "\n";
+      return formattedCell.substring(0, 15).padEnd(15);
+    }).join(" │ ") + "\n";
   });
-
-  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -997,17 +985,23 @@ function formatValue(value, header) {
   const str = value.toString().trim();
   const lower = header.toLowerCase();
 
-  // Extract any emojis from the original value to preserve them
-  const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F000}-\u{1F02F}]|[\u{1F0A0}-\u{1F0FF}]|[\u{1F100}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F910}-\u{1F96B}]|[\u{1F980}-\u{1F9E0}]|🔴|🟢|🟡|🟠|🔵|🟣|⚫|⚪|🟤|✅|❌|⚠️|🚦|📅|📊|💰|🛒|📞|💬|💳/gu;
-  const emojis = str.match(emojiRegex) || [];
-  const emojiPrefix = emojis.join(' ');
+  // Extract emojis from the original value to preserve them
+  const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F000}-\u{1F02F}\u{1F0A0}-\u{1F0FF}\u{1F100}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1F910}-\u{1F96B}\u{1F980}-\u{1F9E0}]|🔴|🟢|🟡|🟠|🔵|🟣|⚫|⚪|🟤|✅|❌|⚠️|🚦|📅|📊|💰|🛒|📞|💬|💳|🔺|🔻|▲|▼/gu;
+
+  // Find emoji positions in original string
+  const emojiMatches = [...str.matchAll(emojiRegex)];
+  const hasEmojiAtStart = emojiMatches.length > 0 && emojiMatches[0].index === 0;
+  const emojis = emojiMatches.map(m => m[0]);
+  const emojiString = emojis.join(' ');
 
   // Currency formatting
   if (lower.includes("revenue") || lower.includes("arpu") || lower.includes("price") || lower.includes("amount")) {
     const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
     if (!isNaN(num)) {
       const formatted = `$${num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
-      return emojiPrefix ? `${emojiPrefix} ${formatted}` : formatted;
+      if (!emojiString) return formatted;
+      // Preserve emoji position (start or end)
+      return hasEmojiAtStart ? `${emojiString} ${formatted}` : `${formatted} ${emojiString}`;
     }
   }
 
@@ -1016,7 +1010,9 @@ function formatValue(value, header) {
     const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
     if (!isNaN(num)) {
       const formatted = `${num.toFixed(2)}%`;
-      return emojiPrefix ? `${emojiPrefix} ${formatted}` : formatted;
+      if (!emojiString) return formatted;
+      // Preserve emoji position (start or end)
+      return hasEmojiAtStart ? `${emojiString} ${formatted}` : `${formatted} ${emojiString}`;
     }
   }
 
@@ -1025,11 +1021,13 @@ function formatValue(value, header) {
     const num = parseFloat(str.replace(/[^0-9.-]/g, ''));
     if (!isNaN(num)) {
       const formatted = num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
-      return emojiPrefix ? `${emojiPrefix} ${formatted}` : formatted;
+      if (!emojiString) return formatted;
+      // Preserve emoji position (start or end)
+      return hasEmojiAtStart ? `${emojiString} ${formatted}` : `${formatted} ${emojiString}`;
     }
   }
 
-  // Return as-is (emojis already preserved)
+  // Return as-is (emojis already preserved in original position)
   return str;
 }
 
