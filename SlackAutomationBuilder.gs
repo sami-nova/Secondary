@@ -1474,18 +1474,23 @@ function getSlackConfiguration() {
   try {
     const properties = PropertiesService.getScriptProperties();
     const botToken = properties.getProperty("SLACK_BOT_TOKEN");
-    const channelsString = properties.getProperty("SLACK_CHANNELS");
-    const defaultChannel = properties.getProperty("SLACK_CHANNEL");
+    const channelsString = properties.getProperty("SLACK_CHANNELS"); // Plural - preferred
+    const defaultChannel = properties.getProperty("SLACK_CHANNEL");  // Singular - fallback
 
     // Parse channels (comma-separated list)
     let channels = [];
+
+    // First, check SLACK_CHANNELS (plural) - preferred property
     if (channelsString) {
       channels = channelsString.split(',').map(c => c.trim()).filter(c => c);
     }
-
-    // Add default channel if exists
-    if (defaultChannel && !channels.includes(defaultChannel)) {
-      channels.unshift(defaultChannel);
+    // If SLACK_CHANNELS doesn't exist, check if SLACK_CHANNEL has comma-separated values
+    else if (defaultChannel && defaultChannel.includes(',')) {
+      channels = defaultChannel.split(',').map(c => c.trim()).filter(c => c);
+    }
+    // If SLACK_CHANNEL is a single value, use it
+    else if (defaultChannel) {
+      channels = [defaultChannel];
     }
 
     // Add some common channel formats as examples if no channels configured
@@ -1496,7 +1501,7 @@ function getSlackConfiguration() {
     return {
       hasBotToken: !!botToken,
       channels: channels,
-      defaultChannel: defaultChannel || channels[0] || ''
+      defaultChannel: channels[0] || ''
     };
   } catch (e) {
     Logger.log("Error getting Slack configuration: " + e.message);

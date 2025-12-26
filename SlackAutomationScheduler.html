@@ -898,6 +898,7 @@
           viewTemplatesUrl: "",
           availableChannels: [],
           hasBotToken: false,
+          slackConfigLoaded: false, // Track if config has been loaded
           sentMessages: [],
           showMessageManager: false,
           loadingMessages: false,
@@ -1049,9 +1050,16 @@
           }
 
           // Check if either webhook URL or bot token is configured
+          // Only validate if Slack config has been loaded to avoid false errors
           if (!this.automationForm.slackWebhookUrl && !this.hasBotToken) {
-            this.$message.error("Please provide either a Slack Webhook URL or configure SLACK_BOT_TOKEN in Script Properties");
-            return;
+            if (this.slackConfigLoaded) {
+              this.$message.error("Please provide either a Slack Webhook URL or configure SLACK_BOT_TOKEN in Script Properties");
+              return;
+            } else {
+              // Config still loading, wait a moment
+              this.$message.warning("Loading Slack configuration, please wait...");
+              return;
+            }
           }
 
           if (
@@ -1316,6 +1324,7 @@
               console.log("Slack config loaded:", config);
               this.hasBotToken = config.hasBotToken || false;
               this.availableChannels = config.channels || [];
+              this.slackConfigLoaded = true; // Mark config as loaded
 
               if (this.hasBotToken) {
                 this.$message.success("Bot Token configured - webhook URL is now optional!");
@@ -1323,6 +1332,7 @@
             })
             .withFailureHandler((error) => {
               console.error("Error loading Slack config:", error);
+              this.slackConfigLoaded = true; // Mark as loaded even on error
             })
             .getSlackConfiguration();
         },
