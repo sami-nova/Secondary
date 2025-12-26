@@ -1467,6 +1467,48 @@ function getSentMessages() {
 }
 
 /**
+ * GET SLACK CONFIGURATION - Returns bot token status and available channels
+ * Used by UI to configure Slack settings
+ */
+function getSlackConfiguration() {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    const botToken = properties.getProperty("SLACK_BOT_TOKEN");
+    const channelsString = properties.getProperty("SLACK_CHANNELS");
+    const defaultChannel = properties.getProperty("SLACK_CHANNEL");
+
+    // Parse channels (comma-separated list)
+    let channels = [];
+    if (channelsString) {
+      channels = channelsString.split(',').map(c => c.trim()).filter(c => c);
+    }
+
+    // Add default channel if exists
+    if (defaultChannel && !channels.includes(defaultChannel)) {
+      channels.unshift(defaultChannel);
+    }
+
+    // Add some common channel formats as examples if no channels configured
+    if (channels.length === 0) {
+      channels = ['#weekly-updates', '#daily-reports', '#alerts'];
+    }
+
+    return {
+      hasBotToken: !!botToken,
+      channels: channels,
+      defaultChannel: defaultChannel || channels[0] || ''
+    };
+  } catch (e) {
+    Logger.log("Error getting Slack configuration: " + e.message);
+    return {
+      hasBotToken: false,
+      channels: [],
+      defaultChannel: ''
+    };
+  }
+}
+
+/**
  * DELETE SLACK MESSAGE - Delete a specific message using bot token
  */
 function deleteSlackMessage(channelId, timestamp) {

@@ -132,6 +132,15 @@
             >
               {{ loading ? 'Loading...' : 'Refresh' }}
             </el-button>
+            <el-button
+              @click="openMessageManager"
+              type="warning"
+              icon="el-icon-delete"
+              size="small"
+              v-if="hasBotToken"
+            >
+              Manage Messages
+            </el-button>
             <a :href="viewTemplatesUrl" target="_blank"
               ><el-button type="primary" icon="el-icon-document" size="small">
                 View Templates
@@ -325,20 +334,39 @@
                   <span>Slack Configuration</span>
                 </div>
 
-                <el-form-item label="Slack Webhook URL" required>
+                <el-form-item label="Slack Webhook URL (Optional)">
                   <el-input
                     v-model="automationForm.slackWebhookUrl"
-                    placeholder="https://hooks.slack.com/services/..."
+                    placeholder="https://hooks.slack.com/services/... (Leave blank to use Bot Token)"
                   ></el-input>
+                  <div class="template-help">
+                    Optional if you've set <strong>SLACK_BOT_TOKEN</strong> in Script Properties.
+                    <br>Bot Token is recommended for message deletion and advanced features.
+                  </div>
                 </el-form-item>
 
                 <el-form-item label="Slack Channel" required>
-                  <el-input
+                  <el-select
                     v-model="automationForm.slackChannel"
-                    placeholder="#channel-name"
+                    filterable
+                    allow-create
+                    default-first-option
+                    placeholder="Select or enter channel"
+                    style="width: 100%"
                   >
-                    <template slot="prepend">#</template>
-                  </el-input>
+                    <el-option
+                      v-for="channel in availableChannels"
+                      :key="channel"
+                      :label="channel"
+                      :value="channel"
+                    >
+                      <span style="float: left"># {{ channel.replace('#', '') }}</span>
+                    </el-option>
+                  </el-select>
+                  <div class="template-help">
+                    Select from configured channels or type custom channel (e.g., #weekly-updates or C01234ABCD).
+                    <br>Configure channels in Script Properties: <strong>SLACK_CHANNELS</strong> (comma-separated)
+                  </div>
                 </el-form-item>
 
                 <el-form-item label="Message Format" required>
@@ -736,6 +764,109 @@
               <el-button @click="showTemplateDialog = false">Cancel</el-button>
             </span>
           </el-dialog> -->
+
+          <!-- Message Manager Dialog -->
+          <el-dialog
+            title="Manage Sent Messages"
+            :visible.sync="showMessageManager"
+            width="80%"
+            top="5vh"
+          >
+            <div style="margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center">
+              <div>
+                <el-tag type="info">Total Messages: {{ sentMessages.length }}</el-tag>
+                <span style="margin-left: 10px; color: #909399; font-size: 13px">
+                  Only messages sent with Bot Token can be deleted (last 100 tracked)
+                </span>
+              </div>
+              <div>
+                <el-button
+                  @click="loadSentMessages"
+                  type="primary"
+                  icon="el-icon-refresh"
+                  size="small"
+                  :loading="loadingMessages"
+                >
+                  Refresh
+                </el-button>
+                <el-button
+                  @click="deleteOldMessages"
+                  type="danger"
+                  icon="el-icon-delete"
+                  size="small"
+                >
+                  Clear Old Messages
+                </el-button>
+              </div>
+            </div>
+
+            <el-table
+              :data="sentMessages"
+              style="width: 100%"
+              v-loading="loadingMessages"
+              max-height="500"
+            >
+              <el-table-column
+                prop="automationName"
+                label="Automation"
+                width="200"
+              ></el-table-column>
+              <el-table-column
+                prop="channel"
+                label="Channel"
+                width="150"
+              ></el-table-column>
+              <el-table-column
+                prop="sentAt"
+                label="Sent At"
+                width="180"
+              >
+                <template slot-scope="scope">
+                  {{ formatTimestamp(scope.row.sentAt) }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="rowCount"
+                label="Rows"
+                width="80"
+              ></el-table-column>
+              <el-table-column
+                prop="timestamp"
+                label="Message ID"
+                width="150"
+              >
+                <template slot-scope="scope">
+                  <el-tag size="mini">{{ scope.row.timestamp }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="Actions"
+                width="120"
+                fixed="right"
+              >
+                <template slot-scope="scope">
+                  <el-button
+                    @click="deleteMessage(scope.row.timestamp)"
+                    type="danger"
+                    icon="el-icon-delete"
+                    size="mini"
+                  >
+                    Delete
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div v-if="sentMessages.length === 0 && !loadingMessages" style="text-align: center; padding: 40px; color: #909399">
+              <i class="el-icon-info" style="font-size: 48px; margin-bottom: 10px"></i>
+              <p>No messages tracked yet.</p>
+              <p style="font-size: 13px">Messages sent with Bot Token will appear here automatically.</p>
+            </div>
+
+            <span slot="footer" class="dialog-footer">
+              <el-button @click="showMessageManager = false">Close</el-button>
+            </span>
+          </el-dialog>
         </el-main>
       </el-container>
 
@@ -765,6 +896,11 @@
           previewText: "",
           // showTemplateDialog: false,
           viewTemplatesUrl: "",
+          availableChannels: [],
+          hasBotToken: false,
+          sentMessages: [],
+          showMessageManager: false,
+          loadingMessages: false,
           automationForm: {
             id: null,
             name: "",
@@ -831,6 +967,7 @@
         this.loadData();
         this.getWebAppUrl();
         this.getUseCases();
+        this.loadSlackConfig();
       },
       methods: {
         loadData() {
@@ -904,11 +1041,16 @@
             !this.automationForm.name ||
             !this.automationForm.targetSheet ||
             !this.automationForm.triggerType ||
-            !this.automationForm.slackWebhookUrl ||
             !this.automationForm.slackChannel ||
             !this.automationForm.messageTemplate
           ) {
             this.$message.error("Please fill in all required fields");
+            return;
+          }
+
+          // Check if either webhook URL or bot token is configured
+          if (!this.automationForm.slackWebhookUrl && !this.hasBotToken) {
+            this.$message.error("Please provide either a Slack Webhook URL or configure SLACK_BOT_TOKEN in Script Properties");
             return;
           }
 
@@ -1165,6 +1307,107 @@
         },
         reloadData() {
           this.loadData();
+        },
+
+        loadSlackConfig() {
+          // Load Slack configuration from Script Properties
+          google.script.run
+            .withSuccessHandler((config) => {
+              console.log("Slack config loaded:", config);
+              this.hasBotToken = config.hasBotToken || false;
+              this.availableChannels = config.channels || [];
+
+              if (this.hasBotToken) {
+                this.$message.success("Bot Token configured - webhook URL is now optional!");
+              }
+            })
+            .withFailureHandler((error) => {
+              console.error("Error loading Slack config:", error);
+            })
+            .getSlackConfiguration();
+        },
+
+        openMessageManager() {
+          this.showMessageManager = true;
+          this.loadSentMessages();
+        },
+
+        loadSentMessages() {
+          this.loadingMessages = true;
+          google.script.run
+            .withSuccessHandler((messages) => {
+              console.log("Sent messages loaded:", messages);
+              this.sentMessages = messages || [];
+              this.loadingMessages = false;
+            })
+            .withFailureHandler((error) => {
+              console.error("Error loading sent messages:", error);
+              this.$message.error("Error loading messages: " + error.message);
+              this.loadingMessages = false;
+            })
+            .getSentMessages();
+        },
+
+        deleteMessage(timestamp) {
+          this.$confirm('Delete this message from Slack?', 'Warning', {
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel',
+            type: 'warning'
+          }).then(() => {
+            const message = this.sentMessages.find(m => m.timestamp === timestamp);
+            if (!message) {
+              this.$message.error('Message not found');
+              return;
+            }
+
+            google.script.run
+              .withSuccessHandler((result) => {
+                if (result.success) {
+                  this.$message.success('Message deleted from Slack');
+                  this.loadSentMessages(); // Refresh list
+                } else {
+                  this.$message.error('Error deleting message: ' + result.error);
+                }
+              })
+              .withFailureHandler((error) => {
+                this.$message.error('Error deleting message: ' + error.message);
+              })
+              .deleteSlackMessage(message.channel, timestamp);
+          }).catch(() => {
+            // User cancelled
+          });
+        },
+
+        deleteOldMessages() {
+          this.$prompt('Delete messages older than how many days?', 'Clear Old Messages', {
+            confirmButtonText: 'Delete',
+            cancelButtonText: 'Cancel',
+            inputPattern: /^\d+$/,
+            inputErrorMessage: 'Please enter a number'
+          }).then(({ value }) => {
+            const days = parseInt(value);
+            google.script.run
+              .withSuccessHandler((result) => {
+                if (result.success) {
+                  this.$message.success(`Deleted ${result.deleted || 0} messages`);
+                  this.loadSentMessages(); // Refresh list
+                } else {
+                  this.$message.error('Error: ' + result.error);
+                }
+              })
+              .withFailureHandler((error) => {
+                this.$message.error('Error: ' + error.message);
+              })
+              .clearOldMessages(days);
+          }).catch(() => {
+            // User cancelled
+          });
+        },
+
+        formatTimestamp(isoString) {
+          if (!isoString) return 'N/A';
+          const date = new Date(isoString);
+          return date.toLocaleString();
         },
       },
     });
