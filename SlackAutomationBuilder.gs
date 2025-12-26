@@ -255,6 +255,20 @@ function sendSlackMessage(automation, rowData, rowNumber, isBulk = false, allRow
       if (automation.slackOptions.icon_url) payload.icon_url = automation.slackOptions.icon_url;
     }
 
+    // IMPORTANT: When using bot token, channel is REQUIRED
+    if (botToken) {
+      // Get channel from automation config or script properties
+      const channel = automation.slackChannel ||
+                     PropertiesService.getScriptProperties().getProperty("SLACK_CHANNEL");
+
+      if (!channel) {
+        throw new Error("Slack channel is required when using bot token. Please set SLACK_CHANNEL in Script Properties or add slackChannel to automation.");
+      }
+
+      payload.channel = channel;
+      Logger.log(`Using bot token with channel: ${channel}`);
+    }
+
     const options = {
       method: "post",
       headers: botToken ? {
