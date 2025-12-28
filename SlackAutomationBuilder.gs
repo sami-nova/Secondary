@@ -59,8 +59,8 @@ function executeBulkSlackAutomation() {
           return;
         }
 
-        // Send consolidated message with improved formatting
-        sendSlackMessage(automation, {}, 0, true, {
+        // Send consolidated message with improved formatting and advanced features
+        sendEnhancedSlackMessage(automation, {}, 0, true, {
           headers: headers,
           data: matchingRows
         });
@@ -1249,7 +1249,7 @@ function testSlackAutomation(automationId) {
     // Send consolidated message with beautiful formatting
     Logger.log(`Sending Slack message with ${matchingRows.length} rows`);
 
-    const result = sendSlackMessage(automation, {}, 0, true, {
+    const result = sendEnhancedSlackMessage(automation, {}, 0, true, {
       headers: headers,
       data: matchingRows
     });
