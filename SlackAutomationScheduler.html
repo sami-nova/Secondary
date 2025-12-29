@@ -1014,7 +1014,17 @@
                         <el-radio-group v-model="automationForm.messageUpdate.strategy">
                           <el-radio label="update_last">Update last message sent by this automation</el-radio>
                           <el-radio label="update_by_id">Update specific message (ID saved automatically)</el-radio>
+                          <el-radio label="thread_daily">📅 Reply to last message as thread (Daily Updates)</el-radio>
                         </el-radio-group>
+
+                        <div v-if="automationForm.messageUpdate.strategy === 'thread_daily'" style="margin-top: 10px; padding: 10px; background: #f0f9ff; border-left: 3px solid #3b82f6; border-radius: 4px">
+                          <div style="color: #1e40af; font-weight: 500; margin-bottom: 5px">🔵 Thread Daily Updates</div>
+                          <div style="color: #64748b; font-size: 13px">
+                            Each run will post as a <strong>reply to the previous message</strong>, creating a conversation thread.<br>
+                            Perfect for: Daily reports, recurring updates, time-series data<br>
+                            📌 First run creates parent message, subsequent runs reply to it
+                          </div>
+                        </div>
                       </el-form-item>
                     </div>
                   </el-collapse-item>

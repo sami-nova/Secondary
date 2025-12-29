@@ -56,9 +56,11 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
     Logger.log("Channel: " + channel);
     Logger.log("Using bot token: " + (botToken ? "YES" : "NO"));
 
-    // STEP 1: Determine if we should update existing message or send new
+    // STEP 1: Determine if we should update existing message or send new or reply to thread
     let updateExisting = false;
     let existingTs = null;
+    let replyToThread = false;
+    let threadTs = null;
 
     if (automation.messageUpdate && automation.messageUpdate.enabled) {
       const strategy = automation.messageUpdate.strategy || 'none';
@@ -66,12 +68,24 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
       if (strategy === 'update_by_id' && automation.messageUpdate.messageId) {
         updateExisting = true;
         existingTs = automation.messageUpdate.messageId;
+        Logger.log("Strategy: Update specific message by ID");
       } else if (strategy === 'update_last') {
         // Get last message sent by this automation
         const lastMessage = getLastMessageByAutomation(automation.id);
         if (lastMessage && lastMessage.timestamp) {
           updateExisting = true;
           existingTs = lastMessage.timestamp;
+          Logger.log("Strategy: Update last message");
+        }
+      } else if (strategy === 'thread_daily') {
+        // NEW: Reply to last message as thread (for daily updates in same conversation)
+        const lastMessage = getLastMessageByAutomation(automation.id);
+        if (lastMessage && lastMessage.timestamp) {
+          replyToThread = true;
+          threadTs = lastMessage.timestamp;
+          Logger.log(`Strategy: Reply to thread ${threadTs}`);
+        } else {
+          Logger.log("Strategy: thread_daily but no previous message found - will send new parent message");
         }
       }
     }
@@ -151,24 +165,43 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
 
     // STEP 4: FEATURE 2 & 3 - Add Mentions (@user and @channel) (only if enabled)
     try {
-      if (typeof buildMentions === 'function' &&
-          ((automation.mentions && automation.mentions.enabled) ||
-           (automation.channelNotify && automation.channelNotify.enabled))) {
-        const mentions = buildMentions(automation, rowData);
-        Logger.log(`✓ Built ${mentions.length} mentions`);
-        if (mentions.length > 0 && typeof formatMentions === 'function') {
-          const mentionText = formatMentions(mentions);
-          Logger.log(`✓ Mention text: "${mentionText}"`);
-          if (payload.text) {
-            payload.text = mentionText + '\n\n' + payload.text;
-          } else {
-            payload.text = mentionText;
+      if ((automation.mentions && automation.mentions.enabled) ||
+          (automation.channelNotify && automation.channelNotify.enabled)) {
+
+        Logger.log(`Checking mention functions: buildMentions=${typeof buildMentions}, formatMentions=${typeof formatMentions}`);
+
+        if (typeof buildMentions !== 'function') {
+          Logger.log("⚠ WARNING: buildMentions function not found! SlackAdvancedFeatures.gs may not be loaded.");
+          // Fallback: Add @channel directly if enabled
+          if (automation.channelNotify && automation.channelNotify.enabled && automation.channelNotify.type === 'always') {
+            Logger.log("✓ Using fallback: Adding @channel directly");
+            const mentionText = '<!channel>';
+            if (payload.text) {
+              payload.text = mentionText + '\n\n' + payload.text;
+            } else {
+              payload.text = mentionText;
+            }
           }
-          Logger.log(`✓ Added mentions to payload.text`);
+        } else {
+          const mentions = buildMentions(automation, rowData);
+          Logger.log(`✓ Built ${mentions.length} mentions`);
+          if (mentions.length > 0 && typeof formatMentions === 'function') {
+            const mentionText = formatMentions(mentions);
+            Logger.log(`✓ Mention text: "${mentionText}"`);
+            if (payload.text) {
+              payload.text = mentionText + '\n\n' + payload.text;
+            } else {
+              payload.text = mentionText;
+            }
+            Logger.log(`✓ Added mentions to payload.text`);
+          } else {
+            Logger.log(`⚠ No mentions generated (empty array returned from buildMentions)`);
+          }
         }
       }
     } catch (error) {
-      Logger.log("Warning: Mentions feature error: " + error.message);
+      Logger.log("❌ Mentions feature error: " + error.message);
+      Logger.log("Stack: " + error.stack);
     }
 
     // STEP 5: FEATURE 4 - Add Interactive Buttons (only if enabled)
@@ -194,6 +227,12 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
       payload.channel = channel;
     }
 
+    // Add thread_ts if replying to thread (NEW FEATURE)
+    if (replyToThread && threadTs) {
+      payload.thread_ts = threadTs;
+      Logger.log(`✓ Adding to thread: ${threadTs}`);
+    }
+
     // Add advanced Slack options
     if (automation.slackOptions) {
       if (automation.slackOptions.username) payload.username = automation.slackOptions.username;
@@ -201,7 +240,7 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
       if (automation.slackOptions.icon_url) payload.icon_url = automation.slackOptions.icon_url;
     }
 
-    // STEP 7: Send or Update Message
+    // STEP 7: Send or Update Message or Reply to Thread
     let result;
     let messageTs;
 
