@@ -415,7 +415,7 @@ function buildBeautifulReport(automation, allRows) {
   // Route to appropriate formatter based on selected format
   switch (format) {
     case "table":
-      return buildTableFormat(messageHeader, headers, validRows);
+      return buildTableFormat(messageHeader, headers, validRows, automation);
     case "list":
       return buildListFormat(messageHeader, headers, validRows);
     case "cards":
@@ -479,6 +479,27 @@ function buildInlineFormat(messageHeader, headers, validRows) {
       rowText += `*${header}:* ${rawValue}     `;
     });
 
+    // Add progress bar if enabled (Feature 7)
+    if (automation.progressBars && automation.progressBars.enabled) {
+      const valueColIdx = headers.indexOf(automation.progressBars.valueColumn);
+      const goalColIdx = headers.indexOf(automation.progressBars.goalColumn);
+
+      if (valueColIdx !== -1 && goalColIdx !== -1 && typeof buildProgressBar === 'function') {
+        const value = parseFloat(String(row[valueColIdx]).replace(/[^0-9.-]/g, '')) || 0;
+        const goal = parseFloat(String(row[goalColIdx]).replace(/[^0-9.-]/g, '')) || 0;
+
+        if (goal > 0) {
+          const progressBar = buildProgressBar(
+            value,
+            goal,
+            automation.progressBars.width || 20,
+            automation.progressBars.style || 'blocks'
+          );
+          rowText += `\n${progressBar}`;
+        }
+      }
+    }
+
     blocks.push({
       type: "section",
       text: {
@@ -500,7 +521,7 @@ function buildInlineFormat(messageHeader, headers, validRows) {
  * FORMAT 2: TABLE IN CODE BLOCK
  * Creates a formatted ASCII table
  */
-function buildTableFormat(messageHeader, headers, validRows) {
+function buildTableFormat(messageHeader, headers, validRows, automation) {
   const blocks = [];
 
   // Header
@@ -564,6 +585,42 @@ function buildTableFormat(messageHeader, headers, validRows) {
       text: tableText
     }
   });
+
+  // Add progress bars if enabled (Feature 7)
+  if (automation && automation.progressBars && automation.progressBars.enabled) {
+    const valueColIdx = headers.indexOf(automation.progressBars.valueColumn);
+    const goalColIdx = headers.indexOf(automation.progressBars.goalColumn);
+
+    if (valueColIdx !== -1 && goalColIdx !== -1 && typeof buildProgressBar === 'function') {
+      blocks.push({ type: "divider" });
+
+      let progressText = "*📊 Progress:*\n\n";
+      limitedRows.forEach((row, idx) => {
+        const value = parseFloat(String(row[valueColIdx]).replace(/[^0-9.-]/g, '')) || 0;
+        const goal = parseFloat(String(row[goalColIdx]).replace(/[^0-9.-]/g, '')) || 0;
+
+        if (goal > 0) {
+          const regionName = row[0] || `Row ${idx + 1}`;
+          const progressBar = buildProgressBar(
+            value,
+            goal,
+            automation.progressBars.width || 20,
+            automation.progressBars.style || 'blocks'
+          );
+          const percentage = ((value / goal) * 100).toFixed(1);
+          progressText += `*${regionName}:* ${progressBar} ${percentage}%\n`;
+        }
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: progressText
+        }
+      });
+    }
+  }
 
   Logger.log(`Built table format with ${blocks.length} blocks for ${limitedRows.length} rows`);
   return { blocks: blocks };

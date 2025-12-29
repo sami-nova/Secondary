@@ -16,8 +16,23 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
   try {
     Logger.log("=== SENDING ENHANCED SLACK MESSAGE ===");
     Logger.log("Automation ID: " + automation.id);
+    Logger.log("Automation Name: " + automation.name);
     Logger.log("Is Bulk: " + isBulk);
     Logger.log("Has allRows: " + (allRows ? "YES" : "NO"));
+
+    // Log which advanced features are enabled
+    Logger.log("\n=== ADVANCED FEATURES STATUS ===");
+    Logger.log("Channel Notify: " + (automation.channelNotify && automation.channelNotify.enabled ? "ENABLED (" + automation.channelNotify.type + ")" : "DISABLED"));
+    Logger.log("Auto-Reactions: " + (automation.reactions && automation.reactions.enabled ? "ENABLED" : "DISABLED"));
+    Logger.log("Progress Bars: " + (automation.progressBars && automation.progressBars.enabled ? "ENABLED (value: " + (automation.progressBars.valueColumn || "?") + ", goal: " + (automation.progressBars.goalColumn || "?") + ")" : "DISABLED"));
+    Logger.log("Color Alerts: " + (automation.colorAlerts && automation.colorAlerts.enabled ? "ENABLED" : "DISABLED"));
+    Logger.log("User Mentions: " + (automation.mentions && automation.mentions.enabled ? "ENABLED" : "DISABLED"));
+    Logger.log("Interactive Buttons: " + (automation.buttons && automation.buttons.enabled ? "ENABLED" : "DISABLED"));
+    Logger.log("Message Update: " + (automation.messageUpdate && automation.messageUpdate.enabled ? "ENABLED" : "DISABLED"));
+    Logger.log("Multi-Channel: " + (automation.multiChannel && automation.multiChannel.enabled ? "ENABLED" : "DISABLED"));
+    Logger.log("File Attachments: " + (automation.fileAttachments && automation.fileAttachments.enabled ? "ENABLED" : "DISABLED"));
+    Logger.log("Threading: " + (automation.threading && automation.threading.enabled ? "ENABLED" : "DISABLED"));
+    Logger.log("=================================\n");
 
     const botToken = PropertiesService.getScriptProperties().getProperty("SLACK_BOT_TOKEN");
     const webhookUrl = automation.slackWebhookUrl || '';
