@@ -15,12 +15,16 @@
 function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false, allRows = null) {
   try {
     Logger.log("=== SENDING ENHANCED SLACK MESSAGE ===");
+    Logger.log("Automation ID: " + automation.id);
+    Logger.log("Is Bulk: " + isBulk);
+    Logger.log("Has allRows: " + (allRows ? "YES" : "NO"));
 
     const botToken = PropertiesService.getScriptProperties().getProperty("SLACK_BOT_TOKEN");
-    const webhookUrl = automation.slackWebhookUrl || getSlackWebhookUrl();
+    const webhookUrl = automation.slackWebhookUrl || '';
 
     if (!botToken && !webhookUrl) {
-      throw new Error("Slack Bot Token or Webhook URL is missing.");
+      Logger.log("ERROR: No bot token or webhook URL");
+      return { success: false, error: "Slack Bot Token or Webhook URL is missing." };
     }
 
     // Get primary channel
@@ -30,8 +34,12 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
                    properties.getProperty("SlackChannel");
 
     if (botToken && !channel) {
-      throw new Error("Slack channel is required when using bot token.");
+      Logger.log("ERROR: No channel specified");
+      return { success: false, error: "Slack channel is required when using bot token." };
     }
+
+    Logger.log("Channel: " + channel);
+    Logger.log("Using bot token: " + (botToken ? "YES" : "NO"));
 
     // STEP 1: Determine if we should update existing message or send new
     let updateExisting = false;

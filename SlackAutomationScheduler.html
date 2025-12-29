@@ -1038,7 +1038,11 @@
 
                     <div v-if="automationForm.reactions.enabled">
                       <el-form-item label="Always Add These Reactions">
-                        <el-input v-model="reactionsAlwaysString" placeholder="Emoji names separated by commas (e.g., chart_with_upwards_trend,eyes)" size="small">
+                        <el-input
+                          v-model="reactionsAlwaysString"
+                          @blur="updateReactionsAlways"
+                          placeholder="Emoji names separated by commas (e.g., chart_with_upwards_trend,eyes)"
+                          size="small">
                           <template slot="prepend">📊</template>
                         </el-input>
                         <div class="template-help">Enter emoji names without colons. Example: white_check_mark,fire,tada</div>
@@ -1049,19 +1053,34 @@
                         <el-row :gutter="10" style="margin-top: 10px">
                           <el-col :span="6"><strong>Critical:</strong></el-col>
                           <el-col :span="18">
-                            <el-input v-model="reactionsCriticalString" placeholder="rotating_light,fire,x" size="small"></el-input>
+                            <el-input
+                              v-model="reactionsCriticalString"
+                              @blur="updateReactionsCritical"
+                              placeholder="rotating_light,fire,x"
+                              size="small">
+                            </el-input>
                           </el-col>
                         </el-row>
                         <el-row :gutter="10" style="margin-top: 5px">
                           <el-col :span="6"><strong>Warning:</strong></el-col>
                           <el-col :span="18">
-                            <el-input v-model="reactionsWarningString" placeholder="warning,chart_with_downwards_trend" size="small"></el-input>
+                            <el-input
+                              v-model="reactionsWarningString"
+                              @blur="updateReactionsWarning"
+                              placeholder="warning,chart_with_downwards_trend"
+                              size="small">
+                            </el-input>
                           </el-col>
                         </el-row>
                         <el-row :gutter="10" style="margin-top: 5px">
                           <el-col :span="6"><strong>Success:</strong></el-col>
                           <el-col :span="18">
-                            <el-input v-model="reactionsSuccessString" placeholder="white_check_mark,dart,thumbsup" size="small"></el-input>
+                            <el-input
+                              v-model="reactionsSuccessString"
+                              @blur="updateReactionsSuccess"
+                              placeholder="white_check_mark,dart,thumbsup"
+                              size="small">
+                            </el-input>
                           </el-col>
                         </el-row>
                       </div>
@@ -1683,6 +1702,13 @@
         },
 
         saveAutomation() {
+          // Update reaction arrays from string inputs before saving
+          this.updateReactionsAlways();
+          this.updateReactionsCritical();
+          this.updateReactionsWarning();
+          this.updateReactionsSuccess();
+          this.updateReactionsInfo();
+
           // Validate form
           if (
             !this.automationForm.name ||
@@ -2273,48 +2299,46 @@
         removeFileAttachment(index) {
           this.automationForm.fileAttachments.files.splice(index, 1);
         },
-      },
 
-      // ========================================
-      // WATCHERS - For converting string inputs to arrays
-      // ========================================
-      watch: {
-        // Convert comma-separated emoji strings to arrays
-        reactionsAlwaysString(newVal) {
-          if (newVal) {
-            this.automationForm.reactions.always = newVal.split(',').map(s => s.trim()).filter(s => s);
+        // ========================================
+        // REACTION STRING CONVERTERS (optimized - only on blur, not every keystroke)
+        // ========================================
+
+        updateReactionsAlways() {
+          if (this.reactionsAlwaysString) {
+            this.automationForm.reactions.always = this.reactionsAlwaysString.split(',').map(s => s.trim()).filter(s => s);
           } else {
             this.automationForm.reactions.always = [];
           }
         },
 
-        reactionsCriticalString(newVal) {
-          if (newVal) {
-            this.automationForm.reactions.rules.critical = newVal.split(',').map(s => s.trim()).filter(s => s);
+        updateReactionsCritical() {
+          if (this.reactionsCriticalString) {
+            this.automationForm.reactions.rules.critical = this.reactionsCriticalString.split(',').map(s => s.trim()).filter(s => s);
           } else {
             this.automationForm.reactions.rules.critical = [];
           }
         },
 
-        reactionsWarningString(newVal) {
-          if (newVal) {
-            this.automationForm.reactions.rules.warning = newVal.split(',').map(s => s.trim()).filter(s => s);
+        updateReactionsWarning() {
+          if (this.reactionsWarningString) {
+            this.automationForm.reactions.rules.warning = this.reactionsWarningString.split(',').map(s => s.trim()).filter(s => s);
           } else {
             this.automationForm.reactions.rules.warning = [];
           }
         },
 
-        reactionsSuccessString(newVal) {
-          if (newVal) {
-            this.automationForm.reactions.rules.success = newVal.split(',').map(s => s.trim()).filter(s => s);
+        updateReactionsSuccess() {
+          if (this.reactionsSuccessString) {
+            this.automationForm.reactions.rules.success = this.reactionsSuccessString.split(',').map(s => s.trim()).filter(s => s);
           } else {
             this.automationForm.reactions.rules.success = [];
           }
         },
 
-        reactionsInfoString(newVal) {
-          if (newVal) {
-            this.automationForm.reactions.rules.info = newVal.split(',').map(s => s.trim()).filter(s => s);
+        updateReactionsInfo() {
+          if (this.reactionsInfoString) {
+            this.automationForm.reactions.rules.info = this.reactionsInfoString.split(',').map(s => s.trim()).filter(s => s);
           } else {
             this.automationForm.reactions.rules.info = [];
           }
