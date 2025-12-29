@@ -707,6 +707,540 @@
                 </div>
               </el-card>
 
+              <!-- ═══════════════════════════════════════════════════════════════════ -->
+              <!-- ADVANCED FEATURES SECTION -->
+              <!-- ═══════════════════════════════════════════════════════════════════ -->
+              <el-card style="margin-bottom: 20px">
+                <div slot="header" style="display: flex; align-items: center; gap: 8px">
+                  <i class="el-icon-star-on" style="font-size: 24px; color: #f39c12"></i>
+                  <span style="font-weight: bold">Advanced Features</span>
+                  <el-tag type="warning" size="small" style="margin-left: 10px">NEW!</el-tag>
+                </div>
+
+                <el-alert
+                  title="🚀 Unlock powerful features!"
+                  type="info"
+                  :closable="false"
+                  style="margin-bottom: 20px"
+                >
+                  Enable visual alerts, @mentions, progress bars, interactive buttons, and more!
+                  <br><strong>Note:</strong> Most features require Bot Token (not webhook URL)
+                </el-alert>
+
+                <el-collapse v-model="advancedFeaturesOpen">
+
+                  <!-- FEATURE 1: Color-Coded Alerts -->
+                  <el-collapse-item name="colorAlerts">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">🎨</span>
+                        <strong>Color-Coded Alerts</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.colorAlerts && automationForm.colorAlerts.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Red/Yellow/Green sidebars</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.colorAlerts.enabled"
+                      active-text="Enable color-coded alerts"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.colorAlerts.enabled">
+                      <el-alert type="info" :closable="false" style="margin-bottom: 15px">
+                        Messages will have colored sidebars based on data values:<br>
+                        🔴 <strong>Critical (Red)</strong> - Urgent issues<br>
+                        🟡 <strong>Warning (Yellow)</strong> - Needs attention<br>
+                        🟢 <strong>Success (Green)</strong> - All good
+                      </el-alert>
+
+                      <!-- Critical Rule -->
+                      <div style="border: 1px solid #f56c6c; padding: 10px; border-radius: 4px; margin-bottom: 10px; background: #fef0f0">
+                        <strong style="color: #f56c6c">🔴 Critical (Red):</strong>
+                        <el-row :gutter="10" style="margin-top: 10px">
+                          <el-col :span="8">
+                            <el-select v-model="automationForm.colorAlerts.rules[0].condition.field" placeholder="Column" size="small">
+                              <el-option v-for="col in availableColumns" :key="col" :label="col" :value="col"></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="6">
+                            <el-select v-model="automationForm.colorAlerts.rules[0].condition.operator" size="small">
+                              <el-option label="<" value="<"></el-option>
+                              <el-option label=">" value=">"></el-option>
+                              <el-option label="<=" value="<="></el-option>
+                              <el-option label=">=" value=">="></el-option>
+                              <el-option label="==" value="=="></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="10">
+                            <el-input v-model="automationForm.colorAlerts.rules[0].condition.value" placeholder="Value (e.g., 4.0)" size="small"></el-input>
+                          </el-col>
+                        </el-row>
+                      </div>
+
+                      <!-- Warning Rule -->
+                      <div style="border: 1px solid #e6a23c; padding: 10px; border-radius: 4px; margin-bottom: 10px; background: #fdf6ec">
+                        <strong style="color: #e6a23c">🟡 Warning (Yellow):</strong>
+                        <el-row :gutter="10" style="margin-top: 10px">
+                          <el-col :span="8">
+                            <el-select v-model="automationForm.colorAlerts.rules[1].condition.field" placeholder="Column" size="small">
+                              <el-option v-for="col in availableColumns" :key="col" :label="col" :value="col"></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="6">
+                            <el-select v-model="automationForm.colorAlerts.rules[1].condition.operator" size="small">
+                              <el-option label="<" value="<"></el-option>
+                              <el-option label=">" value=">"></el-option>
+                              <el-option label="<=" value="<="></el-option>
+                              <el-option label=">=" value=">="></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="10">
+                            <el-input v-model="automationForm.colorAlerts.rules[1].condition.value" placeholder="Value or column name" size="small"></el-input>
+                          </el-col>
+                        </el-row>
+                      </div>
+
+                      <!-- Success Rule -->
+                      <div style="border: 1px solid #67c23a; padding: 10px; border-radius: 4px; background: #f0f9ff">
+                        <strong style="color: #67c23a">🟢 Success (Green):</strong>
+                        <el-row :gutter="10" style="margin-top: 10px">
+                          <el-col :span="8">
+                            <el-select v-model="automationForm.colorAlerts.rules[2].condition.field" placeholder="Column" size="small">
+                              <el-option v-for="col in availableColumns" :key="col" :label="col" :value="col"></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="6">
+                            <el-select v-model="automationForm.colorAlerts.rules[2].condition.operator" size="small">
+                              <el-option label=">=" value=">="></el-option>
+                              <el-option label=">" value=">"></el-option>
+                              <el-option label="==" value="=="></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="10">
+                            <el-input v-model="automationForm.colorAlerts.rules[2].condition.value" placeholder="Value or column name" size="small"></el-input>
+                          </el-col>
+                        </el-row>
+                      </div>
+                    </div>
+                  </el-collapse-item>
+
+                  <!-- FEATURE 2: @User Mentions -->
+                  <el-collapse-item name="mentions">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">👤</span>
+                        <strong>@User Mentions</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.mentions && automationForm.mentions.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Tag specific people</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.mentions.enabled"
+                      active-text="Enable @user mentions"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.mentions.enabled">
+                      <el-alert type="info" :closable="false" style="margin-bottom: 15px">
+                        <strong>How to get User ID:</strong><br>
+                        1. Go to Slack<br>
+                        2. Click user's profile → ⋯ (More) → Copy member ID<br>
+                        3. Paste below (format: U12345ABCDE)
+                      </el-alert>
+
+                      <div v-for="(mention, index) in automationForm.mentions.users" :key="index" style="border: 1px solid #ddd; padding: 10px; border-radius: 4px; margin-bottom: 10px">
+                        <el-row :gutter="10">
+                          <el-col :span="10">
+                            <el-input v-model="mention.userId" placeholder="User ID (U12345ABCDE)" size="small"></el-input>
+                          </el-col>
+                          <el-col :span="12">
+                            <el-input v-model="mention.message" placeholder="Message (optional)" size="small"></el-input>
+                          </el-col>
+                          <el-col :span="2">
+                            <el-button type="danger" size="small" icon="el-icon-delete" @click="automationForm.mentions.users.splice(index, 1)"></el-button>
+                          </el-col>
+                        </el-row>
+                        <el-row :gutter="10" style="margin-top: 5px">
+                          <el-col :span="8">
+                            <el-select v-model="mention.condition.field" placeholder="Column" size="small">
+                              <el-option v-for="col in availableColumns" :key="col" :label="col" :value="col"></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="6">
+                            <el-select v-model="mention.condition.operator" size="small">
+                              <el-option label="<" value="<"></el-option>
+                              <el-option label=">" value=">"></el-option>
+                              <el-option label="==" value="=="></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="10">
+                            <el-input v-model="mention.condition.value" placeholder="Value" size="small"></el-input>
+                          </el-col>
+                        </el-row>
+                      </div>
+
+                      <el-button size="small" @click="addUserMention" icon="el-icon-plus">Add User Mention</el-button>
+                    </div>
+                  </el-collapse-item>
+
+                  <!-- FEATURE 3: @channel Notifications -->
+                  <el-collapse-item name="channelNotify">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">📢</span>
+                        <strong>@channel Notifications</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.channelNotify && automationForm.channelNotify.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Notify entire channel</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.channelNotify.enabled"
+                      active-text="Enable @channel notifications"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.channelNotify.enabled">
+                      <el-form-item label="Notification Type">
+                        <el-radio-group v-model="automationForm.channelNotify.type">
+                          <el-radio label="never">Never notify</el-radio>
+                          <el-radio label="conditional">Conditional (only when criteria met)</el-radio>
+                          <el-radio label="always">Always notify</el-radio>
+                        </el-radio-group>
+                      </el-form-item>
+
+                      <div v-if="automationForm.channelNotify.type === 'conditional'" style="background: #f5f7fa; padding: 10px; border-radius: 4px">
+                        <strong>Notify @channel when:</strong>
+                        <el-row :gutter="10" style="margin-top: 10px">
+                          <el-col :span="8">
+                            <el-select v-model="automationForm.channelNotify.condition.field" placeholder="Column" size="small">
+                              <el-option v-for="col in availableColumns" :key="col" :label="col" :value="col"></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="6">
+                            <el-select v-model="automationForm.channelNotify.condition.operator" size="small">
+                              <el-option label="<" value="<"></el-option>
+                              <el-option label=">" value=">"></el-option>
+                              <el-option label="==" value="=="></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="10">
+                            <el-input v-model="automationForm.channelNotify.condition.value" placeholder="Value" size="small"></el-input>
+                          </el-col>
+                        </el-row>
+                      </div>
+
+                      <el-checkbox v-model="automationForm.channelNotify.useHere" style="margin-top: 10px">
+                        Use @here instead (only active users)
+                      </el-checkbox>
+                    </div>
+                  </el-collapse-item>
+
+                  <!-- FEATURE 4: Interactive Buttons -->
+                  <el-collapse-item name="buttons">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">🔘</span>
+                        <strong>Interactive Buttons</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.buttons && automationForm.buttons.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Click to take action</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.buttons.enabled"
+                      active-text="Enable interactive buttons"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.buttons.enabled">
+                      <div v-for="(btn, index) in automationForm.buttons.actions" :key="index" style="border: 1px solid #ddd; padding: 10px; border-radius: 4px; margin-bottom: 10px">
+                        <el-row :gutter="10">
+                          <el-col :span="10">
+                            <el-input v-model="btn.label" placeholder="Button label (e.g., 📊 View Report)" size="small"></el-input>
+                          </el-col>
+                          <el-col :span="6">
+                            <el-select v-model="btn.style" size="small">
+                              <el-option label="Primary (Blue)" value="primary"></el-option>
+                              <el-option label="Default (White)" value="default"></el-option>
+                              <el-option label="Danger (Red)" value="danger"></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="6">
+                            <el-select v-model="btn.action" size="small">
+                              <el-option label="Open URL" value="url"></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="2">
+                            <el-button type="danger" size="small" icon="el-icon-delete" @click="automationForm.buttons.actions.splice(index, 1)"></el-button>
+                          </el-col>
+                        </el-row>
+                        <el-row :gutter="10" style="margin-top: 5px">
+                          <el-col :span="24">
+                            <el-input v-model="btn.url" placeholder="URL (e.g., https://docs.google.com/spreadsheets/d/...)" size="small"></el-input>
+                          </el-col>
+                        </el-row>
+                      </div>
+
+                      <el-button size="small" @click="addButton" icon="el-icon-plus">Add Button</el-button>
+                    </div>
+                  </el-collapse-item>
+
+                  <!-- FEATURE 5: Message Editing -->
+                  <el-collapse-item name="messageUpdate">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">✏️</span>
+                        <strong>Message Editing</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.messageUpdate && automationForm.messageUpdate.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Live dashboards</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.messageUpdate.enabled"
+                      active-text="Update existing messages"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.messageUpdate.enabled">
+                      <el-alert type="success" :closable="false" style="margin-bottom: 15px">
+                        Perfect for live dashboards! Message refreshes in place instead of creating new messages.
+                      </el-alert>
+
+                      <el-form-item label="Update Strategy">
+                        <el-radio-group v-model="automationForm.messageUpdate.strategy">
+                          <el-radio label="update_last">Update last message sent by this automation</el-radio>
+                          <el-radio label="update_by_id">Update specific message (ID saved automatically)</el-radio>
+                        </el-radio-group>
+                      </el-form-item>
+                    </div>
+                  </el-collapse-item>
+
+                  <!-- FEATURE 6: Auto-Reactions -->
+                  <el-collapse-item name="reactions">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">😊</span>
+                        <strong>Auto-Reactions</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.reactions && automationForm.reactions.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Emoji indicators</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.reactions.enabled"
+                      active-text="Enable auto-reactions"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.reactions.enabled">
+                      <el-form-item label="Always Add These Reactions">
+                        <el-input v-model="reactionsAlwaysString" placeholder="Emoji names separated by commas (e.g., chart_with_upwards_trend,eyes)" size="small">
+                          <template slot="prepend">📊</template>
+                        </el-input>
+                        <div class="template-help">Enter emoji names without colons. Example: white_check_mark,fire,tada</div>
+                      </el-form-item>
+
+                      <div style="background: #f5f7fa; padding: 10px; border-radius: 4px">
+                        <strong>Conditional Reactions (based on alert level):</strong>
+                        <el-row :gutter="10" style="margin-top: 10px">
+                          <el-col :span="6"><strong>Critical:</strong></el-col>
+                          <el-col :span="18">
+                            <el-input v-model="reactionsCriticalString" placeholder="rotating_light,fire,x" size="small"></el-input>
+                          </el-col>
+                        </el-row>
+                        <el-row :gutter="10" style="margin-top: 5px">
+                          <el-col :span="6"><strong>Warning:</strong></el-col>
+                          <el-col :span="18">
+                            <el-input v-model="reactionsWarningString" placeholder="warning,chart_with_downwards_trend" size="small"></el-input>
+                          </el-col>
+                        </el-row>
+                        <el-row :gutter="10" style="margin-top: 5px">
+                          <el-col :span="6"><strong>Success:</strong></el-col>
+                          <el-col :span="18">
+                            <el-input v-model="reactionsSuccessString" placeholder="white_check_mark,dart,thumbsup" size="small"></el-input>
+                          </el-col>
+                        </el-row>
+                      </div>
+                    </div>
+                  </el-collapse-item>
+
+                  <!-- FEATURE 7: Progress Bars -->
+                  <el-collapse-item name="progressBars">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">📊</span>
+                        <strong>Progress Bars</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.progressBars && automationForm.progressBars.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Visual goal tracking</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.progressBars.enabled"
+                      active-text="Enable progress bars"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.progressBars.enabled">
+                      <el-row :gutter="10">
+                        <el-col :span="12">
+                          <el-form-item label="Value Column">
+                            <el-select v-model="automationForm.progressBars.valueColumn" placeholder="Select column">
+                              <el-option v-for="col in availableColumns" :key="col" :label="col" :value="col"></el-option>
+                            </el-select>
+                          </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                          <el-form-item label="Goal Column">
+                            <el-select v-model="automationForm.progressBars.goalColumn" placeholder="Select column">
+                              <el-option v-for="col in availableColumns" :key="col" :label="col" :value="col"></el-option>
+                            </el-select>
+                          </el-form-item>
+                        </el-col>
+                      </el-row>
+
+                      <el-row :gutter="10">
+                        <el-col :span="12">
+                          <el-form-item label="Bar Width (characters)">
+                            <el-input-number v-model="automationForm.progressBars.width" :min="10" :max="30"></el-input-number>
+                          </el-form-item>
+                        </el-col>
+                        <el-col :span="12">
+                          <el-form-item label="Bar Style">
+                            <el-select v-model="automationForm.progressBars.style">
+                              <el-option label="Blocks (████████░░░░)" value="blocks"></el-option>
+                              <el-option label="Shaded (▓▓▓▓▓▓▓▓░░░░)" value="shaded"></el-option>
+                              <el-option label="ASCII ([========  ])" value="ascii"></el-option>
+                            </el-select>
+                          </el-form-item>
+                        </el-col>
+                      </el-row>
+
+                      <div style="background: #ecf5ff; padding: 10px; border-radius: 4px">
+                        <strong>Preview:</strong><br>
+                        <code>Region: ███████████████████░ 96.1% ✅</code>
+                      </div>
+                    </div>
+                  </el-collapse-item>
+
+                  <!-- FEATURE 8: Multi-Channel -->
+                  <el-collapse-item name="multiChannel">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">📡</span>
+                        <strong>Multi-Channel Posting</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.multiChannel && automationForm.multiChannel.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Send to multiple channels</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.multiChannel.enabled"
+                      active-text="Send to multiple channels"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.multiChannel.enabled">
+                      <el-alert type="info" :closable="false" style="margin-bottom: 15px">
+                        Send the same message to multiple Slack channels simultaneously
+                      </el-alert>
+
+                      <div v-for="(ch, index) in automationForm.multiChannel.channels" :key="index" style="border: 1px solid #ddd; padding: 10px; border-radius: 4px; margin-bottom: 10px">
+                        <el-row :gutter="10">
+                          <el-col :span="10">
+                            <el-input v-model="ch.channel" placeholder="Channel (e.g., #exec-team)" size="small"></el-input>
+                          </el-col>
+                          <el-col :span="12">
+                            <el-checkbox v-model="ch.notifyChannel" size="small">@channel in this channel</el-checkbox>
+                          </el-col>
+                          <el-col :span="2">
+                            <el-button type="danger" size="small" icon="el-icon-delete" @click="automationForm.multiChannel.channels.splice(index, 1)"></el-button>
+                          </el-col>
+                        </el-row>
+                      </div>
+
+                      <el-button size="small" @click="addMultiChannel" icon="el-icon-plus">Add Channel</el-button>
+                    </div>
+                  </el-collapse-item>
+
+                  <!-- FEATURE 9: File Attachments -->
+                  <el-collapse-item name="fileAttachments">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">📎</span>
+                        <strong>File Attachments</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.fileAttachments && automationForm.fileAttachments.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Excel/CSV reports</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.fileAttachments.enabled"
+                      active-text="Attach files to messages"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.fileAttachments.enabled">
+                      <el-alert type="warning" :closable="false" style="margin-bottom: 15px">
+                        <strong>Note:</strong> Bot Token required for file uploads
+                      </el-alert>
+
+                      <div v-for="(file, index) in automationForm.fileAttachments.files" :key="index" style="border: 1px solid #ddd; padding: 10px; border-radius: 4px; margin-bottom: 10px">
+                        <el-row :gutter="10">
+                          <el-col :span="8">
+                            <el-select v-model="file.format" size="small">
+                              <el-option label="Excel (.xlsx)" value="xlsx"></el-option>
+                              <el-option label="CSV (.csv)" value="csv"></el-option>
+                            </el-select>
+                          </el-col>
+                          <el-col :span="14">
+                            <el-input v-model="file.comment" placeholder="Comment (e.g., Weekly Report)" size="small"></el-input>
+                          </el-col>
+                          <el-col :span="2">
+                            <el-button type="danger" size="small" icon="el-icon-delete" @click="automationForm.fileAttachments.files.splice(index, 1)"></el-button>
+                          </el-col>
+                        </el-row>
+                      </div>
+
+                      <el-button size="small" @click="addFileAttachment" icon="el-icon-plus">Add File</el-button>
+                    </div>
+                  </el-collapse-item>
+
+                  <!-- FEATURE 10: Threaded Updates -->
+                  <el-collapse-item name="threading">
+                    <template slot="title">
+                      <div style="display: flex; align-items: center; gap: 10px; width: 100%">
+                        <span style="font-size: 20px">🧵</span>
+                        <strong>Threaded Updates</strong>
+                        <el-tag size="mini" type="success" v-if="automationForm.threading && automationForm.threading.enabled">ENABLED</el-tag>
+                        <span style="margin-left: auto; font-size: 12px; color: #909399">Summary + details in thread</span>
+                      </div>
+                    </template>
+
+                    <el-switch
+                      v-model="automationForm.threading.enabled"
+                      active-text="Use threaded messages"
+                      style="margin-bottom: 15px"
+                    ></el-switch>
+
+                    <div v-if="automationForm.threading.enabled">
+                      <el-alert type="info" :closable="false" style="margin-bottom: 15px">
+                        Posts a summary message, then adds each row as a thread reply. Keeps channel clean!
+                      </el-alert>
+
+                      <el-checkbox v-model="automationForm.threading.filterTotal">
+                        Filter out "Total" row from thread replies
+                      </el-checkbox>
+                    </div>
+                  </el-collapse-item>
+
+                </el-collapse>
+              </el-card>
+
               <!-- Form Actions -->
               <el-form-item>
                 <el-button type="primary" @click="saveAutomation" :loading="saving">
@@ -924,12 +1458,76 @@
               hours: 1,
               weekDay: "MONDAY",
             },
-            slackOptions: {
+              slackOptions: {
               username: "",
               icon_emoji: "",
               icon_url: "",
             },
+
+            // Advanced Features
+            colorAlerts: {
+              enabled: false,
+              rules: [
+                { level: 'critical', color: 'danger', icon: '🚨', prefix: 'CRITICAL', condition: { field: '', operator: '<', value: '' } },
+                { level: 'warning', color: 'warning', icon: '⚠️', prefix: 'WARNING', condition: { field: '', operator: '<', value: '' } },
+                { level: 'success', color: 'good', icon: '✅', prefix: 'ON TRACK', condition: { field: '', operator: '>=', value: '' } }
+              ]
+            },
+            mentions: {
+              enabled: false,
+              users: []
+            },
+            channelNotify: {
+              enabled: false,
+              type: 'conditional',
+              condition: { field: '', operator: '<', value: '' },
+              useHere: false
+            },
+            buttons: {
+              enabled: false,
+              actions: []
+            },
+            messageUpdate: {
+              enabled: false,
+              strategy: 'update_last',
+              messageId: null
+            },
+            reactions: {
+              enabled: false,
+              always: [],
+              rules: {
+                critical: [],
+                warning: [],
+                success: [],
+                info: []
+              }
+            },
+            progressBars: {
+              enabled: false,
+              valueColumn: '',
+              goalColumn: '',
+              width: 20,
+              style: 'blocks'
+            },
+            multiChannel: {
+              enabled: false,
+              channels: []
+            },
+            fileAttachments: {
+              enabled: false,
+              files: []
+            },
+            threading: {
+              enabled: false,
+              filterTotal: true
+            }
           },
+          advancedFeaturesOpen: [],
+          reactionsAlwaysString: '',
+          reactionsCriticalString: '',
+          reactionsWarningString: '',
+          reactionsSuccessString: '',
+          reactionsInfoString: '',
           criteriaOperators: [
             { value: "equals", label: "Equals" },
             { value: "not_equals", label: "Not Equals" },
@@ -1196,6 +1794,96 @@
             this.automationForm.messageFormat = "inline";
           }
 
+          // ========================================
+          // ADVANCED FEATURES - Ensure defaults
+          // ========================================
+
+          // Feature 1: Color-Coded Alerts
+          if (!this.automationForm.colorAlerts) {
+            this.automationForm.colorAlerts = {
+              enabled: false,
+              rules: [
+                { level: 'critical', color: 'danger', icon: '🚨', prefix: 'CRITICAL',
+                  condition: { field: '', operator: '<', value: '' } },
+                { level: 'warning', color: 'warning', icon: '⚠️', prefix: 'WARNING',
+                  condition: { field: '', operator: '<', value: '' } },
+                { level: 'success', color: 'good', icon: '✅', prefix: 'ON TRACK',
+                  condition: { field: '', operator: '>=', value: '' } }
+              ]
+            };
+          }
+
+          // Feature 2: User Mentions
+          if (!this.automationForm.mentions) {
+            this.automationForm.mentions = { enabled: false, users: [] };
+          }
+
+          // Feature 3: Channel Notifications
+          if (!this.automationForm.channelNotify) {
+            this.automationForm.channelNotify = {
+              enabled: false,
+              type: 'conditional',
+              condition: { field: '', operator: '<', value: '' },
+              useHere: false
+            };
+          }
+
+          // Feature 4: Interactive Buttons
+          if (!this.automationForm.buttons) {
+            this.automationForm.buttons = { enabled: false, actions: [] };
+          }
+
+          // Feature 5: Message Update Strategy
+          if (!this.automationForm.messageUpdate) {
+            this.automationForm.messageUpdate = {
+              enabled: false,
+              strategy: 'update_last',
+              messageId: null
+            };
+          }
+
+          // Feature 6: Auto-Reactions
+          if (!this.automationForm.reactions) {
+            this.automationForm.reactions = {
+              enabled: false,
+              always: [],
+              rules: { critical: [], warning: [], success: [], info: [] }
+            };
+          }
+
+          // Convert reaction arrays to comma-separated strings for UI
+          this.reactionsAlwaysString = (this.automationForm.reactions.always || []).join(', ');
+          this.reactionsCriticalString = (this.automationForm.reactions.rules.critical || []).join(', ');
+          this.reactionsWarningString = (this.automationForm.reactions.rules.warning || []).join(', ');
+          this.reactionsSuccessString = (this.automationForm.reactions.rules.success || []).join(', ');
+          this.reactionsInfoString = (this.automationForm.reactions.rules.info || []).join(', ');
+
+          // Feature 7: Progress Bars
+          if (!this.automationForm.progressBars) {
+            this.automationForm.progressBars = {
+              enabled: false,
+              valueColumn: '',
+              goalColumn: '',
+              width: 20,
+              style: 'blocks'
+            };
+          }
+
+          // Feature 8: Multi-Channel
+          if (!this.automationForm.multiChannel) {
+            this.automationForm.multiChannel = { enabled: false, channels: [] };
+          }
+
+          // Feature 9: File Attachments
+          if (!this.automationForm.fileAttachments) {
+            this.automationForm.fileAttachments = { enabled: false, files: [] };
+          }
+
+          // Feature 10: Threading
+          if (!this.automationForm.threading) {
+            this.automationForm.threading = { enabled: false, filterTotal: true };
+          }
+
           this.showCreateForm = true;
         },
 
@@ -1320,7 +2008,71 @@
               icon_emoji: "",
               icon_url: "",
             },
+
+            // Advanced Features
+            colorAlerts: {
+              enabled: false,
+              rules: [
+                { level: 'critical', color: 'danger', icon: '🚨', prefix: 'CRITICAL', condition: { field: '', operator: '<', value: '' } },
+                { level: 'warning', color: 'warning', icon: '⚠️', prefix: 'WARNING', condition: { field: '', operator: '<', value: '' } },
+                { level: 'success', color: 'good', icon: '✅', prefix: 'ON TRACK', condition: { field: '', operator: '>=', value: '' } }
+              ]
+            },
+            mentions: {
+              enabled: false,
+              users: []
+            },
+            channelNotify: {
+              enabled: false,
+              type: 'conditional',
+              condition: { field: '', operator: '<', value: '' },
+              useHere: false
+            },
+            buttons: {
+              enabled: false,
+              actions: []
+            },
+            messageUpdate: {
+              enabled: false,
+              strategy: 'update_last',
+              messageId: null
+            },
+            reactions: {
+              enabled: false,
+              always: [],
+              rules: {
+                critical: [],
+                warning: [],
+                success: [],
+                info: []
+              }
+            },
+            progressBars: {
+              enabled: false,
+              valueColumn: '',
+              goalColumn: '',
+              width: 20,
+              style: 'blocks'
+            },
+            multiChannel: {
+              enabled: false,
+              channels: []
+            },
+            fileAttachments: {
+              enabled: false,
+              files: []
+            },
+            threading: {
+              enabled: false,
+              filterTotal: true
+            }
           };
+          this.advancedFeaturesOpen = [];
+          this.reactionsAlwaysString = '';
+          this.reactionsCriticalString = '';
+          this.reactionsWarningString = '';
+          this.reactionsSuccessString = '';
+          this.reactionsInfoString = '';
         },
 
         getTriggerTypeLabel(triggerType) {
@@ -1467,6 +2219,105 @@
           if (!isoString) return 'N/A';
           const date = new Date(isoString);
           return date.toLocaleString();
+        },
+
+        // ========================================
+        // ADVANCED FEATURES HELPER METHODS
+        // ========================================
+
+        addUserMention() {
+          this.automationForm.mentions.users.push({
+            userId: '',
+            condition: { field: '', operator: '<', value: '' },
+            message: ''
+          });
+        },
+
+        removeUserMention(index) {
+          this.automationForm.mentions.users.splice(index, 1);
+        },
+
+        addButton() {
+          this.automationForm.buttons.actions.push({
+            label: '',
+            action: 'url',
+            url: '',
+            style: 'primary'
+          });
+        },
+
+        removeButton(index) {
+          this.automationForm.buttons.actions.splice(index, 1);
+        },
+
+        addMultiChannel() {
+          this.automationForm.multiChannel.channels.push({
+            channel: '',
+            notifyChannel: false
+          });
+        },
+
+        removeMultiChannel(index) {
+          this.automationForm.multiChannel.channels.splice(index, 1);
+        },
+
+        addFileAttachment() {
+          this.automationForm.fileAttachments.files.push({
+            type: 'export_sheet',
+            sheetName: this.automationForm.targetSheet || '',
+            format: 'xlsx',
+            comment: ''
+          });
+        },
+
+        removeFileAttachment(index) {
+          this.automationForm.fileAttachments.files.splice(index, 1);
+        },
+      },
+
+      // ========================================
+      // WATCHERS - For converting string inputs to arrays
+      // ========================================
+      watch: {
+        // Convert comma-separated emoji strings to arrays
+        reactionsAlwaysString(newVal) {
+          if (newVal) {
+            this.automationForm.reactions.always = newVal.split(',').map(s => s.trim()).filter(s => s);
+          } else {
+            this.automationForm.reactions.always = [];
+          }
+        },
+
+        reactionsCriticalString(newVal) {
+          if (newVal) {
+            this.automationForm.reactions.rules.critical = newVal.split(',').map(s => s.trim()).filter(s => s);
+          } else {
+            this.automationForm.reactions.rules.critical = [];
+          }
+        },
+
+        reactionsWarningString(newVal) {
+          if (newVal) {
+            this.automationForm.reactions.rules.warning = newVal.split(',').map(s => s.trim()).filter(s => s);
+          } else {
+            this.automationForm.reactions.rules.warning = [];
+          }
+        },
+
+        reactionsSuccessString(newVal) {
+          if (newVal) {
+            this.automationForm.reactions.rules.success = newVal.split(',').map(s => s.trim()).filter(s => s);
+          } else {
+            this.automationForm.reactions.rules.success = [];
+          }
+        },
+
+        reactionsInfoString(newVal) {
+          if (newVal) {
+            this.automationForm.reactions.rules.info = newVal.split(',').map(s => s.trim()).filter(s => s);
+          } else {
+            this.automationForm.reactions.rules.info = [];
+          }
         },
       },
     });
