@@ -102,50 +102,73 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
       payload = { text: messageText };
     }
 
-    // STEP 3: FEATURE 1 - Add Color-Coded Alert
-    let alertLevel = evaluateAlertLevel(automation, rowData);
+    // Initialize alertLevel for use in reactions later
+    let alertLevel = { level: 'info', color: '#439FE0', icon: 'ℹ️', prefix: '' };
 
-    if (alertLevel.level !== 'info' && payload.blocks) {
-      // Add color to message using attachment (for color sidebar)
-      if (!payload.attachments) {
-        payload.attachments = [];
+    // STEP 3: FEATURE 1 - Add Color-Coded Alert (only if enabled)
+    try {
+      if (automation.colorAlerts && automation.colorAlerts.enabled && typeof evaluateAlertLevel === 'function') {
+        alertLevel = evaluateAlertLevel(automation, rowData);
+
+        if (alertLevel.level !== 'info' && payload.blocks) {
+          // Add color to message using attachment (for color sidebar)
+          if (!payload.attachments) {
+            payload.attachments = [];
+          }
+
+          payload.attachments.push({
+            color: alertLevel.color,
+            blocks: payload.blocks
+          });
+
+          // Move blocks to attachment
+          delete payload.blocks;
+
+          // Add prefix to text
+          if (alertLevel.prefix) {
+            payload.text = `${alertLevel.icon} *${alertLevel.prefix}* - ${payload.text || ''}`;
+          }
+        }
       }
-
-      payload.attachments.push({
-        color: alertLevel.color,
-        blocks: payload.blocks
-      });
-
-      // Move blocks to attachment
-      delete payload.blocks;
-
-      // Add prefix to text
-      if (alertLevel.prefix) {
-        payload.text = `${alertLevel.icon} *${alertLevel.prefix}* - ${payload.text || ''}`;
-      }
+    } catch (error) {
+      Logger.log("Warning: Color alert feature error: " + error.message);
     }
 
-    // STEP 4: FEATURE 2 & 3 - Add Mentions (@user and @channel)
-    const mentions = buildMentions(automation, rowData);
-    if (mentions.length > 0) {
-      const mentionText = formatMentions(mentions);
-      if (payload.text) {
-        payload.text = mentionText + '\n\n' + payload.text;
-      } else {
-        payload.text = mentionText;
+    // STEP 4: FEATURE 2 & 3 - Add Mentions (@user and @channel) (only if enabled)
+    try {
+      if (typeof buildMentions === 'function' &&
+          ((automation.mentions && automation.mentions.enabled) ||
+           (automation.channelNotify && automation.channelNotify.enabled))) {
+        const mentions = buildMentions(automation, rowData);
+        if (mentions.length > 0 && typeof formatMentions === 'function') {
+          const mentionText = formatMentions(mentions);
+          if (payload.text) {
+            payload.text = mentionText + '\n\n' + payload.text;
+          } else {
+            payload.text = mentionText;
+          }
+        }
       }
+    } catch (error) {
+      Logger.log("Warning: Mentions feature error: " + error.message);
     }
 
-    // STEP 5: FEATURE 4 - Add Interactive Buttons
-    const buttonBlock = buildActionButtons(automation, rowData);
-    if (buttonBlock) {
-      if (payload.attachments && payload.attachments[0] && payload.attachments[0].blocks) {
-        payload.attachments[0].blocks.push(buttonBlock);
-      } else if (payload.blocks) {
-        payload.blocks.push(buttonBlock);
-      } else {
-        payload.blocks = [buttonBlock];
+    // STEP 5: FEATURE 4 - Add Interactive Buttons (only if enabled)
+    try {
+      if (automation.buttons && automation.buttons.enabled && typeof buildActionButtons === 'function') {
+        const buttonBlock = buildActionButtons(automation, rowData);
+        if (buttonBlock) {
+          if (payload.attachments && payload.attachments[0] && payload.attachments[0].blocks) {
+            payload.attachments[0].blocks.push(buttonBlock);
+          } else if (payload.blocks) {
+            payload.blocks.push(buttonBlock);
+          } else {
+            payload.blocks = [buttonBlock];
+          }
+        }
       }
+    } catch (error) {
+      Logger.log("Warning: Buttons feature error: " + error.message);
     }
 
     // STEP 6: Add channel to payload
@@ -222,41 +245,60 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
       }
     }
 
-    // STEP 8: FEATURE 6 - Add Auto-Reactions
-    if (botToken && messageTs && automation.reactions && automation.reactions.enabled) {
-      const reactions = getReactionsForAlert(alertLevel, automation);
-      if (reactions.length > 0) {
-        Logger.log(`Adding ${reactions.length} reactions...`);
-        addReactions(channel, messageTs, reactions);
+    // STEP 8: FEATURE 6 - Add Auto-Reactions (only if enabled)
+    try {
+      if (botToken && messageTs && automation.reactions && automation.reactions.enabled &&
+          typeof getReactionsForAlert === 'function' && typeof addReactions === 'function') {
+        const reactions = getReactionsForAlert(alertLevel, automation);
+        if (reactions.length > 0) {
+          Logger.log(`Adding ${reactions.length} reactions...`);
+          addReactions(channel, messageTs, reactions);
+        }
       }
+    } catch (error) {
+      Logger.log("Warning: Reactions feature error: " + error.message);
     }
 
-    // STEP 9: FEATURE 8 - Send to Multiple Channels
-    if (automation.multiChannel && automation.multiChannel.enabled) {
-      Logger.log("Sending to additional channels...");
-      const multiResults = sendToMultipleChannels(automation, payload, channel);
-      if (multiResults) {
-        Logger.log(`Sent to ${multiResults.length} additional channels`);
+    // STEP 9: FEATURE 8 - Send to Multiple Channels (only if enabled)
+    try {
+      if (automation.multiChannel && automation.multiChannel.enabled && typeof sendToMultipleChannels === 'function') {
+        Logger.log("Sending to additional channels...");
+        const multiResults = sendToMultipleChannels(automation, payload, channel);
+        if (multiResults) {
+          Logger.log(`Sent to ${multiResults.length} additional channels`);
+        }
       }
+    } catch (error) {
+      Logger.log("Warning: Multi-channel feature error: " + error.message);
     }
 
-    // STEP 10: FEATURE 9 - Attach Files
-    if (botToken && automation.fileAttachments && automation.fileAttachments.enabled) {
-      Logger.log("Attaching files...");
-      for (const attachment of automation.fileAttachments.files || []) {
-        if (attachment.type === 'export_sheet') {
-          const fileResult = exportSheetAsFile(attachment.sheetName || automation.targetSheet, attachment.format || 'xlsx');
-          if (fileResult.success) {
-            uploadFileToSlack(channel, fileResult.blob, fileResult.filename, attachment.comment || '');
+    // STEP 10: FEATURE 9 - Attach Files (only if enabled)
+    try {
+      if (botToken && automation.fileAttachments && automation.fileAttachments.enabled &&
+          typeof exportSheetAsFile === 'function' && typeof uploadFileToSlack === 'function') {
+        Logger.log("Attaching files...");
+        for (const attachment of automation.fileAttachments.files || []) {
+          if (attachment.type === 'export_sheet') {
+            const fileResult = exportSheetAsFile(attachment.sheetName || automation.targetSheet, attachment.format || 'xlsx');
+            if (fileResult.success) {
+              uploadFileToSlack(channel, fileResult.blob, fileResult.filename, attachment.comment || '');
+            }
           }
         }
       }
+    } catch (error) {
+      Logger.log("Warning: File attachments feature error: " + error.message);
     }
 
-    // STEP 11: FEATURE 10 - Send Threaded Updates
-    if (botToken && automation.threading && automation.threading.enabled && isBulk && allRows) {
-      Logger.log("Creating threaded message...");
-      sendThreadedMessage(automation, allRows, channel);
+    // STEP 11: FEATURE 10 - Send Threaded Updates (only if enabled)
+    try {
+      if (botToken && automation.threading && automation.threading.enabled && isBulk && allRows &&
+          typeof sendThreadedMessage === 'function') {
+        Logger.log("Creating threaded message...");
+        sendThreadedMessage(automation, allRows, channel);
+      }
+    } catch (error) {
+      Logger.log("Warning: Threading feature error: " + error.message);
     }
 
     Logger.log("✅ Enhanced message sent successfully!");
