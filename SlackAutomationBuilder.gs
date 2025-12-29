@@ -417,22 +417,22 @@ function buildBeautifulReport(automation, allRows) {
     case "table":
       return buildTableFormat(messageHeader, headers, validRows, automation);
     case "list":
-      return buildListFormat(messageHeader, headers, validRows);
+      return buildListFormat(messageHeader, headers, validRows, automation);
     case "cards":
-      return buildCardsFormat(messageHeader, headers, validRows);
+      return buildCardsFormat(messageHeader, headers, validRows, automation);
     case "plain":
-      return buildPlainFormat(messageHeader, headers, validRows);
+      return buildPlainFormat(messageHeader, headers, validRows, automation);
     case "context":
-      return buildContextFormat(messageHeader, headers, validRows);
+      return buildContextFormat(messageHeader, headers, validRows, automation);
     case "quote":
-      return buildQuoteFormat(messageHeader, headers, validRows);
+      return buildQuoteFormat(messageHeader, headers, validRows, automation);
     case "compact":
-      return buildCompactFormat(messageHeader, headers, validRows);
+      return buildCompactFormat(messageHeader, headers, validRows, automation);
     case "rich":
-      return buildRichFormat(messageHeader, headers, validRows);
+      return buildRichFormat(messageHeader, headers, validRows, automation);
     case "inline":
     default:
-      return buildInlineFormat(messageHeader, headers, validRows);
+      return buildInlineFormat(messageHeader, headers, validRows, automation);
   }
 }
 
@@ -440,7 +440,7 @@ function buildBeautifulReport(automation, allRows) {
  * FORMAT 1: INLINE TEXT (current default)
  * Example: *Label:* Value  *Label:* Value
  */
-function buildInlineFormat(messageHeader, headers, validRows) {
+function buildInlineFormat(messageHeader, headers, validRows, automation) {
   const blocks = [];
   const MAX_BLOCKS = 48;
 
@@ -630,7 +630,7 @@ function buildTableFormat(messageHeader, headers, validRows, automation) {
  * FORMAT 3: BULLET LIST
  * Each row as bullet point with sub-items
  */
-function buildListFormat(messageHeader, headers, validRows) {
+function buildListFormat(messageHeader, headers, validRows, automation) {
   const blocks = [];
 
   // Header
@@ -688,7 +688,7 @@ function buildListFormat(messageHeader, headers, validRows) {
  * FORMAT 4: COMPACT CARDS
  * 2-column card layout
  */
-function buildCardsFormat(messageHeader, headers, validRows) {
+function buildCardsFormat(messageHeader, headers, validRows, automation) {
   const blocks = [];
 
   // Header
@@ -758,7 +758,7 @@ function buildCardsFormat(messageHeader, headers, validRows) {
  * FORMAT 5: PLAIN TEXT
  * Simple text without markdown
  */
-function buildPlainFormat(messageHeader, headers, validRows) {
+function buildPlainFormat(messageHeader, headers, validRows, automation) {
   const blocks = [];
 
   // Header
@@ -816,7 +816,7 @@ function buildPlainFormat(messageHeader, headers, validRows) {
  * Compact, subtle format using context blocks (smaller text)
  * Perfect for large datasets or secondary information
  */
-function buildContextFormat(messageHeader, headers, validRows) {
+function buildContextFormat(messageHeader, headers, validRows, automation) {
   const blocks = [];
 
   // Header
@@ -872,7 +872,7 @@ function buildContextFormat(messageHeader, headers, validRows) {
  * Highlighted format using block quotes (> prefix)
  * Great for emphasis and important data
  */
-function buildQuoteFormat(messageHeader, headers, validRows) {
+function buildQuoteFormat(messageHeader, headers, validRows, automation) {
   const blocks = [];
 
   // Header
@@ -921,6 +921,42 @@ function buildQuoteFormat(messageHeader, headers, validRows) {
     }
   });
 
+  // Add progress bars if enabled (Feature 7)
+  if (automation && automation.progressBars && automation.progressBars.enabled) {
+    const valueColIdx = headers.indexOf(automation.progressBars.valueColumn);
+    const goalColIdx = headers.indexOf(automation.progressBars.goalColumn);
+
+    if (valueColIdx !== -1 && goalColIdx !== -1 && typeof buildProgressBar === 'function') {
+      blocks.push({ type: "divider" });
+
+      let progressText = "*📊 Progress:*\n\n";
+      limitedRows.forEach((row, idx) => {
+        const value = parseFloat(String(row[valueColIdx]).replace(/[^0-9.-]/g, '')) || 0;
+        const goal = parseFloat(String(row[goalColIdx]).replace(/[^0-9.-]/g, '')) || 0;
+
+        if (goal > 0) {
+          const regionName = row[0] || `Row ${idx + 1}`;
+          const progressBar = buildProgressBar(
+            value,
+            goal,
+            automation.progressBars.width || 20,
+            automation.progressBars.style || 'blocks'
+          );
+          const percentage = ((value / goal) * 100).toFixed(1);
+          progressText += `*${regionName}:* ${progressBar} ${percentage}%\n`;
+        }
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: progressText
+        }
+      });
+    }
+  }
+
   Logger.log(`Built quote format with ${blocks.length} blocks`);
   return { blocks: blocks };
 }
@@ -930,7 +966,7 @@ function buildQuoteFormat(messageHeader, headers, validRows) {
  * Multiple rows per block - maximizes data density
  * Perfect for large datasets (50+ rows)
  */
-function buildCompactFormat(messageHeader, headers, validRows) {
+function buildCompactFormat(messageHeader, headers, validRows, automation) {
   const blocks = [];
 
   // Header
@@ -992,7 +1028,7 @@ function buildCompactFormat(messageHeader, headers, validRows) {
  * Enhanced with emojis and visual elements
  * Automatically adds relevant emojis based on field names and values
  */
-function buildRichFormat(messageHeader, headers, validRows) {
+function buildRichFormat(messageHeader, headers, validRows, automation) {
   const blocks = [];
 
   // Header with emoji

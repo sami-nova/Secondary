@@ -155,13 +155,16 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
           ((automation.mentions && automation.mentions.enabled) ||
            (automation.channelNotify && automation.channelNotify.enabled))) {
         const mentions = buildMentions(automation, rowData);
+        Logger.log(`✓ Built ${mentions.length} mentions`);
         if (mentions.length > 0 && typeof formatMentions === 'function') {
           const mentionText = formatMentions(mentions);
+          Logger.log(`✓ Mention text: "${mentionText}"`);
           if (payload.text) {
             payload.text = mentionText + '\n\n' + payload.text;
           } else {
             payload.text = mentionText;
           }
+          Logger.log(`✓ Added mentions to payload.text`);
         }
       }
     } catch (error) {
@@ -265,10 +268,17 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
       if (botToken && messageTs && automation.reactions && automation.reactions.enabled &&
           typeof getReactionsForAlert === 'function' && typeof addReactions === 'function') {
         const reactions = getReactionsForAlert(alertLevel, automation);
+        Logger.log(`✓ Got ${reactions.length} reactions for alert level: ${alertLevel.level}`);
+        Logger.log(`✓ Reactions list: ${JSON.stringify(reactions)}`);
         if (reactions.length > 0) {
-          Logger.log(`Adding ${reactions.length} reactions...`);
-          addReactions(channel, messageTs, reactions);
+          Logger.log(`✓ Adding ${reactions.length} reactions to message ${messageTs}...`);
+          const reactionResult = addReactions(channel, messageTs, reactions);
+          Logger.log(`✓ Reaction result: ${JSON.stringify(reactionResult)}`);
+        } else {
+          Logger.log(`⚠ No reactions to add (empty list)`);
         }
+      } else {
+        Logger.log(`⚠ Skipping reactions: botToken=${!!botToken}, messageTs=${!!messageTs}, enabled=${!!(automation.reactions && automation.reactions.enabled)}`);
       }
     } catch (error) {
       Logger.log("Warning: Reactions feature error: " + error.message);
