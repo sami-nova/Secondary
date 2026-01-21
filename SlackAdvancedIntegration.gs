@@ -248,7 +248,14 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
       // FEATURE 5 - Update existing message
       Logger.log(`Updating existing message: ${existingTs}`);
       result = updateSlackMessage(automation, channel, existingTs, payload);
+
+      if (!result.success) {
+        Logger.log(`❌ Update failed: ${result.error}`);
+        return result; // Return early if update fails
+      }
+
       messageTs = existingTs;
+      Logger.log(`✅ Message updated successfully: ${messageTs}`);
     } else {
       // Send new message
       const options = {

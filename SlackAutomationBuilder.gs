@@ -1365,6 +1365,92 @@ function testSlackAutomation(automationId) {
 }
 
 /**
+ * UPDATE SPECIFIC MESSAGE - Manually update a message by timestamp
+ *
+ * This is helpful when you want to update a specific Slack message with fresh data.
+ *
+ * To get the message timestamp:
+ * 1. In Slack, hover over the message
+ * 2. Click the "..." menu → "Copy link"
+ * 3. The link looks like: https://workspace.slack.com/archives/C123/p1234567890123456
+ * 4. The timestamp is: 1234567890.123456 (add decimal point before last 6 digits)
+ *
+ * Example: updateSpecificMessage('auto_123', '1705934477.861929')
+ */
+function updateSpecificMessage(automationId, messageTimestamp) {
+  try {
+    Logger.log(`Updating message ${messageTimestamp} for automation ${automationId}`);
+
+    const automations = getSlackAutomations();
+    const automation = automations.find(a => a.id === automationId);
+
+    if (!automation) {
+      return { success: false, error: `Automation with ID ${automationId} not found.` };
+    }
+
+    // Enable message update temporarily
+    if (!automation.messageUpdate) {
+      automation.messageUpdate = { enabled: false };
+    }
+
+    const originalEnabled = automation.messageUpdate.enabled;
+    const originalStrategy = automation.messageUpdate.strategy;
+    const originalMessageId = automation.messageUpdate.messageId;
+
+    // Temporarily set to update specific message
+    automation.messageUpdate.enabled = true;
+    automation.messageUpdate.strategy = 'update_by_id';
+    automation.messageUpdate.messageId = messageTimestamp;
+
+    // Get fresh data from sheet
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(automation.targetSheet);
+
+    if (!sheet) {
+      return { success: false, error: `Sheet "${automation.targetSheet}" not found.` };
+    }
+
+    const data = sheet.getDataRange().getDisplayValues();
+    if (data.length < 2) {
+      return { success: false, error: "Sheet has no data rows." };
+    }
+
+    const headers = data[0];
+    const rows = data.slice(1);
+
+    // Filter by criteria if any
+    const matchingRows = filterRowsByCriteria(rows, automation.criteria, headers);
+
+    Logger.log(`Updating message with ${matchingRows.length} rows`);
+
+    // Send update
+    const result = sendEnhancedSlackMessage(automation, {}, 0, true, {
+      headers: headers,
+      data: matchingRows
+    });
+
+    // Restore original settings
+    automation.messageUpdate.enabled = originalEnabled;
+    automation.messageUpdate.strategy = originalStrategy;
+    automation.messageUpdate.messageId = originalMessageId;
+
+    if (!result.success) {
+      return { success: false, error: `Failed to update message: ${result.error || 'Unknown error'}` };
+    }
+
+    Logger.log("✅ Message updated successfully!");
+
+    return {
+      success: true,
+      message: `✅ Message updated! Timestamp: ${messageTimestamp}, Rows: ${matchingRows.length}`
+    };
+  } catch (error) {
+    Logger.log("Error: " + error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * TRIGGER MANAGEMENT
  */
 function saveAutomation(automationConfig) {
