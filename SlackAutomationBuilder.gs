@@ -1377,9 +1377,9 @@ function testSlackAutomation(automationId) {
  *
  * Example: updateSpecificMessage('auto_123', '1705934477.861929')
  */
-function updateSpecificMessage(automationId, messageTimestamp) {
+function updateSpecificMessage(automationId, messageTimestamp, channel) {
   try {
-    Logger.log(`Updating message ${messageTimestamp} for automation ${automationId}`);
+    Logger.log(`Updating message ${messageTimestamp} for automation ${automationId} in channel ${channel}`);
 
     const automations = getSlackAutomations();
     const automation = automations.find(a => a.id === automationId);
@@ -1396,11 +1396,13 @@ function updateSpecificMessage(automationId, messageTimestamp) {
     const originalEnabled = automation.messageUpdate.enabled;
     const originalStrategy = automation.messageUpdate.strategy;
     const originalMessageId = automation.messageUpdate.messageId;
+    const originalChannel = automation.slackChannel;
 
-    // Temporarily set to update specific message
+    // Temporarily set to update specific message in specific channel
     automation.messageUpdate.enabled = true;
     automation.messageUpdate.strategy = 'update_by_id';
     automation.messageUpdate.messageId = messageTimestamp;
+    automation.slackChannel = channel; // Use the channel where message was sent
 
     // Get fresh data from sheet
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -1433,6 +1435,7 @@ function updateSpecificMessage(automationId, messageTimestamp) {
     automation.messageUpdate.enabled = originalEnabled;
     automation.messageUpdate.strategy = originalStrategy;
     automation.messageUpdate.messageId = originalMessageId;
+    automation.slackChannel = originalChannel;
 
     if (!result.success) {
       return { success: false, error: `Failed to update message: ${result.error || 'Unknown error'}` };

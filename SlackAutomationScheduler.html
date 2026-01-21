@@ -2337,8 +2337,8 @@
               type: 'info'
             }
           ).then(() => {
-            if (!message.automationId || !message.timestamp) {
-              this.$message.error('Missing automation ID or message timestamp');
+            if (!message.automationId || !message.timestamp || !message.channel) {
+              this.$message.error('Missing automation ID, timestamp, or channel');
               return;
             }
 
@@ -2363,7 +2363,7 @@
                 loading.close();
                 this.$message.error('Error updating message: ' + error.message);
               })
-              .updateSpecificMessage(message.automationId, message.timestamp);
+              .updateSpecificMessage(message.automationId, message.timestamp, message.channel);
           }).catch(() => {
             // User cancelled
           });
