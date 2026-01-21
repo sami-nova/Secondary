@@ -1455,7 +1455,7 @@
               <div>
                 <el-tag type="info">Total Messages: {{ sentMessages.length }}</el-tag>
                 <span style="margin-left: 10px; color: #909399; font-size: 13px">
-                  Only messages sent with Bot Token can be deleted (last 100 tracked)
+                  Messages sent with Bot Token can be updated or deleted (last 100 tracked)
                 </span>
               </div>
               <div>
@@ -1520,10 +1520,19 @@
               </el-table-column>
               <el-table-column
                 label="Actions"
-                width="120"
+                width="200"
                 fixed="right"
               >
                 <template slot-scope="scope">
+                  <el-button
+                    @click="updateMessage(scope.row)"
+                    type="primary"
+                    icon="el-icon-refresh"
+                    size="mini"
+                    style="margin-right: 5px"
+                  >
+                    Update
+                  </el-button>
                   <el-button
                     @click="deleteMessage(scope.row.timestamp)"
                     type="danger"
@@ -2316,6 +2325,48 @@
               this.loadingMessages = false;
             })
             .getSentMessages();
+        },
+
+        updateMessage(message) {
+          this.$confirm(
+            'Update this message with current sheet data?',
+            'Update Message',
+            {
+              confirmButtonText: 'Update',
+              cancelButtonText: 'Cancel',
+              type: 'info'
+            }
+          ).then(() => {
+            if (!message.automationId || !message.timestamp) {
+              this.$message.error('Missing automation ID or message timestamp');
+              return;
+            }
+
+            const loading = this.$loading({
+              lock: true,
+              text: 'Updating message with current sheet data...',
+              spinner: 'el-icon-loading',
+              background: 'rgba(0, 0, 0, 0.7)'
+            });
+
+            google.script.run
+              .withSuccessHandler((result) => {
+                loading.close();
+                if (result.success) {
+                  this.$message.success(result.message || 'Message updated successfully!');
+                  this.loadSentMessages(); // Refresh list
+                } else {
+                  this.$message.error('Error updating message: ' + result.error);
+                }
+              })
+              .withFailureHandler((error) => {
+                loading.close();
+                this.$message.error('Error updating message: ' + error.message);
+              })
+              .updateSpecificMessage(message.automationId, message.timestamp);
+          }).catch(() => {
+            // User cancelled
+          });
         },
 
         deleteMessage(timestamp) {
