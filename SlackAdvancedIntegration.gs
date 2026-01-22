@@ -164,19 +164,20 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
     }
 
     // STEP 4: FEATURE 2 & 3 - Add Mentions (@user and @channel) (only if enabled)
-    // CRITICAL: For block-based messages (like leaderboards), mentions in payload.text
-    // appear ABOVE the blocks. If the user ID is invalid, Slack shows "🔒private channel"
-    // which appears before rank #1. So we add mentions AS A BLOCK instead.
+    // COMPLETELY DISABLED FOR LEADERBOARDS - NO EXCEPTIONS
     try {
       const isBlockBasedMessage = payload.blocks && payload.blocks.length > 0;
       const isLeaderboard = automation.format === 'leaderboard' ||
                            automation.format === 'leaderboard_combined' ||
                            (automation.messageFormat && automation.messageFormat.includes('leaderboard'));
 
-      if ((automation.mentions && automation.mentions.enabled) ||
-          (automation.channelNotify && automation.channelNotify.enabled)) {
+      if (isLeaderboard) {
+        Logger.log("⚠️ LEADERBOARD DETECTED - SKIPPING ALL MENTION PROCESSING");
+        // DO NOT add mentions for leaderboards at all - they cause issues
+      } else if ((automation.mentions && automation.mentions.enabled) ||
+                 (automation.channelNotify && automation.channelNotify.enabled)) {
 
-        Logger.log(`Processing mentions - Block-based: ${isBlockBasedMessage}, Leaderboard: ${isLeaderboard}`);
+        Logger.log(`Processing mentions - Block-based: ${isBlockBasedMessage}`);
 
         if (typeof buildMentions !== 'function') {
           Logger.log("⚠ WARNING: buildMentions function not found!");
@@ -199,7 +200,7 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
               };
               // Insert at position 1 (after header, before divider if exists)
               payload.blocks.splice(1, 0, mentionBlock);
-              Logger.log(`✓ Added mentions as block #1 in leaderboard`);
+              Logger.log(`✓ Added mentions as block #1 in message`);
             } else {
               // Text-based messages - add to payload.text
               if (payload.text) {
