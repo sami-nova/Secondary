@@ -101,17 +101,23 @@ function buildMentions(automation, rowData) {
 
 /**
  * FEATURE 3: FORMAT MENTIONS - Convert mentions to Slack format
+ * CRITICAL: Only formats valid mentions to prevent "🔒private channel" text
  */
 function formatMentions(mentions) {
   let text = '';
 
   for (const mention of mentions) {
     if (mention.type === 'user') {
-      // Format: <@U12345ABCDE>
-      const userId = mention.id.startsWith('U') ? mention.id : mention.id;
-      text += `<@${userId}> `;
-      if (mention.message) {
-        text += mention.message + ' ';
+      // VALIDATION: User IDs must start with 'U' and be at least 9 characters
+      // Invalid IDs cause Slack to display "🔒private channel"
+      const userId = mention.id;
+      if (userId && userId.startsWith('U') && userId.length >= 9) {
+        text += `<@${userId}> `;
+        if (mention.message) {
+          text += mention.message + ' ';
+        }
+      } else {
+        Logger.log(`⚠ Skipping invalid user ID: "${userId}" (would show as "private channel")`);
       }
     } else if (mention.type === 'channel') {
       text += '<!channel> ';
