@@ -110,9 +110,36 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A21:F23").setValues(killerOldData);
 
   // ============================================
-  // SECTION 5: REGIONAL PERFORMANCE SUMMARY
+  // SECTION 5: TOTALS SUMMARY (for you to update manually)
   // ============================================
-  sheet.getRange("A25").setValue("🌍 REGIONAL PERFORMANCE SUMMARY");
+  sheet.getRange("A31").setValue("📊 TOTALS SUMMARY");
+  sheet.getRange("A31:I31").merge();
+  sheet.getRange("A31:I31").setBackground("#FFA726").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const totalsHeaders = ["Metric", "Value"];
+  sheet.getRange("A32:B32").setValues([totalsHeaders]);
+  sheet.getRange("A32:B32").setBackground("#FFE0B2").setFontWeight("bold");
+
+  const totalsData = [
+    ["Grand Total Sales", 539],
+    ["Churn Prevention Total", 260],
+    ["Churn Current Base", 125],
+    ["Churn Old Base", 135],
+    ["Killer Base Total", 279],
+    ["Killer Current Base", 151],
+    ["Killer Old Base", 128]
+  ];
+  sheet.getRange("A33:B39").setValues(totalsData);
+
+  // Add borders to totals section
+  sheet.getRange("A31:B39").setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
+
+  Logger.log("✓ Totals summary section added");
+
+  // ============================================
+  // SECTION 6: REGIONAL PERFORMANCE
+  // ============================================
+  sheet.getRange("A41").setValue("🌍 REGIONAL PERFORMANCE SUMMARY");
   sheet.getRange("A25:I25").merge();
   sheet.getRange("A25:I25").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
@@ -148,7 +175,8 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A8:F11").setBorder(true, true, true, true, true, true);
   sheet.getRange("A14:F17").setBorder(true, true, true, true, true, true);
   sheet.getRange("A20:F23").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A26:I30").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A32:B39").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A42:I46").setBorder(true, true, true, true, true, true);
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");

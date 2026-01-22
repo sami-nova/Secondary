@@ -1378,20 +1378,37 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const churnOldData = sheet.getRange("A9:F11").getValues();
     const killerCurrentData = sheet.getRange("A15:F17").getValues();
     const killerOldData = sheet.getRange("A21:F23").getValues();
-    const regionalData = sheet.getRange("A27:I30").getValues();
+    const totalsData = sheet.getRange("A33:B39").getValues();
+    const regionalData = sheet.getRange("A43:I46").getValues();
 
     const blocks = [];
 
-    // Get current week from first row - clean it to remove any extra text
+    // Get current week from first row and convert to readable date format
     let currentWeek = churnCurrentData.length > 0 && churnCurrentData[0][0] ? String(churnCurrentData[0][0]) : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
 
-    // Extract week number pattern (e.g., "2026-W04") from the string
-    const weekMatch = currentWeek.match(/\d{4}-W\d{2}/);
+    // Extract week number pattern (e.g., "2026-W04") and convert to "Jan 24th" format
+    const weekMatch = currentWeek.match(/(\d{4})-W(\d{2})/);
     if (weekMatch) {
-      currentWeek = weekMatch[0];
+      const year = parseInt(weekMatch[1]);
+      const weekNum = parseInt(weekMatch[2]);
+
+      // Calculate the date of the Monday of that week
+      const jan4 = new Date(year, 0, 4);
+      const daysToMonday = (weekNum - 1) * 7 - jan4.getDay() + 1;
+      const weekDate = new Date(year, 0, 4 + daysToMonday);
+
+      // Format as "Jan 24th"
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const day = weekDate.getDate();
+      const suffix = day % 10 === 1 && day !== 11 ? "st" : day % 10 === 2 && day !== 12 ? "nd" : day % 10 === 3 && day !== 13 ? "rd" : "th";
+      currentWeek = `${monthNames[weekDate.getMonth()]} ${day}${suffix}`;
     } else {
-      // If no valid week format found, use current week
-      currentWeek = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
+      // If no valid week format found, use current date
+      const now = new Date();
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const day = now.getDate();
+      const suffix = day % 10 === 1 && day !== 11 ? "st" : day % 10 === 2 && day !== 12 ? "nd" : day % 10 === 3 && day !== 13 ? "rd" : "th";
+      currentWeek = `${monthNames[now.getMonth()]} ${day}${suffix}`;
     }
 
     // Main header
@@ -1399,7 +1416,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       type: "header",
       text: {
         type: "plain_text",
-        text: `🏆 WEEKLY PERFORMANCE LEADERBOARD - Week ${currentWeek}`,
+        text: `🏆 WEEKLY PERFORMANCE LEADERBOARD - ${currentWeek}`,
         emoji: true
       }
     });
@@ -1421,7 +1438,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     churnCurrentData.forEach((row, idx) => {
       // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
       const rank = row[1];
-      const managerName = cleanSheetData(row[2]);
+      const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
       const sales = row[3];
       const cashGenerated = row[4];
       const region = cleanSheetData(row[5]);
@@ -1464,7 +1481,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     churnOldData.forEach((row, idx) => {
       // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
       const rank = row[1];
-      const managerName = cleanSheetData(row[2]);
+      const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
       const sales = row[3];
       const cashGenerated = row[4];
       const region = cleanSheetData(row[5]);
@@ -1507,7 +1524,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     killerCurrentData.forEach((row, idx) => {
       // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
       const rank = row[1];
-      const managerName = cleanSheetData(row[2]);
+      const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
       const sales = row[3];
       const cashGenerated = row[4];
       const region = cleanSheetData(row[5]);
@@ -1550,7 +1567,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     killerOldData.forEach((row, idx) => {
       // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
       const rank = row[1];
-      const managerName = cleanSheetData(row[2]);
+      const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
       const sales = row[3];
       const cashGenerated = row[4];
       const region = cleanSheetData(row[5]);
@@ -1620,12 +1637,14 @@ function buildCombinedLeaderboardFromSheet(automation) {
       }
     });
 
-    // Footer with stats and timestamp
-    const totalChurnCurrent = churnCurrentData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
-    const totalChurnOld = churnOldData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
-    const totalKillerCurrent = killerCurrentData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
-    const totalKillerOld = killerOldData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
-    const grandTotal = totalChurnCurrent + totalChurnOld + totalKillerCurrent + totalKillerOld;
+    // Footer with stats from sheet (you can update these manually)
+    const grandTotal = totalsData[0][1] || 0;
+    const churnTotal = totalsData[1][1] || 0;
+    const churnCurrent = totalsData[2][1] || 0;
+    const churnOld = totalsData[3][1] || 0;
+    const killerTotal = totalsData[4][1] || 0;
+    const killerCurrent = totalsData[5][1] || 0;
+    const killerOld = totalsData[6][1] || 0;
 
     blocks.push({ type: "divider" });
 
@@ -1634,7 +1653,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       elements: [
         {
           type: "mrkdwn",
-          text: `📊 *Grand Total:* ${grandTotal} sales | 🏆 Churn: ${totalChurnCurrent + totalChurnOld} (${totalChurnCurrent} Current + ${totalChurnOld} Old) | 💪 Killer: ${totalKillerCurrent + totalKillerOld} (${totalKillerCurrent} Current + ${totalKillerOld} Old) | Updated: ${new Date().toLocaleString()}`
+          text: `📊 *Grand Total:* ${grandTotal} sales | 🏆 Churn: ${churnTotal} (${churnCurrent} Current + ${churnOld} Old) | 💪 Killer: ${killerTotal} (${killerCurrent} Current + ${killerOld} Old) | Updated: ${new Date().toLocaleString()}`
         }
       ]
     });
