@@ -164,14 +164,18 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
     }
 
     // STEP 4: FEATURE 2 & 3 - Add Mentions (@user and @channel) (only if enabled)
-    // DISABLED FOR LEADERBOARDS - causes "private channel" text to appear
+    // CRITICAL: For block-based messages (like leaderboards), mentions in payload.text
+    // appear ABOVE the blocks. If the user ID is invalid, Slack shows "🔒private channel"
+    // which appears before rank #1. So we ONLY add mentions to text-based messages.
     try {
+      const isBlockBasedMessage = payload.blocks && payload.blocks.length > 0;
       const isLeaderboard = automation.format === 'leaderboard' ||
                            automation.format === 'leaderboard_combined' ||
                            (automation.messageFormat && automation.messageFormat.includes('leaderboard'));
 
-      if (isLeaderboard) {
-        Logger.log("⚠ Mentions DISABLED for leaderboard format to prevent 'private channel' text");
+      if (isBlockBasedMessage || isLeaderboard) {
+        Logger.log("⚠ Mentions DISABLED for block-based/leaderboard messages to prevent 'private channel' text");
+        // Don't add mentions to payload.text - they would appear above blocks
       } else if ((automation.mentions && automation.mentions.enabled) ||
                  (automation.channelNotify && automation.channelNotify.enabled)) {
 
