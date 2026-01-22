@@ -164,9 +164,16 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
     }
 
     // STEP 4: FEATURE 2 & 3 - Add Mentions (@user and @channel) (only if enabled)
+    // DISABLED FOR LEADERBOARDS - causes "private channel" text to appear
     try {
-      if ((automation.mentions && automation.mentions.enabled) ||
-          (automation.channelNotify && automation.channelNotify.enabled)) {
+      const isLeaderboard = automation.format === 'leaderboard' ||
+                           automation.format === 'leaderboard_combined' ||
+                           (automation.messageFormat && automation.messageFormat.includes('leaderboard'));
+
+      if (isLeaderboard) {
+        Logger.log("⚠ Mentions DISABLED for leaderboard format to prevent 'private channel' text");
+      } else if ((automation.mentions && automation.mentions.enabled) ||
+                 (automation.channelNotify && automation.channelNotify.enabled)) {
 
         Logger.log(`Checking mention functions: buildMentions=${typeof buildMentions}, formatMentions=${typeof formatMentions}`);
 

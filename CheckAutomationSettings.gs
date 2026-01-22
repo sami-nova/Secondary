@@ -3,8 +3,9 @@
  * Run this to see if mentions or channelNotify is enabled in your leaderboard automation
  */
 function checkLeaderboardAutomationSettings() {
-  const automationManager = SlackLib.createAutomationManager();
-  const automations = automationManager.getAll();
+  const properties = PropertiesService.getScriptProperties();
+  const automationsJson = properties.getProperty("SlackAutomations") || "[]";
+  const automations = JSON.parse(automationsJson);
 
   Logger.log("=".repeat(80));
   Logger.log("CHECKING ALL AUTOMATIONS FOR MENTIONS/CHANNELNOTIFY SETTINGS");
