@@ -1121,28 +1121,6 @@ function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
     }
   });
 
-  // Add mentions/tags if enabled
-  if (typeof buildMentions === 'function' && typeof formatMentions === 'function') {
-    if ((automation.mentions && automation.mentions.enabled) ||
-        (automation.channelNotify && automation.channelNotify.enabled)) {
-      try {
-        const mentions = buildMentions(automation, null);
-        if (mentions.length > 0) {
-          const mentionText = formatMentions(mentions);
-          blocks.push({
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: mentionText
-            }
-          });
-        }
-      } catch (error) {
-        Logger.log("Warning: Could not add mentions to leaderboard: " + error.message);
-      }
-    }
-  }
-
   blocks.push({ type: "divider" });
 
   // Find column indices
@@ -1425,28 +1403,6 @@ function buildCombinedLeaderboardFromSheet(automation) {
         emoji: true
       }
     });
-
-    // Add mentions/tags if enabled
-    if (typeof buildMentions === 'function' && typeof formatMentions === 'function') {
-      if ((automation.mentions && automation.mentions.enabled) ||
-          (automation.channelNotify && automation.channelNotify.enabled)) {
-        try {
-          const mentions = buildMentions(automation, null);
-          if (mentions.length > 0) {
-            const mentionText = formatMentions(mentions);
-            blocks.push({
-              type: "section",
-              text: {
-                type: "mrkdwn",
-                text: mentionText
-              }
-            });
-          }
-        } catch (error) {
-          Logger.log("Warning: Could not add mentions to leaderboard: " + error.message);
-        }
-      }
-    }
 
     blocks.push({ type: "divider" });
 
