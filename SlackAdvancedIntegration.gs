@@ -166,47 +166,51 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
     // STEP 4: FEATURE 2 & 3 - Add Mentions (@user and @channel) (only if enabled)
     // CRITICAL: For block-based messages (like leaderboards), mentions in payload.text
     // appear ABOVE the blocks. If the user ID is invalid, Slack shows "🔒private channel"
-    // which appears before rank #1. So we ONLY add mentions to text-based messages.
+    // which appears before rank #1. So we add mentions AS A BLOCK instead.
     try {
       const isBlockBasedMessage = payload.blocks && payload.blocks.length > 0;
       const isLeaderboard = automation.format === 'leaderboard' ||
                            automation.format === 'leaderboard_combined' ||
                            (automation.messageFormat && automation.messageFormat.includes('leaderboard'));
 
-      if (isBlockBasedMessage || isLeaderboard) {
-        Logger.log("⚠ Mentions DISABLED for block-based/leaderboard messages to prevent 'private channel' text");
-        // Don't add mentions to payload.text - they would appear above blocks
-      } else if ((automation.mentions && automation.mentions.enabled) ||
-                 (automation.channelNotify && automation.channelNotify.enabled)) {
+      if ((automation.mentions && automation.mentions.enabled) ||
+          (automation.channelNotify && automation.channelNotify.enabled)) {
 
-        Logger.log(`Checking mention functions: buildMentions=${typeof buildMentions}, formatMentions=${typeof formatMentions}`);
+        Logger.log(`Processing mentions - Block-based: ${isBlockBasedMessage}, Leaderboard: ${isLeaderboard}`);
 
         if (typeof buildMentions !== 'function') {
-          Logger.log("⚠ WARNING: buildMentions function not found! SlackAdvancedFeatures.gs may not be loaded.");
-          // Fallback: Add @channel directly if enabled
-          if (automation.channelNotify && automation.channelNotify.enabled && automation.channelNotify.type === 'always') {
-            Logger.log("✓ Using fallback: Adding @channel directly");
-            const mentionText = '<!channel>';
-            if (payload.text) {
-              payload.text = mentionText + '\n\n' + payload.text;
-            } else {
-              payload.text = mentionText;
-            }
-          }
+          Logger.log("⚠ WARNING: buildMentions function not found!");
         } else {
           const mentions = buildMentions(automation, rowData);
           Logger.log(`✓ Built ${mentions.length} mentions`);
+
           if (mentions.length > 0 && typeof formatMentions === 'function') {
             const mentionText = formatMentions(mentions);
             Logger.log(`✓ Mention text: "${mentionText}"`);
-            if (payload.text) {
-              payload.text = mentionText + '\n\n' + payload.text;
+
+            if (isBlockBasedMessage) {
+              // Add mentions as a block at the top (safer than payload.text)
+              const mentionBlock = {
+                type: "section",
+                text: {
+                  type: "mrkdwn",
+                  text: mentionText
+                }
+              };
+              // Insert at position 1 (after header, before divider if exists)
+              payload.blocks.splice(1, 0, mentionBlock);
+              Logger.log(`✓ Added mentions as block #1 in leaderboard`);
             } else {
-              payload.text = mentionText;
+              // Text-based messages - add to payload.text
+              if (payload.text) {
+                payload.text = mentionText + '\n\n' + payload.text;
+              } else {
+                payload.text = mentionText;
+              }
+              Logger.log(`✓ Added mentions to payload.text`);
             }
-            Logger.log(`✓ Added mentions to payload.text`);
           } else {
-            Logger.log(`⚠ No mentions generated (empty array returned from buildMentions)`);
+            Logger.log(`⚠ No mentions generated`);
           }
         }
       }
