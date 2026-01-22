@@ -430,6 +430,8 @@ function buildBeautifulReport(automation, allRows) {
       return buildCompactFormat(messageHeader, headers, validRows, automation);
     case "rich":
       return buildRichFormat(messageHeader, headers, validRows, automation);
+    case "leaderboard":
+      return buildLeaderboardFormat(messageHeader, headers, validRows, automation);
     case "inline":
     default:
       return buildInlineFormat(messageHeader, headers, validRows, automation);
@@ -1079,6 +1081,248 @@ function buildRichFormat(messageHeader, headers, validRows, automation) {
 
   Logger.log(`Built rich format with ${blocks.length} blocks`);
   return { blocks: blocks };
+}
+
+/**
+ * FORMAT 9: LEADERBOARD FORMAT
+ * Perfect for rankings, top performers, competitions
+ * Features: Trophy emojis, rank badges, change indicators, regional flags
+ */
+function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
+  const blocks = [];
+
+  // Detect leaderboard type from header/automation name
+  const headerLower = (messageHeader || '').toLowerCase();
+  const automationName = (automation.name || '').toLowerCase();
+
+  let leaderboardType = 'general';
+  let headerIcon = '🏆';
+
+  if (headerLower.includes('churn') || automationName.includes('churn')) {
+    leaderboardType = 'churn';
+    headerIcon = '🏆';
+  } else if (headerLower.includes('killer') || automationName.includes('killer') || headerLower.includes('base')) {
+    leaderboardType = 'killer';
+    headerIcon = '💪';
+  } else if (headerLower.includes('region') || automationName.includes('region')) {
+    leaderboardType = 'regional';
+    headerIcon = '🌍';
+  }
+
+  // Main header
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: `${headerIcon} ${truncateText(messageHeader, 145)}`,
+      emoji: true
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  // Find column indices
+  const rankIdx = headers.findIndex(h => h.toLowerCase().includes('rank'));
+  const nameIdx = headers.findIndex(h => h.toLowerCase().includes('name') || h.toLowerCase().includes('manager'));
+  const winsIdx = headers.findIndex(h => h.toLowerCase().includes('win'));
+  const changeIdx = headers.findIndex(h => h.toLowerCase().includes('change'));
+  const regionIdx = headers.findIndex(h => h.toLowerCase().includes('region'));
+
+  // Regional leaderboard format
+  if (leaderboardType === 'regional') {
+    const totalIdx = headers.findIndex(h => h.toLowerCase().includes('total'));
+    const churnIdx = headers.findIndex(h => h.toLowerCase().includes('churn'));
+    const killerIdx = headers.findIndex(h => h.toLowerCase().includes('killer'));
+    const topManagerIdx = headers.findIndex(h => h.toLowerCase().includes('top') || h.toLowerCase().includes('manager'));
+
+    let regionalText = "";
+
+    validRows.forEach((row, idx) => {
+      const region = regionIdx !== -1 ? row[regionIdx] : row[1] || `Region ${idx + 1}`;
+      const totalWins = totalIdx !== -1 ? row[totalIdx] : row[2] || 0;
+      const churnWins = churnIdx !== -1 ? row[churnIdx] : 0;
+      const killerWins = killerIdx !== -1 ? row[killerIdx] : 0;
+      const topManager = topManagerIdx !== -1 ? row[topManagerIdx] : "N/A";
+
+      const regionEmoji = getRegionEmoji(region);
+
+      regionalText += `*${regionEmoji} ${region}*\n`;
+      regionalText += `├ Total Wins: *${totalWins}*`;
+
+      if (churnWins || killerWins) {
+        regionalText += ` (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)`;
+      }
+
+      regionalText += `\n└ Top Performer: ${topManager}\n\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: regionalText
+      }
+    });
+
+  } else {
+    // Manager leaderboard format (Churn/Killer/General)
+    let leaderboardText = "";
+
+    validRows.forEach((row, idx) => {
+      const rank = rankIdx !== -1 ? row[rankIdx] : (idx + 1);
+      const managerName = nameIdx !== -1 ? row[nameIdx] : row[0] || `Person ${idx + 1}`;
+      const wins = winsIdx !== -1 ? row[winsIdx] : row[1] || 0;
+      const change = changeIdx !== -1 ? row[changeIdx] : null;
+      const region = regionIdx !== -1 ? row[regionIdx] : null;
+
+      // Rank emoji
+      const rankEmoji = getRankEmoji(rank);
+
+      // Build line
+      leaderboardText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      leaderboardText += `   └ ${wins} wins`;
+
+      // Add change indicator if available
+      if (change) {
+        const changeIndicator = getChangeIndicator(change);
+        leaderboardText += ` ${changeIndicator}`;
+      }
+
+      // Add region if available
+      if (region) {
+        const regionEmoji = getRegionEmoji(region);
+        leaderboardText += ` | ${regionEmoji} ${region}`;
+      }
+
+      leaderboardText += `\n\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: leaderboardText
+      }
+    });
+  }
+
+  // Add summary stats for manager leaderboards
+  if (leaderboardType !== 'regional' && winsIdx !== -1) {
+    const totalWins = validRows.reduce((sum, row) => sum + (parseInt(row[winsIdx]) || 0), 0);
+    const avgWins = (totalWins / validRows.length).toFixed(1);
+
+    blocks.push({ type: "divider" });
+
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `📊 *Total Wins:* ${totalWins} | *Average:* ${avgWins} | *Top Performers:* ${validRows.length}`
+        }
+      ]
+    });
+  }
+
+  // Footer with timestamp
+  blocks.push({
+    type: "context",
+    elements: [
+      {
+        type: "mrkdwn",
+        text: `Updated: ${new Date().toLocaleString()}`
+      }
+    ]
+  });
+
+  Logger.log(`Built leaderboard format with ${blocks.length} blocks`);
+  return { blocks: blocks };
+}
+
+/**
+ * HELPER: Get rank emoji for leaderboard
+ */
+function getRankEmoji(rank) {
+  switch(parseInt(rank)) {
+    case 1: return "🥇";
+    case 2: return "🥈";
+    case 3: return "🥉";
+    case 4: return "4️⃣";
+    case 5: return "5️⃣";
+    case 6: return "6️⃣";
+    case 7: return "7️⃣";
+    case 8: return "8️⃣";
+    case 9: return "9️⃣";
+    case 10: return "🔟";
+    default: return `${rank}️⃣`;
+  }
+}
+
+/**
+ * HELPER: Get change indicator with emoji
+ */
+function getChangeIndicator(change) {
+  const changeStr = String(change);
+  const changeNum = parseInt(changeStr.replace(/[^0-9-]/g, ''));
+
+  if (changeNum > 0) {
+    return `📈 +${Math.abs(changeNum)}`;
+  } else if (changeNum < 0) {
+    return `📉 -${Math.abs(changeNum)}`;
+  } else {
+    return `➖ 0`;
+  }
+}
+
+/**
+ * HELPER: Get region flag emoji
+ */
+function getRegionEmoji(region) {
+  const regionStr = String(region).toUpperCase().trim();
+
+  const regionMap = {
+    'NA': '🇺🇸',
+    'EMEA': '🇪🇺',
+    'APAC': '🌏',
+    'LATAM': '🌎',
+    'AMER': '🌎',
+    'EU': '🇪🇺',
+    'ASIA': '🌏',
+    'US': '🇺🇸',
+    'UK': '🇬🇧',
+    'DE': '🇩🇪',
+    'FR': '🇫🇷',
+    'JP': '🇯🇵',
+    'KR': '🇰🇷',
+    'CN': '🇨🇳',
+    'IN': '🇮🇳',
+    'BR': '🇧🇷',
+    'MX': '🇲🇽',
+    'AU': '🇦🇺',
+    'CA': '🇨🇦',
+    'SG': '🇸🇬',
+    'NZ': '🇳🇿',
+    'ZA': '🇿🇦',
+    'IL': '🇮🇱',
+    'AE': '🇦🇪',
+    'SA': '🇸🇦',
+    'ES': '🇪🇸',
+    'IT': '🇮🇹',
+    'NL': '🇳🇱',
+    'SE': '🇸🇪',
+    'NO': '🇳🇴',
+    'DK': '🇩🇰',
+    'FI': '🇫🇮',
+    'PL': '🇵🇱',
+    'RU': '🇷🇺',
+    'TR': '🇹🇷',
+    'AR': '🇦🇷',
+    'CL': '🇨🇱',
+    'CO': '🇨🇴',
+    'PE': '🇵🇪'
+  };
+
+  return regionMap[regionStr] || '🌐';
 }
 
 /**
