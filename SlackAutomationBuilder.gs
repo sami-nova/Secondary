@@ -604,7 +604,7 @@ function buildTableFormat(messageHeader, headers, validRows, automation) {
         const goal = parseFloat(String(row[goalColIdx]).replace(/[^0-9.-]/g, '')) || 0;
 
         if (goal > 0) {
-          const regionName = row[0] || `Row ${idx + 1}`;
+          const regionName = cleanSheetData(row[0] || `Row ${idx + 1}`);
           const progressBar = buildProgressBar(
             value,
             goal,
@@ -939,7 +939,7 @@ function buildQuoteFormat(messageHeader, headers, validRows, automation) {
         const goal = parseFloat(String(row[goalColIdx]).replace(/[^0-9.-]/g, '')) || 0;
 
         if (goal > 0) {
-          const regionName = row[0] || `Row ${idx + 1}`;
+          const regionName = cleanSheetData(row[0] || `Row ${idx + 1}`);
           const progressBar = buildProgressBar(
             value,
             goal,
@@ -1121,6 +1121,28 @@ function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
     }
   });
 
+  // Add mentions/tags if enabled
+  if (typeof buildMentions === 'function' && typeof formatMentions === 'function') {
+    if ((automation.mentions && automation.mentions.enabled) ||
+        (automation.channelNotify && automation.channelNotify.enabled)) {
+      try {
+        const mentions = buildMentions(automation, null);
+        if (mentions.length > 0) {
+          const mentionText = formatMentions(mentions);
+          blocks.push({
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: mentionText
+            }
+          });
+        }
+      } catch (error) {
+        Logger.log("Warning: Could not add mentions to leaderboard: " + error.message);
+      }
+    }
+  }
+
   blocks.push({ type: "divider" });
 
   // Find column indices
@@ -1140,11 +1162,11 @@ function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
     let regionalText = "";
 
     validRows.forEach((row, idx) => {
-      const region = regionIdx !== -1 ? row[regionIdx] : row[1] || `Region ${idx + 1}`;
+      const region = cleanSheetData(regionIdx !== -1 ? row[regionIdx] : row[1] || `Region ${idx + 1}`);
       const totalWins = totalIdx !== -1 ? row[totalIdx] : row[2] || 0;
       const churnWins = churnIdx !== -1 ? row[churnIdx] : 0;
       const killerWins = killerIdx !== -1 ? row[killerIdx] : 0;
-      const topManager = topManagerIdx !== -1 ? row[topManagerIdx] : "N/A";
+      const topManager = cleanSheetData(topManagerIdx !== -1 ? row[topManagerIdx] : "N/A");
 
       const regionEmoji = getRegionSlackEmoji(region);
 
@@ -1172,10 +1194,10 @@ function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
 
     validRows.forEach((row, idx) => {
       const rank = rankIdx !== -1 ? row[rankIdx] : (idx + 1);
-      const managerName = nameIdx !== -1 ? row[nameIdx] : row[0] || `Person ${idx + 1}`;
+      const managerName = cleanSheetData(nameIdx !== -1 ? row[nameIdx] : row[0] || `Person ${idx + 1}`);
       const wins = winsIdx !== -1 ? row[winsIdx] : row[1] || 0;
       const change = changeIdx !== -1 ? row[changeIdx] : null;
-      const region = regionIdx !== -1 ? row[regionIdx] : null;
+      const region = cleanSheetData(regionIdx !== -1 ? row[regionIdx] : null);
 
       // Rank emoji
       const rankEmoji = getRankEmoji(rank);
@@ -1403,6 +1425,28 @@ function buildCombinedLeaderboardFromSheet(automation) {
         emoji: true
       }
     });
+
+    // Add mentions/tags if enabled
+    if (typeof buildMentions === 'function' && typeof formatMentions === 'function') {
+      if ((automation.mentions && automation.mentions.enabled) ||
+          (automation.channelNotify && automation.channelNotify.enabled)) {
+        try {
+          const mentions = buildMentions(automation, null);
+          if (mentions.length > 0) {
+            const mentionText = formatMentions(mentions);
+            blocks.push({
+              type: "section",
+              text: {
+                type: "mrkdwn",
+                text: mentionText
+              }
+            });
+          }
+        } catch (error) {
+          Logger.log("Warning: Could not add mentions to leaderboard: " + error.message);
+        }
+      }
+    }
 
     blocks.push({ type: "divider" });
 
