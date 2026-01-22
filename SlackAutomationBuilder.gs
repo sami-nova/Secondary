@@ -432,6 +432,8 @@ function buildBeautifulReport(automation, allRows) {
       return buildRichFormat(messageHeader, headers, validRows, automation);
     case "leaderboard":
       return buildLeaderboardFormat(messageHeader, headers, validRows, automation);
+    case "leaderboard_combined":
+      return buildCombinedLeaderboardFromSheet(automation);
     case "inline":
     default:
       return buildInlineFormat(messageHeader, headers, validRows, automation);
@@ -1323,6 +1325,199 @@ function getRegionEmoji(region) {
   };
 
   return regionMap[regionStr] || '🌐';
+}
+
+/**
+ * BUILD COMBINED LEADERBOARD FROM SHEET
+ * Reads all 3 sections from Weekly Leaderboard sheet and creates one combined message
+ * This is the RECOMMENDED format for weekly leaderboards - no spamming with 3 messages!
+ */
+function buildCombinedLeaderboardFromSheet(automation) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(automation.targetSheet || "Weekly Leaderboard");
+
+    if (!sheet) {
+      Logger.log("Weekly Leaderboard sheet not found");
+      return { text: "Weekly Leaderboard sheet not found. Please create it first." };
+    }
+
+    // Get all data sections from the sheet
+    const churnData = sheet.getRange("A3:F7").getValues();
+    const killerData = sheet.getRange("A11:F15").getValues();
+    const regionalData = sheet.getRange("A19:F22").getValues();
+
+    const blocks = [];
+
+    // Get current week from first row
+    const currentWeek = churnData.length > 0 && churnData[0][0] ? churnData[0][0] : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
+
+    // Main header
+    blocks.push({
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: `🏆 WEEKLY PERFORMANCE LEADERBOARD - Week ${currentWeek}`,
+        emoji: true
+      }
+    });
+
+    blocks.push({ type: "divider" });
+
+    // ============================================
+    // SECTION 1: CHURN PREVENTION LEADERBOARD
+    // ============================================
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*🏆 CHURN PREVENTION - TOP 5*"
+      }
+    });
+
+    let churnText = "";
+    churnData.forEach((row, idx) => {
+      // Row format: [Week, Rank, Manager Name, Wins, Change, Region]
+      const rank = row[1];
+      const managerName = row[2];
+      const wins = row[3];
+      const change = row[4];
+      const region = row[5];
+
+      if (!rank || !managerName) return; // Skip empty rows
+
+      const rankEmoji = getRankEmoji(rank);
+      const changeIndicator = change ? getChangeIndicator(change) : "";
+      const regionEmoji = region ? getRegionEmoji(region) : "";
+
+      churnText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      churnText += `   └ ${wins} wins ${changeIndicator}`;
+      if (region) {
+        churnText += ` | ${regionEmoji} ${region}`;
+      }
+      churnText += `\n\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: churnText || "_No data available_"
+      }
+    });
+
+    blocks.push({ type: "divider" });
+
+    // ============================================
+    // SECTION 2: KILLER BASE LEADERBOARD
+    // ============================================
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*💪 KILLER BASE - TOP 5*"
+      }
+    });
+
+    let killerText = "";
+    killerData.forEach((row, idx) => {
+      // Row format: [Week, Rank, Manager Name, Wins, Change, Region]
+      const rank = row[1];
+      const managerName = row[2];
+      const wins = row[3];
+      const change = row[4];
+      const region = row[5];
+
+      if (!rank || !managerName) return; // Skip empty rows
+
+      const rankEmoji = getRankEmoji(rank);
+      const changeIndicator = change ? getChangeIndicator(change) : "";
+      const regionEmoji = region ? getRegionEmoji(region) : "";
+
+      killerText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      killerText += `   └ ${wins} wins ${changeIndicator}`;
+      if (region) {
+        killerText += ` | ${regionEmoji} ${region}`;
+      }
+      killerText += `\n\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: killerText || "_No data available_"
+      }
+    });
+
+    blocks.push({ type: "divider" });
+
+    // ============================================
+    // SECTION 3: REGIONAL PERFORMANCE
+    // ============================================
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*🌍 REGIONAL PERFORMANCE*"
+      }
+    });
+
+    let regionalText = "";
+    regionalData.forEach((row, idx) => {
+      // Row format: [Week, Region, Total Wins, Churn Wins, Killer Wins, Top Manager]
+      const region = row[1];
+      const totalWins = row[2];
+      const churnWins = row[3];
+      const killerWins = row[4];
+      const topManager = row[5];
+
+      if (!region) return; // Skip empty rows
+
+      const regionEmoji = getRegionEmoji(region);
+
+      regionalText += `*${regionEmoji} ${region}*\n`;
+      regionalText += `├ Total Wins: *${totalWins}*`;
+
+      if (churnWins || killerWins) {
+        regionalText += ` (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)`;
+      }
+
+      regionalText += `\n└ Top Performer: ${topManager}\n\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: regionalText || "_No data available_"
+      }
+    });
+
+    // Footer with stats and timestamp
+    const totalChurnWins = churnData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
+    const totalKillerWins = killerData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
+    const grandTotal = totalChurnWins + totalKillerWins;
+
+    blocks.push({ type: "divider" });
+
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: `📊 *Grand Total:* ${grandTotal} wins (🏆 ${totalChurnWins} Churn + 💪 ${totalKillerWins} Killer) | Updated: ${new Date().toLocaleString()}`
+        }
+      ]
+    });
+
+    Logger.log(`Built combined leaderboard with ${blocks.length} blocks`);
+    return { blocks: blocks };
+
+  } catch (error) {
+    Logger.log(`Error building combined leaderboard: ${error.message}`);
+    return { text: `Error building combined leaderboard: ${error.message}` };
+  }
 }
 
 /**

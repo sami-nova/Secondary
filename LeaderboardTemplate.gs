@@ -445,8 +445,241 @@ function sendLeaderboardToSlack(leaderboardType, channel) {
 }
 
 /**
- * SEND ALL THREE LEADERBOARDS TO SLACK
- * Sends all three leaderboards as separate messages
+ * SEND ALL THREE LEADERBOARDS TO SLACK IN ONE COMBINED MESSAGE
+ * This is the RECOMMENDED approach - sends all 3 sections in one beautiful message
+ *
+ * @param {String} channel - Slack channel ID
+ */
+function sendCombinedLeaderboard(channel) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName("Weekly Leaderboard");
+
+    if (!sheet) {
+      throw new Error("Weekly Leaderboard sheet not found. Run createLeaderboardTemplate() first.");
+    }
+
+    // Get all data sections
+    const churnHeaders = sheet.getRange("A2:F2").getValues()[0];
+    const churnData = sheet.getRange("A3:F7").getValues();
+
+    const killerHeaders = sheet.getRange("A10:F10").getValues()[0];
+    const killerData = sheet.getRange("A11:F15").getValues();
+
+    const regionalHeaders = sheet.getRange("A18:F18").getValues()[0];
+    const regionalData = sheet.getRange("A19:F22").getValues();
+
+    // Build combined message
+    const payload = buildCombinedLeaderboardMessage(
+      churnHeaders, churnData,
+      killerHeaders, killerData,
+      regionalHeaders, regionalData
+    );
+
+    // Get bot token
+    const botToken = PropertiesService.getScriptProperties().getProperty('SLACK_BOT_TOKEN');
+    if (!botToken) {
+      throw new Error("Slack Bot Token not configured");
+    }
+
+    // Send to Slack
+    payload.channel = channel;
+
+    const options = {
+      method: 'post',
+      headers: { 'Authorization': 'Bearer ' + botToken },
+      contentType: 'application/json',
+      payload: JSON.stringify(payload)
+    };
+
+    const response = UrlFetchApp.fetch('https://slack.com/api/chat.postMessage', options);
+    const result = JSON.parse(response.getContentText());
+
+    if (result.ok) {
+      Logger.log(`✅ Combined leaderboard sent successfully!`);
+      return { success: true, timestamp: result.ts };
+    } else {
+      throw new Error(result.error);
+    }
+
+  } catch (error) {
+    Logger.log(`❌ Error sending combined leaderboard: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * BUILD COMBINED LEADERBOARD MESSAGE
+ * Creates one message with all 3 leaderboard sections
+ */
+function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders, killerData, regionalHeaders, regionalData) {
+  const blocks = [];
+
+  // Get current week from data
+  const currentWeek = churnData.length > 0 ? churnData[0][0] : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
+
+  // Main header
+  blocks.push({
+    type: "header",
+    text: {
+      type: "plain_text",
+      text: `🏆 WEEKLY PERFORMANCE LEADERBOARD - Week ${currentWeek}`,
+      emoji: true
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  // ============================================
+  // SECTION 1: CHURN PREVENTION LEADERBOARD
+  // ============================================
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: "*🏆 CHURN PREVENTION - TOP 5*"
+    }
+  });
+
+  let churnText = "";
+  churnData.forEach((row, idx) => {
+    if (!row[1]) return; // Skip if no rank
+
+    const rank = row[1];
+    const managerName = row[2] || `Manager ${idx + 1}`;
+    const wins = row[3] || 0;
+    const change = row[4] || "0";
+    const region = row[5] || "";
+
+    const rankEmoji = getRankEmoji(rank);
+    const changeIndicator = getChangeIndicator(change);
+    const regionEmoji = region ? getRegionEmoji(region) : "";
+
+    churnText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+    churnText += `   └ ${wins} wins ${changeIndicator}`;
+    if (region) {
+      churnText += ` | ${regionEmoji} ${region}`;
+    }
+    churnText += `\n\n`;
+  });
+
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: churnText || "_No data available_"
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  // ============================================
+  // SECTION 2: KILLER BASE LEADERBOARD
+  // ============================================
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: "*💪 KILLER BASE - TOP 5*"
+    }
+  });
+
+  let killerText = "";
+  killerData.forEach((row, idx) => {
+    if (!row[1]) return; // Skip if no rank
+
+    const rank = row[1];
+    const managerName = row[2] || `Manager ${idx + 1}`;
+    const wins = row[3] || 0;
+    const change = row[4] || "0";
+    const region = row[5] || "";
+
+    const rankEmoji = getRankEmoji(rank);
+    const changeIndicator = getChangeIndicator(change);
+    const regionEmoji = region ? getRegionEmoji(region) : "";
+
+    killerText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+    killerText += `   └ ${wins} wins ${changeIndicator}`;
+    if (region) {
+      killerText += ` | ${regionEmoji} ${region}`;
+    }
+    killerText += `\n\n`;
+  });
+
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: killerText || "_No data available_"
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  // ============================================
+  // SECTION 3: REGIONAL PERFORMANCE
+  // ============================================
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: "*🌍 REGIONAL PERFORMANCE*"
+    }
+  });
+
+  let regionalText = "";
+  regionalData.forEach((row, idx) => {
+    if (!row[1]) return; // Skip if no region
+
+    const region = row[1];
+    const totalWins = row[2] || 0;
+    const churnWins = row[3] || 0;
+    const killerWins = row[4] || 0;
+    const topManager = row[5] || "N/A";
+
+    const regionEmoji = getRegionEmoji(region);
+
+    regionalText += `*${regionEmoji} ${region}*\n`;
+    regionalText += `├ Total Wins: *${totalWins}*`;
+
+    if (churnWins || killerWins) {
+      regionalText += ` (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)`;
+    }
+
+    regionalText += `\n└ Top Performer: ${topManager}\n\n`;
+  });
+
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: regionalText || "_No data available_"
+    }
+  });
+
+  // Footer with stats and timestamp
+  const totalChurnWins = churnData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
+  const totalKillerWins = killerData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
+  const grandTotal = totalChurnWins + totalKillerWins;
+
+  blocks.push({ type: "divider" });
+
+  blocks.push({
+    type: "context",
+    elements: [
+      {
+        type: "mrkdwn",
+        text: `📊 *Grand Total:* ${grandTotal} wins (🏆 ${totalChurnWins} Churn + 💪 ${totalKillerWins} Killer) | Updated: ${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMM dd, yyyy 'at' HH:mm")}`
+      }
+    ]
+  });
+
+  return { blocks: blocks };
+}
+
+/**
+ * SEND ALL THREE LEADERBOARDS AS SEPARATE MESSAGES (OLD METHOD)
+ * Not recommended - use sendCombinedLeaderboard() instead
  *
  * @param {String} channel - Slack channel ID
  */
