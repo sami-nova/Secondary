@@ -1181,7 +1181,7 @@ function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
       const rankEmoji = getRankEmoji(rank);
 
       // Build line
-      leaderboardText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      leaderboardText += `${rankEmoji} *${managerName}*\n`;
       leaderboardText += `   └ ${wins} wins`;
 
       // Add change indicator if available
@@ -1431,7 +1431,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      churnCurrentText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      churnCurrentText += `${rankEmoji} *${managerName}*\n`;
       churnCurrentText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
       if (region) {
         churnCurrentText += ` | ${regionEmoji} ${region}`;
@@ -1474,7 +1474,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      churnOldText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      churnOldText += `${rankEmoji} *${managerName}*\n`;
       churnOldText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
       if (region) {
         churnOldText += ` | ${regionEmoji} ${region}`;
@@ -1517,7 +1517,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      killerCurrentText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      killerCurrentText += `${rankEmoji} *${managerName}*\n`;
       killerCurrentText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
       if (region) {
         killerCurrentText += ` | ${regionEmoji} ${region}`;
@@ -1560,7 +1560,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      killerOldText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      killerOldText += `${rankEmoji} *${managerName}*\n`;
       killerOldText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
       if (region) {
         killerOldText += ` | ${regionEmoji} ${region}`;
