@@ -235,7 +235,7 @@ function buildLeaderboardMessage(headers, data, automation, leaderboardType = 'c
       const topManager = row[5] || "N/A";
 
       // Region emoji
-      const regionEmoji = getRegionEmoji(region);
+      const regionEmoji = getRegionSlackEmoji(region);
 
       regionalText += `*${regionEmoji} ${region}*\n`;
       regionalText += `├ Total Sales: *${totalWins}* (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)\n`;
@@ -268,7 +268,7 @@ function buildLeaderboardMessage(headers, data, automation, leaderboardType = 'c
       const changeIndicator = getChangeIndicator(change);
 
       // Region emoji
-      const regionEmoji = getRegionEmoji(region);
+      const regionEmoji = getRegionSlackEmoji(region);
 
       leaderboardText += `${rankEmoji} *#${rank} ${managerName}*\n`;
       leaderboardText += `   └ ${wins} sales ${changeIndicator} | ${regionEmoji} ${region}\n\n`;
@@ -348,29 +348,41 @@ function getChangeIndicator(change) {
 /**
  * HELPER: Get region emoji
  */
-function getRegionEmoji(region) {
+function getRegionSlackEmoji(region) {
+  if (!region) return '';
+
+  const regionStr = String(region).toUpperCase().trim();
+
   const regionMap = {
-    'NA': '🇺🇸',
-    'EMEA': '🇪🇺',
-    'APAC': '🌏',
-    'LATAM': '🌎',
-    'AMER': '🌎',
-    'EU': '🇪🇺',
-    'ASIA': '🌏',
-    'US': '🇺🇸',
-    'UK': '🇬🇧',
-    'DE': '🇩🇪',
-    'FR': '🇫🇷',
-    'JP': '🇯🇵',
-    'KR': '🇰🇷',
-    'CN': '🇨🇳',
-    'IN': '🇮🇳',
-    'BR': '🇧🇷',
-    'MX': '🇲🇽',
-    'AU': '🇦🇺'
+    'TR': ':flag-tr:',
+    'ARAB': ':flag-sa:',
+    'RU': ':ru:',
+    'CZ': ':flag-cz:',
+    'RO': ':flag-ro:',
+    'ES': ':es:',
+    'FR': ':fr:',
+    'PL': ':flag-pl:',
+    'DE': ':de:',
+    'IL': ':flag-il:',
+    'IT': ':flag-it:',
+    'SA': ':flag-sa:',
+    'NA': ':us:',
+    'US': ':us:',
+    'UK': ':flag-gb:',
+    'JP': ':jp:',
+    'KR': ':kr:',
+    'CN': ':cn:',
+    'IN': ':flag-in:',
+    'BR': ':flag-br:',
+    'MX': ':flag-mx:',
+    'AU': ':flag-au:',
+    'CA': ':flag-ca:',
+    'EMEA': ':flag-eu:',
+    'APAC': ':earth_asia:',
+    'LATAM': ':earth_americas:'
   };
 
-  return regionMap[region.toUpperCase()] || '🌐';
+  return regionMap[regionStr] || '';
 }
 
 /**
@@ -553,7 +565,7 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
 
     const rankEmoji = getRankEmoji(rank);
     const changeIndicator = getChangeIndicator(change);
-    const regionEmoji = region ? getRegionEmoji(region) : "";
+    const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
     churnText += `${rankEmoji} *#${rank} ${managerName}*\n`;
     churnText += `   └ ${wins} sales ${changeIndicator}`;
@@ -596,7 +608,7 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
 
     const rankEmoji = getRankEmoji(rank);
     const changeIndicator = getChangeIndicator(change);
-    const regionEmoji = region ? getRegionEmoji(region) : "";
+    const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
     killerText += `${rankEmoji} *#${rank} ${managerName}*\n`;
     killerText += `   └ ${wins} sales ${changeIndicator}`;
@@ -637,7 +649,7 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
     const killerWins = row[4] || 0;
     const topManager = row[5] || "N/A";
 
-    const regionEmoji = getRegionEmoji(region);
+    const regionEmoji = getRegionSlackEmoji(region);
 
     regionalText += `*${regionEmoji} ${region}*\n`;
     regionalText += `├ Total Sales: *${totalWins}*`;

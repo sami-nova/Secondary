@@ -1146,7 +1146,7 @@ function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
       const killerWins = killerIdx !== -1 ? row[killerIdx] : 0;
       const topManager = topManagerIdx !== -1 ? row[topManagerIdx] : "N/A";
 
-      const regionEmoji = getRegionEmoji(region);
+      const regionEmoji = getRegionSlackEmoji(region);
 
       regionalText += `*${regionEmoji} ${region}*\n`;
       regionalText += `├ Total Sales: *${totalWins}*`;
@@ -1192,7 +1192,7 @@ function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
 
       // Add region if available
       if (region) {
-        const regionEmoji = getRegionEmoji(region);
+        const regionEmoji = getRegionSlackEmoji(region);
         leaderboardText += ` | ${regionEmoji} ${region}`;
       }
 
@@ -1277,86 +1277,85 @@ function getChangeIndicator(change) {
 }
 
 /**
- * HELPER: Get region flag emoji
- */
-function getRegionEmoji(region) {
-  const regionStr = String(region).toUpperCase().trim();
-
-  const regionMap = {
-    'NA': '🇺🇸',
-    'EMEA': '🇪🇺',
-    'APAC': '🌏',
-    'LATAM': '🌎',
-    'AMER': '🌎',
-    'EU': '🇪🇺',
-    'ASIA': '🌏',
-    'US': '🇺🇸',
-    'UK': '🇬🇧',
-    'DE': '🇩🇪',
-    'FR': '🇫🇷',
-    'JP': '🇯🇵',
-    'KR': '🇰🇷',
-    'CN': '🇨🇳',
-    'IN': '🇮🇳',
-    'BR': '🇧🇷',
-    'MX': '🇲🇽',
-    'AU': '🇦🇺',
-    'CA': '🇨🇦',
-    'SG': '🇸🇬',
-    'NZ': '🇳🇿',
-    'ZA': '🇿🇦',
-    'IL': '🇮🇱',
-    'AE': '🇦🇪',
-    'SA': '🇸🇦',
-    'ES': '🇪🇸',
-    'IT': '🇮🇹',
-    'NL': '🇳🇱',
-    'SE': '🇸🇪',
-    'NO': '🇳🇴',
-    'DK': '🇩🇰',
-    'FI': '🇫🇮',
-    'PL': '🇵🇱',
-    'RU': '🇷🇺',
-    'TR': '🇹🇷',
-    'AR': '🇦🇷',
-    'CL': '🇨🇱',
-    'CO': '🇨🇴',
-    'PE': '🇵🇪'
-  };
-
-  // Return empty string if region not found - allows manual flag entry in sheet
-  return regionMap[regionStr] || '';
-}
-
-/**
- * HELPER: Clean sheet data - removes unwanted text like "private channel"
+ * HELPER: Clean sheet data - AGGRESSIVELY removes ALL unwanted text
  */
 function cleanSheetData(value) {
-  if (!value) return value;
+  if (!value) return '';
 
   let cleaned = String(value);
 
-  // Remove lock emoji variations
-  cleaned = cleaned.replace(/🔒/g, '');
-  cleaned = cleaned.replace(/🔓/g, '');
+  // Log original value for debugging
+  Logger.log(`Cleaning value: "${cleaned}"`);
 
-  // Remove "private channel" text (case insensitive, with various spacing)
+  // Remove ALL lock emojis and variations
+  cleaned = cleaned.replace(/[\u{1F512}\u{1F513}\u{1F510}\u{1F511}]/gu, '');
+  cleaned = cleaned.replace(/🔒|🔓|🔐|🔑/g, '');
+
+  // Remove "private channel" text - ALL possible variations
+  cleaned = cleaned.replace(/private\s+channel/gi, '');
   cleaned = cleaned.replace(/private\s*channel/gi, '');
   cleaned = cleaned.replace(/privatechannel/gi, '');
 
-  // Remove any channel-related text
-  cleaned = cleaned.replace(/\s*channel\s*/gi, ' ');
+  // Remove words individually in case they're separated
+  cleaned = cleaned.replace(/\bprivate\b/gi, '');
+  cleaned = cleaned.replace(/\bchannel\b/gi, '');
 
-  // Remove # symbol that might come before channel
-  cleaned = cleaned.replace(/#\s*/g, '');
+  // Remove # and @ symbols
+  cleaned = cleaned.replace(/#/g, '');
+  cleaned = cleaned.replace(/@/g, '');
+
+  // Remove any control characters
+  cleaned = cleaned.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
 
   // Remove multiple spaces
-  cleaned = cleaned.replace(/\s+/g, ' ');
+  cleaned = cleaned.replace(/\s\s+/g, ' ');
 
-  // Remove leading/trailing spaces
+  // Trim whitespace
   cleaned = cleaned.trim();
 
+  Logger.log(`Cleaned to: "${cleaned}"`);
+
   return cleaned;
+}
+
+/**
+ * HELPER: Get Slack emoji code for regions (replaces Unicode emojis)
+ */
+function getRegionSlackEmoji(region) {
+  if (!region) return '';
+
+  const regionStr = String(region).toUpperCase().trim();
+
+  const regionMap = {
+    'TR': ':flag-tr:',
+    'ARAB': ':flag-sa:',
+    'RU': ':ru:',
+    'CZ': ':flag-cz:',
+    'RO': ':flag-ro:',
+    'ES': ':es:',
+    'FR': ':fr:',
+    'PL': ':flag-pl:',
+    'DE': ':de:',
+    'IL': ':flag-il:',
+    'IT': ':flag-it:',
+    'SA': ':flag-sa:',
+    'NA': ':us:',
+    'US': ':us:',
+    'UK': ':flag-gb:',
+    'JP': ':jp:',
+    'KR': ':kr:',
+    'CN': ':cn:',
+    'IN': ':flag-in:',
+    'BR': ':flag-br:',
+    'MX': ':flag-mx:',
+    'AU': ':flag-au:',
+    'CA': ':flag-ca:',
+    'EMEA': ':flag-eu:',
+    'APAC': ':earth_asia:',
+    'LATAM': ':earth_americas:'
+  };
+
+  return regionMap[regionStr] || '';
 }
 
 /**
@@ -1430,7 +1429,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = region ? getRegionEmoji(region) : "";
+      const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
       churnCurrentText += `${rankEmoji} *#${rank} ${managerName}*\n`;
       churnCurrentText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
@@ -1473,7 +1472,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = region ? getRegionEmoji(region) : "";
+      const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
       churnOldText += `${rankEmoji} *#${rank} ${managerName}*\n`;
       churnOldText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
@@ -1516,7 +1515,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = region ? getRegionEmoji(region) : "";
+      const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
       killerCurrentText += `${rankEmoji} *#${rank} ${managerName}*\n`;
       killerCurrentText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
@@ -1559,7 +1558,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = region ? getRegionEmoji(region) : "";
+      const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
       killerOldText += `${rankEmoji} *#${rank} ${managerName}*\n`;
       killerOldText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
@@ -1604,7 +1603,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       if (!region) return;
 
-      const regionEmoji = getRegionEmoji(region);
+      const regionEmoji = getRegionSlackEmoji(region);
 
       regionalText += `*${regionEmoji} ${region}*\n`;
       regionalText += `├ Total Sales: *${totalSales}* | 💰 ${totalCash}\n`;

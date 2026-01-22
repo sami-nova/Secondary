@@ -49,9 +49,9 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A2:F2").setBackground("#E8F5E9").setFontWeight("bold");
 
   const churnCurrentData = [
-    [currentWeek, 1, "John Smith", 45, "$12,500", "🇺🇸 NA"],
-    [currentWeek, 2, "Sarah Johnson", 42, "$11,800", "🇪🇺 EMEA"],
-    [currentWeek, 3, "Mike Chen", 38, "$10,200", "🌏 APAC"]
+    [currentWeek, 1, "John Smith", 45, "$12,500", "TR"],
+    [currentWeek, 2, "Sarah Johnson", 42, "$11,800", "FR"],
+    [currentWeek, 3, "Mike Chen", 38, "$10,200", "DE"]
   ];
   sheet.getRange("A3:F5").setValues(churnCurrentData);
 
@@ -67,9 +67,9 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A8:F8").setBackground("#E8F5E9").setFontWeight("bold");
 
   const churnOldData = [
-    [currentWeek, 1, "Maria Garcia", 52, "$14,500", "🌎 LATAM"],
-    [currentWeek, 2, "Ahmed Hassan", 48, "$13,200", "🇸🇦 ARAB"],
-    [currentWeek, 3, "Lisa Anderson", 44, "$12,100", "🇪🇺 EMEA"]
+    [currentWeek, 1, "Maria Garcia", 52, "$14,500", "ES"],
+    [currentWeek, 2, "Ahmed Hassan", 48, "$13,200", "ARAB"],
+    [currentWeek, 3, "Lisa Anderson", 44, "$12,100", "IT"]
   ];
   sheet.getRange("A9:F11").setValues(churnOldData);
 
@@ -85,9 +85,9 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A14:F14").setBackground("#E3F2FD").setFontWeight("bold");
 
   const killerCurrentData = [
-    [currentWeek, 1, "James Lee", 55, "$15,200", "🌏 APAC"],
-    [currentWeek, 2, "Rachel Green", 50, "$14,000", "🇪🇺 EMEA"],
-    [currentWeek, 3, "Carlos Silva", 46, "$12,800", "🌎 LATAM"]
+    [currentWeek, 1, "James Lee", 55, "$15,200", "PL"],
+    [currentWeek, 2, "Rachel Green", 50, "$14,000", "CZ"],
+    [currentWeek, 3, "Carlos Silva", 46, "$12,800", "RO"]
   ];
   sheet.getRange("A15:F17").setValues(killerCurrentData);
 
@@ -103,9 +103,9 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A20:F20").setBackground("#E3F2FD").setFontWeight("bold");
 
   const killerOldData = [
-    [currentWeek, 1, "Omar Al-Farsi", 58, "$16,100", "🇸🇦 ARAB"],
-    [currentWeek, 2, "Sophie Martin", 54, "$15,000", "🇫🇷 FR"],
-    [currentWeek, 3, "Yuki Tanaka", 51, "$14,200", "🇯🇵 JP"]
+    [currentWeek, 1, "Omar Al-Farsi", 58, "$16,100", "ARAB"],
+    [currentWeek, 2, "Sophie Martin", 54, "$15,000", "FR"],
+    [currentWeek, 3, "Yuki Tanaka", 51, "$14,200", "RU"]
   ];
   sheet.getRange("A21:F23").setValues(killerOldData);
 
@@ -121,10 +121,10 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A26:I26").setBackground("#FFF3E0").setFontWeight("bold");
 
   const regionData = [
-    [currentWeek, "🇺🇸 NA", 156, "$43,400", 33, 41, 40, 42, "John Smith"],
-    [currentWeek, "🇪🇺 EMEA", 143, "$39,800", 42, 44, 50, 54, "Rachel Green"],
-    [currentWeek, "🌏 APAC", 128, "$35,600", 38, 38, 55, 51, "James Lee"],
-    [currentWeek, "🌎 LATAM", 112, "$31,200", 35, 52, 46, 47, "Maria Garcia"]
+    [currentWeek, "TR", 156, "$43,400", 33, 41, 40, 42, "John Smith"],
+    [currentWeek, "ARAB", 143, "$39,800", 42, 44, 50, 54, "Rachel Green"],
+    [currentWeek, "RU", 128, "$35,600", 38, 38, 55, 51, "James Lee"],
+    [currentWeek, "ES", 112, "$31,200", 35, 52, 46, 47, "Maria Garcia"]
   ];
   sheet.getRange("A27:I30").setValues(regionData);
 
@@ -180,11 +180,12 @@ function createLeaderboardTemplateV2() {
     ["• DO NOT include 'private channel' text in Manager Name or Region"],
     ["• DO NOT include channel IDs or other metadata"],
     ["• Keep data clean - just the actual names and regions"],
-    ["• Example GOOD: 'John Smith' and '🇺🇸 NA'"],
+    ["• Example GOOD: 'John Smith' and 'TR'"],
     ["• Example BAD: '🔒private channel John Smith'"],
     [""],
     ["TIPS:"],
-    ["• Add country flag emojis directly in Region column (🇺🇸 NA, 🇸🇦 ARAB, etc.)"],
+    ["• Use region codes only in Region column (TR, ARAB, FR, DE, etc.)"],
+    ["• Slack emojis will be added automatically by the automation"],
     ["• Cash Generated format: $12,500 (with comma separator)"],
     ["• Current Base = New customers or recent deals"],
     ["• Old Base = Existing/legacy customers"],
