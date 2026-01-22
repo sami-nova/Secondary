@@ -238,7 +238,7 @@ function buildLeaderboardMessage(headers, data, automation, leaderboardType = 'c
       const regionEmoji = getRegionEmoji(region);
 
       regionalText += `*${regionEmoji} ${region}*\n`;
-      regionalText += `├ Total Wins: *${totalWins}* (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)\n`;
+      regionalText += `├ Total Sales: *${totalWins}* (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)\n`;
       regionalText += `└ Top Performer: ${topManager}\n\n`;
     });
 
@@ -271,7 +271,7 @@ function buildLeaderboardMessage(headers, data, automation, leaderboardType = 'c
       const regionEmoji = getRegionEmoji(region);
 
       leaderboardText += `${rankEmoji} *#${rank} ${managerName}*\n`;
-      leaderboardText += `   └ ${wins} wins ${changeIndicator} | ${regionEmoji} ${region}\n\n`;
+      leaderboardText += `   └ ${wins} sales ${changeIndicator} | ${regionEmoji} ${region}\n\n`;
     });
 
     blocks.push({
@@ -295,7 +295,7 @@ function buildLeaderboardMessage(headers, data, automation, leaderboardType = 'c
       elements: [
         {
           type: "mrkdwn",
-          text: `📊 *Total Wins:* ${totalWins} | *Average:* ${avgWins} | *Top Performers:* ${data.length}`
+          text: `📊 *Total Sales:* ${totalWins} | *Average:* ${avgWins} | *Top Performers:* ${data.length}`
         }
       ]
     });
@@ -556,7 +556,7 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
     const regionEmoji = region ? getRegionEmoji(region) : "";
 
     churnText += `${rankEmoji} *#${rank} ${managerName}*\n`;
-    churnText += `   └ ${wins} wins ${changeIndicator}`;
+    churnText += `   └ ${wins} sales ${changeIndicator}`;
     if (region) {
       churnText += ` | ${regionEmoji} ${region}`;
     }
@@ -599,7 +599,7 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
     const regionEmoji = region ? getRegionEmoji(region) : "";
 
     killerText += `${rankEmoji} *#${rank} ${managerName}*\n`;
-    killerText += `   └ ${wins} wins ${changeIndicator}`;
+    killerText += `   └ ${wins} sales ${changeIndicator}`;
     if (region) {
       killerText += ` | ${regionEmoji} ${region}`;
     }
@@ -640,7 +640,7 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
     const regionEmoji = getRegionEmoji(region);
 
     regionalText += `*${regionEmoji} ${region}*\n`;
-    regionalText += `├ Total Wins: *${totalWins}*`;
+    regionalText += `├ Total Sales: *${totalWins}*`;
 
     if (churnWins || killerWins) {
       regionalText += ` (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)`;
@@ -669,7 +669,7 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
     elements: [
       {
         type: "mrkdwn",
-        text: `📊 *Grand Total:* ${grandTotal} wins (🏆 ${totalChurnWins} Churn + 💪 ${totalKillerWins} Killer) | Updated: ${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMM dd, yyyy 'at' HH:mm")}`
+        text: `📊 *Grand Total:* ${grandTotal} sales (🏆 ${totalChurnWins} Churn + 💪 ${totalKillerWins} Killer) | Updated: ${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMM dd, yyyy 'at' HH:mm")}`
       }
     ]
   });

@@ -773,9 +773,8 @@
                   <br><strong>Note:</strong> Most features require Bot Token (not webhook URL)
                 </el-alert>
 
-                <el-collapse v-model="advancedFeaturesOpen" @change="loadAdvancedFeatures">
-                  <!-- Lazy loading wrapper - only renders after first interaction -->
-                  <template v-if="advancedFeaturesLoaded">
+                <el-collapse v-model="advancedFeaturesOpen">
+                  <!-- Advanced features - always loaded now for better UX -->
 
                   <!-- FEATURE 1: Color-Coded Alerts -->
                   <el-collapse-item name="colorAlerts">
@@ -1314,14 +1313,6 @@
                       </el-checkbox>
                     </div>
                   </el-collapse-item>
-
-                  </template>
-                  <!-- End lazy loading wrapper -->
-
-                  <!-- Loading placeholder when not yet loaded -->
-                  <div v-else style="padding: 20px; text-align: center; color: #909399">
-                    <i class="el-icon-loading"></i> Click any feature above to load advanced options...
-                  </div>
 
                 </el-collapse>
               </el-card>

@@ -1149,7 +1149,7 @@ function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
       const regionEmoji = getRegionEmoji(region);
 
       regionalText += `*${regionEmoji} ${region}*\n`;
-      regionalText += `├ Total Wins: *${totalWins}*`;
+      regionalText += `├ Total Sales: *${totalWins}*`;
 
       if (churnWins || killerWins) {
         regionalText += ` (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)`;
@@ -1220,7 +1220,7 @@ function buildLeaderboardFormat(messageHeader, headers, validRows, automation) {
       elements: [
         {
           type: "mrkdwn",
-          text: `📊 *Total Wins:* ${totalWins} | *Average:* ${avgWins} | *Top Performers:* ${validRows.length}`
+          text: `📊 *Total Sales:* ${totalWins} | *Average:* ${avgWins} | *Top Performers:* ${validRows.length}`
         }
       ]
     });
@@ -1324,7 +1324,8 @@ function getRegionEmoji(region) {
     'PE': '🇵🇪'
   };
 
-  return regionMap[regionStr] || '🌐';
+  // Return empty string if region not found - allows manual flag entry in sheet
+  return regionMap[regionStr] || '';
 }
 
 /**
@@ -1349,8 +1350,17 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     const blocks = [];
 
-    // Get current week from first row
-    const currentWeek = churnData.length > 0 && churnData[0][0] ? churnData[0][0] : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
+    // Get current week from first row - clean it to remove any extra text
+    let currentWeek = churnData.length > 0 && churnData[0][0] ? String(churnData[0][0]) : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
+
+    // Extract week number pattern (e.g., "2026-W04") from the string
+    const weekMatch = currentWeek.match(/\d{4}-W\d{2}/);
+    if (weekMatch) {
+      currentWeek = weekMatch[0];
+    } else {
+      // If no valid week format found, use current week
+      currentWeek = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
+    }
 
     // Main header
     blocks.push({
@@ -1391,7 +1401,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const regionEmoji = region ? getRegionEmoji(region) : "";
 
       churnText += `${rankEmoji} *#${rank} ${managerName}*\n`;
-      churnText += `   └ ${wins} wins ${changeIndicator}`;
+      churnText += `   └ ${wins} sales ${changeIndicator}`;
       if (region) {
         churnText += ` | ${regionEmoji} ${region}`;
       }
@@ -1435,7 +1445,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const regionEmoji = region ? getRegionEmoji(region) : "";
 
       killerText += `${rankEmoji} *#${rank} ${managerName}*\n`;
-      killerText += `   └ ${wins} wins ${changeIndicator}`;
+      killerText += `   └ ${wins} sales ${changeIndicator}`;
       if (region) {
         killerText += ` | ${regionEmoji} ${region}`;
       }
@@ -1477,7 +1487,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const regionEmoji = getRegionEmoji(region);
 
       regionalText += `*${regionEmoji} ${region}*\n`;
-      regionalText += `├ Total Wins: *${totalWins}*`;
+      regionalText += `├ Total Sales: *${totalWins}*`;
 
       if (churnWins || killerWins) {
         regionalText += ` (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)`;
@@ -1506,7 +1516,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       elements: [
         {
           type: "mrkdwn",
-          text: `📊 *Grand Total:* ${grandTotal} wins (🏆 ${totalChurnWins} Churn + 💪 ${totalKillerWins} Killer) | Updated: ${new Date().toLocaleString()}`
+          text: `📊 *Grand Total:* ${grandTotal} sales (🏆 ${totalChurnWins} Churn + 💪 ${totalKillerWins} Killer) | Updated: ${new Date().toLocaleString()}`
         }
       ]
     });
