@@ -1336,9 +1336,22 @@ function cleanSheetData(value) {
 
   let cleaned = String(value);
 
-  // Remove "private channel" text and related emojis
-  cleaned = cleaned.replace(/🔒\s*private\s+channel\s*/gi, '');
-  cleaned = cleaned.replace(/private\s+channel\s*/gi, '');
+  // Remove lock emoji variations
+  cleaned = cleaned.replace(/🔒/g, '');
+  cleaned = cleaned.replace(/🔓/g, '');
+
+  // Remove "private channel" text (case insensitive, with various spacing)
+  cleaned = cleaned.replace(/private\s*channel/gi, '');
+  cleaned = cleaned.replace(/privatechannel/gi, '');
+
+  // Remove any channel-related text
+  cleaned = cleaned.replace(/\s*channel\s*/gi, ' ');
+
+  // Remove # symbol that might come before channel
+  cleaned = cleaned.replace(/#\s*/g, '');
+
+  // Remove multiple spaces
+  cleaned = cleaned.replace(/\s+/g, ' ');
 
   // Remove leading/trailing spaces
   cleaned = cleaned.trim();
@@ -1361,12 +1374,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
       return { text: "Weekly Leaderboard sheet not found. Please create it first." };
     }
 
-    // Get all data sections from the sheet (NEW STRUCTURE)
-    const churnCurrentData = sheet.getRange("A3:F7").getValues();
-    const churnOldData = sheet.getRange("A11:F15").getValues();
-    const killerCurrentData = sheet.getRange("A19:F23").getValues();
-    const killerOldData = sheet.getRange("A27:F31").getValues();
-    const regionalData = sheet.getRange("A35:I38").getValues();
+    // Get all data sections from the sheet (TOP 3 STRUCTURE)
+    const churnCurrentData = sheet.getRange("A3:F5").getValues();
+    const churnOldData = sheet.getRange("A9:F11").getValues();
+    const killerCurrentData = sheet.getRange("A15:F17").getValues();
+    const killerOldData = sheet.getRange("A21:F23").getValues();
+    const regionalData = sheet.getRange("A27:I30").getValues();
 
     const blocks = [];
 
@@ -1395,13 +1408,13 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 1: CHURN PREVENTION - CURRENT BASE
+    // SECTION 1: CHURN PREVENTION - CURRENT BASE - TOP 3
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*🏆 CHURN PREVENTION - CURRENT BASE*"
+        text: "*🏆 CHURN PREVENTION - CURRENT BASE - TOP 3*"
       }
     });
 
@@ -1438,13 +1451,13 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 2: CHURN PREVENTION - OLD BASE
+    // SECTION 2: CHURN PREVENTION - OLD BASE - TOP 3
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*🏆 CHURN PREVENTION - OLD BASE*"
+        text: "*🏆 CHURN PREVENTION - OLD BASE - TOP 3*"
       }
     });
 
@@ -1481,13 +1494,13 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 3: KILLER BASE - CURRENT BASE
+    // SECTION 3: KILLER BASE - CURRENT BASE - TOP 3
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*💪 KILLER BASE - CURRENT BASE*"
+        text: "*💪 KILLER BASE - CURRENT BASE - TOP 3*"
       }
     });
 
@@ -1524,13 +1537,13 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 4: KILLER BASE - OLD BASE
+    // SECTION 4: KILLER BASE - OLD BASE - TOP 3
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*💪 KILLER BASE - OLD BASE*"
+        text: "*💪 KILLER BASE - OLD BASE - TOP 3*"
       }
     });
 
