@@ -1329,6 +1329,24 @@ function getRegionEmoji(region) {
 }
 
 /**
+ * HELPER: Clean sheet data - removes unwanted text like "private channel"
+ */
+function cleanSheetData(value) {
+  if (!value) return value;
+
+  let cleaned = String(value);
+
+  // Remove "private channel" text and related emojis
+  cleaned = cleaned.replace(/🔒\s*private\s+channel\s*/gi, '');
+  cleaned = cleaned.replace(/private\s+channel\s*/gi, '');
+
+  // Remove leading/trailing spaces
+  cleaned = cleaned.trim();
+
+  return cleaned;
+}
+
+/**
  * BUILD COMBINED LEADERBOARD FROM SHEET
  * Reads all 3 sections from Weekly Leaderboard sheet and creates one combined message
  * This is the RECOMMENDED format for weekly leaderboards - no spamming with 3 messages!
@@ -1343,15 +1361,17 @@ function buildCombinedLeaderboardFromSheet(automation) {
       return { text: "Weekly Leaderboard sheet not found. Please create it first." };
     }
 
-    // Get all data sections from the sheet
-    const churnData = sheet.getRange("A3:F7").getValues();
-    const killerData = sheet.getRange("A11:F15").getValues();
-    const regionalData = sheet.getRange("A19:F22").getValues();
+    // Get all data sections from the sheet (NEW STRUCTURE)
+    const churnCurrentData = sheet.getRange("A3:F7").getValues();
+    const churnOldData = sheet.getRange("A11:F15").getValues();
+    const killerCurrentData = sheet.getRange("A19:F23").getValues();
+    const killerOldData = sheet.getRange("A27:F31").getValues();
+    const regionalData = sheet.getRange("A35:I38").getValues();
 
     const blocks = [];
 
     // Get current week from first row - clean it to remove any extra text
-    let currentWeek = churnData.length > 0 && churnData[0][0] ? String(churnData[0][0]) : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
+    let currentWeek = churnCurrentData.length > 0 && churnCurrentData[0][0] ? String(churnCurrentData[0][0]) : Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
 
     // Extract week number pattern (e.g., "2026-W04") from the string
     const weekMatch = currentWeek.match(/\d{4}-W\d{2}/);
@@ -1375,95 +1395,179 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 1: CHURN PREVENTION LEADERBOARD
+    // SECTION 1: CHURN PREVENTION - CURRENT BASE
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*🏆 CHURN PREVENTION - TOP 5*"
+        text: "*🏆 CHURN PREVENTION - CURRENT BASE*"
       }
     });
 
-    let churnText = "";
-    churnData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Wins, Change, Region]
+    let churnCurrentText = "";
+    churnCurrentData.forEach((row, idx) => {
+      // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
       const rank = row[1];
-      const managerName = row[2];
-      const wins = row[3];
-      const change = row[4];
-      const region = row[5];
+      const managerName = cleanSheetData(row[2]);
+      const sales = row[3];
+      const cashGenerated = row[4];
+      const region = cleanSheetData(row[5]);
 
-      if (!rank || !managerName) return; // Skip empty rows
+      if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
-      const changeIndicator = change ? getChangeIndicator(change) : "";
       const regionEmoji = region ? getRegionEmoji(region) : "";
 
-      churnText += `${rankEmoji} *#${rank} ${managerName}*\n`;
-      churnText += `   └ ${wins} sales ${changeIndicator}`;
+      churnCurrentText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      churnCurrentText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
       if (region) {
-        churnText += ` | ${regionEmoji} ${region}`;
+        churnCurrentText += ` | ${regionEmoji} ${region}`;
       }
-      churnText += `\n\n`;
+      churnCurrentText += `\n\n`;
     });
 
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: churnText || "_No data available_"
+        text: churnCurrentText || "_No data available_"
       }
     });
 
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 2: KILLER BASE LEADERBOARD
+    // SECTION 2: CHURN PREVENTION - OLD BASE
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*💪 KILLER BASE - TOP 5*"
+        text: "*🏆 CHURN PREVENTION - OLD BASE*"
       }
     });
 
-    let killerText = "";
-    killerData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Wins, Change, Region]
+    let churnOldText = "";
+    churnOldData.forEach((row, idx) => {
+      // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
       const rank = row[1];
-      const managerName = row[2];
-      const wins = row[3];
-      const change = row[4];
-      const region = row[5];
+      const managerName = cleanSheetData(row[2]);
+      const sales = row[3];
+      const cashGenerated = row[4];
+      const region = cleanSheetData(row[5]);
 
-      if (!rank || !managerName) return; // Skip empty rows
+      if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
-      const changeIndicator = change ? getChangeIndicator(change) : "";
       const regionEmoji = region ? getRegionEmoji(region) : "";
 
-      killerText += `${rankEmoji} *#${rank} ${managerName}*\n`;
-      killerText += `   └ ${wins} sales ${changeIndicator}`;
+      churnOldText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      churnOldText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
       if (region) {
-        killerText += ` | ${regionEmoji} ${region}`;
+        churnOldText += ` | ${regionEmoji} ${region}`;
       }
-      killerText += `\n\n`;
+      churnOldText += `\n\n`;
     });
 
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: killerText || "_No data available_"
+        text: churnOldText || "_No data available_"
       }
     });
 
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 3: REGIONAL PERFORMANCE
+    // SECTION 3: KILLER BASE - CURRENT BASE
+    // ============================================
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*💪 KILLER BASE - CURRENT BASE*"
+      }
+    });
+
+    let killerCurrentText = "";
+    killerCurrentData.forEach((row, idx) => {
+      // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
+      const rank = row[1];
+      const managerName = cleanSheetData(row[2]);
+      const sales = row[3];
+      const cashGenerated = row[4];
+      const region = cleanSheetData(row[5]);
+
+      if (!rank || !managerName) return;
+
+      const rankEmoji = getRankEmoji(rank);
+      const regionEmoji = region ? getRegionEmoji(region) : "";
+
+      killerCurrentText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      killerCurrentText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
+      if (region) {
+        killerCurrentText += ` | ${regionEmoji} ${region}`;
+      }
+      killerCurrentText += `\n\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: killerCurrentText || "_No data available_"
+      }
+    });
+
+    blocks.push({ type: "divider" });
+
+    // ============================================
+    // SECTION 4: KILLER BASE - OLD BASE
+    // ============================================
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*💪 KILLER BASE - OLD BASE*"
+      }
+    });
+
+    let killerOldText = "";
+    killerOldData.forEach((row, idx) => {
+      // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
+      const rank = row[1];
+      const managerName = cleanSheetData(row[2]);
+      const sales = row[3];
+      const cashGenerated = row[4];
+      const region = cleanSheetData(row[5]);
+
+      if (!rank || !managerName) return;
+
+      const rankEmoji = getRankEmoji(rank);
+      const regionEmoji = region ? getRegionEmoji(region) : "";
+
+      killerOldText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      killerOldText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
+      if (region) {
+        killerOldText += ` | ${regionEmoji} ${region}`;
+      }
+      killerOldText += `\n\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: killerOldText || "_No data available_"
+      }
+    });
+
+    blocks.push({ type: "divider" });
+
+    // ============================================
+    // SECTION 5: REGIONAL PERFORMANCE
     // ============================================
     blocks.push({
       type: "section",
@@ -1475,25 +1579,25 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     let regionalText = "";
     regionalData.forEach((row, idx) => {
-      // Row format: [Week, Region, Total Wins, Churn Wins, Killer Wins, Top Manager]
-      const region = row[1];
-      const totalWins = row[2];
-      const churnWins = row[3];
-      const killerWins = row[4];
-      const topManager = row[5];
+      // Row format: [Week, Region, Total Sales, Total Cash, Churn Current, Churn Old, Killer Current, Killer Old, Top Manager]
+      const region = cleanSheetData(row[1]);
+      const totalSales = row[2];
+      const totalCash = row[3];
+      const churnCurrent = row[4];
+      const churnOld = row[5];
+      const killerCurrent = row[6];
+      const killerOld = row[7];
+      const topManager = cleanSheetData(row[8]);
 
-      if (!region) return; // Skip empty rows
+      if (!region) return;
 
       const regionEmoji = getRegionEmoji(region);
 
       regionalText += `*${regionEmoji} ${region}*\n`;
-      regionalText += `├ Total Sales: *${totalWins}*`;
-
-      if (churnWins || killerWins) {
-        regionalText += ` (🏆 ${churnWins} Churn + 💪 ${killerWins} Killer)`;
-      }
-
-      regionalText += `\n└ Top Performer: ${topManager}\n\n`;
+      regionalText += `├ Total Sales: *${totalSales}* | 💰 ${totalCash}\n`;
+      regionalText += `├ 🏆 Churn: ${churnCurrent} Current + ${churnOld} Old\n`;
+      regionalText += `├ 💪 Killer: ${killerCurrent} Current + ${killerOld} Old\n`;
+      regionalText += `└ Top Performer: ${topManager}\n\n`;
     });
 
     blocks.push({
@@ -1505,9 +1609,11 @@ function buildCombinedLeaderboardFromSheet(automation) {
     });
 
     // Footer with stats and timestamp
-    const totalChurnWins = churnData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
-    const totalKillerWins = killerData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
-    const grandTotal = totalChurnWins + totalKillerWins;
+    const totalChurnCurrent = churnCurrentData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
+    const totalChurnOld = churnOldData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
+    const totalKillerCurrent = killerCurrentData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
+    const totalKillerOld = killerOldData.reduce((sum, row) => sum + (parseInt(row[3]) || 0), 0);
+    const grandTotal = totalChurnCurrent + totalChurnOld + totalKillerCurrent + totalKillerOld;
 
     blocks.push({ type: "divider" });
 
@@ -1516,7 +1622,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       elements: [
         {
           type: "mrkdwn",
-          text: `📊 *Grand Total:* ${grandTotal} sales (🏆 ${totalChurnWins} Churn + 💪 ${totalKillerWins} Killer) | Updated: ${new Date().toLocaleString()}`
+          text: `📊 *Grand Total:* ${grandTotal} sales | 🏆 Churn: ${totalChurnCurrent + totalChurnOld} (${totalChurnCurrent} Current + ${totalChurnOld} Old) | 💪 Killer: ${totalKillerCurrent + totalKillerOld} (${totalKillerCurrent} Current + ${totalKillerOld} Old) | Updated: ${new Date().toLocaleString()}`
         }
       ]
     });
