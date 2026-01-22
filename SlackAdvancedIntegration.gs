@@ -238,6 +238,37 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
       Logger.log("Warning: Buttons feature error: " + error.message);
     }
 
+    // STEP 5.5: DEBUG - Log the full payload before sending (for leaderboards only)
+    if (automation.format === 'leaderboard' || automation.format === 'leaderboard_combined') {
+      Logger.log("\n" + "=".repeat(80));
+      Logger.log("🔍 FINAL PAYLOAD INSPECTION (Leaderboard)");
+      Logger.log("=".repeat(80));
+      Logger.log(`Has blocks: ${payload.blocks ? 'YES' : 'NO'}`);
+      Logger.log(`Blocks count: ${payload.blocks ? payload.blocks.length : 0}`);
+      Logger.log(`Has payload.text: ${payload.text ? 'YES' : 'NO'}`);
+
+      if (payload.text) {
+        Logger.log(`payload.text content: "${payload.text.substring(0, 200)}"`);
+        if (payload.text.includes('private')) {
+          Logger.log(`⚠️⚠️⚠️ payload.text CONTAINS "private" TEXT!`);
+        }
+      }
+
+      if (payload.blocks && payload.blocks.length > 0) {
+        payload.blocks.forEach((block, i) => {
+          Logger.log(`\nBlock ${i}: type="${block.type}"`);
+          if (block.text && block.text.text) {
+            const preview = block.text.text.substring(0, 150);
+            Logger.log(`   Text: "${preview}..."`);
+            if (block.text.text.includes('private')) {
+              Logger.log(`   ⚠️⚠️⚠️ CONTAINS "private" TEXT!`);
+            }
+          }
+        });
+      }
+      Logger.log("=".repeat(80) + "\n");
+    }
+
     // STEP 6: Add channel to payload
     if (botToken) {
       payload.channel = channel;
