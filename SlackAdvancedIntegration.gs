@@ -239,6 +239,9 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
     }
 
     // STEP 5.5: DEBUG - Log the full payload before sending (for leaderboards only)
+    Logger.log(`\n🔍 DEBUG: automation.format = "${automation.format}"`);
+    Logger.log(`🔍 DEBUG: automation.messageFormat = "${automation.messageFormat}"`);
+
     if (automation.format === 'leaderboard' || automation.format === 'leaderboard_combined') {
       Logger.log("\n" + "=".repeat(80));
       Logger.log("🔍 FINAL PAYLOAD INSPECTION (Leaderboard)");
@@ -267,6 +270,8 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
         });
       }
       Logger.log("=".repeat(80) + "\n");
+    } else {
+      Logger.log(`⚠️ Payload inspection skipped - format is "${automation.format}", not a leaderboard`);
     }
 
     // STEP 6: Add channel to payload
