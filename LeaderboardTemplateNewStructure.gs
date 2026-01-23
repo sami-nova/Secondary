@@ -138,23 +138,22 @@ function createLeaderboardTemplateV2() {
   Logger.log("✓ Totals summary section added");
 
   // ============================================
-  // SECTION 6: REGIONAL PERFORMANCE
+  // SECTION 6: PAID RATE CONTACTED 14DAY - TOP 3
   // ============================================
-  sheet.getRange("A36").setValue("🌍 REGIONAL PERFORMANCE SUMMARY");
-  sheet.getRange("A36:I36").merge();
-  sheet.getRange("A36:I36").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A36").setValue("📞 PAID RATE CONTACTED 14DAY - TOP 3");
+  sheet.getRange("A36:F36").merge();
+  sheet.getRange("A36:F36").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const regionHeaders = ["Week", "Region", "Total Sales", "Total Cash", "Churn Current", "Churn Old", "Killer Current", "Killer Old", "Top Manager"];
-  sheet.getRange("A37:I37").setValues([regionHeaders]);
-  sheet.getRange("A37:I37").setBackground("#FFF3E0").setFontWeight("bold");
+  const paidRateHeaders = ["Week", "Rank", "Manager Name", "Paid Rate %", "Target %", "Total Payments"];
+  sheet.getRange("A37:F37").setValues([paidRateHeaders]);
+  sheet.getRange("A37:F37").setBackground("#F3E5F5").setFontWeight("bold");
 
-  const regionData = [
-    [currentWeek, "TR", 156, "$43,400", 33, 41, 40, 42, "John Smith"],
-    [currentWeek, "ARAB", 143, "$39,800", 42, 44, 50, 54, "Rachel Green"],
-    [currentWeek, "RU", 128, "$35,600", 38, 38, 55, 51, "James Lee"],
-    [currentWeek, "ES", 112, "$31,200", 35, 52, 46, 47, "Maria Garcia"]
+  const paidRateData = [
+    [currentWeek, 1, "Valeria Lvova", "23.5%", "20.0%", "$435"],
+    [currentWeek, 2, "Stanislav Alekseev", "34.2%", "25.0%", "$380"],
+    [currentWeek, 3, "Marta Lewandowska", "32.9%", "28.0%", "$205"]
   ];
-  sheet.getRange("A38:I41").setValues(regionData);
+  sheet.getRange("A38:F40").setValues(paidRateData);
 
   // ============================================
   // Formatting
@@ -164,12 +163,9 @@ function createLeaderboardTemplateV2() {
   sheet.setColumnWidth(1, 100);  // Week
   sheet.setColumnWidth(2, 60);   // Rank
   sheet.setColumnWidth(3, 150);  // Manager Name
-  sheet.setColumnWidth(4, 80);   // Sales
-  sheet.setColumnWidth(5, 130);  // Cash Generated
-  sheet.setColumnWidth(6, 120);  // Region
-  sheet.setColumnWidth(7, 100);  // Churn Current
-  sheet.setColumnWidth(8, 100);  // Churn Old
-  sheet.setColumnWidth(9, 150);  // Top Manager
+  sheet.setColumnWidth(4, 100);  // Sales / Paid Rate %
+  sheet.setColumnWidth(5, 130);  // Cash Generated / Target %
+  sheet.setColumnWidth(6, 130);  // Region / Total Payments
 
   // Add borders to all sections (Top 3 structure)
   sheet.getRange("A2:F5").setBorder(true, true, true, true, true, true);
@@ -177,7 +173,7 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A14:F17").setBorder(true, true, true, true, true, true);
   sheet.getRange("A20:F23").setBorder(true, true, true, true, true, true);
   sheet.getRange("A26:B34").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A37:I41").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A37:F40").setBorder(true, true, true, true, true, true);
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -188,7 +184,8 @@ function createLeaderboardTemplateV2() {
     ["NEW STRUCTURE - CURRENT BASE VS OLD BASE - TOP 3:"],
     ["✓ Section 1-2: Churn Prevention (Current Base & Old Base) - TOP 3 EACH"],
     ["✓ Section 3-4: Killer Base (Current Base & Old Base) - TOP 3 EACH"],
-    ["✓ Section 5: Regional Performance Summary"],
+    ["✓ Section 5: Totals Summary (editable)"],
+    ["✓ Section 6: Paid Rate Contacted 14day - TOP 3"],
     [""],
     ["COLUMNS IN EACH SECTION:"],
     ["• Week - Current week (2026-W04)"],
@@ -231,7 +228,8 @@ function createLeaderboardTemplateV2() {
     ["• Churn Old Base: A9:F11 (3 rows)"],
     ["• Killer Current Base: A15:F17 (3 rows)"],
     ["• Killer Old Base: A21:F23 (3 rows)"],
-    ["• Regional Performance: A27:I30 (4 regions)"]
+    ["• Totals Summary: A27:B34 (8 metrics)"],
+    ["• Paid Rate 14day: A38:F40 (3 rows)"]
   ];
 
   instructionSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);

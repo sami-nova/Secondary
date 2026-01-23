@@ -372,6 +372,16 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
 
     // STEP 8: FEATURE 6 - Add Auto-Reactions (only if enabled)
     try {
+      Logger.log(`\n🔍 REACTIONS DEBUG:`);
+      Logger.log(`  - botToken exists: ${!!botToken}`);
+      Logger.log(`  - messageTs exists: ${!!messageTs}`);
+      Logger.log(`  - messageTs value: ${messageTs}`);
+      Logger.log(`  - automation.reactions exists: ${!!automation.reactions}`);
+      Logger.log(`  - automation.reactions.enabled: ${automation.reactions ? automation.reactions.enabled : 'N/A'}`);
+      Logger.log(`  - automation.reactions.always: ${automation.reactions ? JSON.stringify(automation.reactions.always) : 'N/A'}`);
+      Logger.log(`  - automation.reactions.rules: ${automation.reactions ? JSON.stringify(automation.reactions.rules) : 'N/A'}`);
+      Logger.log(`  - alertLevel: ${JSON.stringify(alertLevel)}`);
+
       if (botToken && messageTs && automation.reactions && automation.reactions.enabled &&
           typeof getReactionsForAlert === 'function' && typeof addReactions === 'function') {
         const reactions = getReactionsForAlert(alertLevel, automation);
@@ -383,12 +393,14 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
           Logger.log(`✓ Reaction result: ${JSON.stringify(reactionResult)}`);
         } else {
           Logger.log(`⚠ No reactions to add (empty list)`);
+          Logger.log(`⚠ Check that you have reactions configured for alert level: ${alertLevel.level}`);
         }
       } else {
         Logger.log(`⚠ Skipping reactions: botToken=${!!botToken}, messageTs=${!!messageTs}, enabled=${!!(automation.reactions && automation.reactions.enabled)}`);
       }
     } catch (error) {
-      Logger.log("Warning: Reactions feature error: " + error.message);
+      Logger.log("❌ Reactions feature error: " + error.message);
+      Logger.log("❌ Stack trace: " + error.stack);
     }
 
     // STEP 9: FEATURE 8 - Send to Multiple Channels (only if enabled)
