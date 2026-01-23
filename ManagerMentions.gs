@@ -62,13 +62,41 @@ function processManagerMentions(text) {
 
 /**
  * HELPER: Apply manager mentions to manager name field
+ * IMPORTANT: Process mentions BEFORE cleaning to preserve @ symbols
  */
 function applyManagerMentions(managerName) {
   if (!managerName) return managerName;
 
-  // Clean the data first
-  const cleaned = cleanSheetData(managerName);
+  const text = String(managerName);
 
-  // Then process any @mentions
-  return processManagerMentions(cleaned);
+  // First, process @mentions (before cleaning removes the @ symbol!)
+  const mentioned = processManagerMentions(text);
+
+  // Then clean everything else (but preserve the <@USERID> tags we just added)
+  let cleaned = mentioned;
+
+  // Remove lock emojis
+  cleaned = cleaned.replace(/[\u{1F512}\u{1F513}\u{1F510}\u{1F511}]/gu, '');
+  cleaned = cleaned.replace(/🔒|🔓|🔐|🔑/g, '');
+
+  // Remove "private channel" text
+  cleaned = cleaned.replace(/private\s+channel/gi, '');
+  cleaned = cleaned.replace(/private\s*channel/gi, '');
+  cleaned = cleaned.replace(/privatechannel/gi, '');
+  cleaned = cleaned.replace(/\bprivate\b/gi, '');
+  cleaned = cleaned.replace(/\bchannel\b/gi, '');
+
+  // Remove # symbol (but NOT @ symbol - we need it for mentions that weren't mapped)
+  cleaned = cleaned.replace(/#/g, '');
+
+  // Remove control characters
+  cleaned = cleaned.replace(/[\x00-\x1F\x7F-\x9F]/g, '');
+
+  // Remove multiple spaces
+  cleaned = cleaned.replace(/\s\s+/g, ' ');
+
+  // Trim
+  cleaned = cleaned.trim();
+
+  return cleaned;
 }

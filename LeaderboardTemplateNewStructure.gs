@@ -112,15 +112,16 @@ function createLeaderboardTemplateV2() {
   // ============================================
   // SECTION 5: TOTALS SUMMARY (for you to update manually)
   // ============================================
-  sheet.getRange("A31").setValue("📊 TOTALS SUMMARY");
-  sheet.getRange("A31:I31").merge();
-  sheet.getRange("A31:I31").setBackground("#FFA726").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A25").setValue("📊 TOTALS SUMMARY");
+  sheet.getRange("A25:B25").merge();
+  sheet.getRange("A25:B25").setBackground("#FFA726").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const totalsHeaders = ["Metric", "Value"];
-  sheet.getRange("A32:B32").setValues([totalsHeaders]);
-  sheet.getRange("A32:B32").setBackground("#FFE0B2").setFontWeight("bold");
+  sheet.getRange("A26:B26").setValues([totalsHeaders]);
+  sheet.getRange("A26:B26").setBackground("#FFE0B2").setFontWeight("bold");
 
   const totalsData = [
+    ["Display Date (e.g., Jan 26th)", "Jan 26th"],
     ["Grand Total Sales", 539],
     ["Churn Prevention Total", 260],
     ["Churn Current Base", 125],
@@ -129,23 +130,23 @@ function createLeaderboardTemplateV2() {
     ["Killer Current Base", 151],
     ["Killer Old Base", 128]
   ];
-  sheet.getRange("A33:B39").setValues(totalsData);
+  sheet.getRange("A27:B34").setValues(totalsData);
 
   // Add borders to totals section
-  sheet.getRange("A31:B39").setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("A25:B34").setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
 
   Logger.log("✓ Totals summary section added");
 
   // ============================================
   // SECTION 6: REGIONAL PERFORMANCE
   // ============================================
-  sheet.getRange("A41").setValue("🌍 REGIONAL PERFORMANCE SUMMARY");
-  sheet.getRange("A25:I25").merge();
-  sheet.getRange("A25:I25").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A36").setValue("🌍 REGIONAL PERFORMANCE SUMMARY");
+  sheet.getRange("A36:I36").merge();
+  sheet.getRange("A36:I36").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const regionHeaders = ["Week", "Region", "Total Sales", "Total Cash", "Churn Current", "Churn Old", "Killer Current", "Killer Old", "Top Manager"];
-  sheet.getRange("A26:I26").setValues([regionHeaders]);
-  sheet.getRange("A26:I26").setBackground("#FFF3E0").setFontWeight("bold");
+  sheet.getRange("A37:I37").setValues([regionHeaders]);
+  sheet.getRange("A37:I37").setBackground("#FFF3E0").setFontWeight("bold");
 
   const regionData = [
     [currentWeek, "TR", 156, "$43,400", 33, 41, 40, 42, "John Smith"],
@@ -153,7 +154,7 @@ function createLeaderboardTemplateV2() {
     [currentWeek, "RU", 128, "$35,600", 38, 38, 55, 51, "James Lee"],
     [currentWeek, "ES", 112, "$31,200", 35, 52, 46, 47, "Maria Garcia"]
   ];
-  sheet.getRange("A27:I30").setValues(regionData);
+  sheet.getRange("A38:I41").setValues(regionData);
 
   // ============================================
   // Formatting
@@ -175,8 +176,8 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A8:F11").setBorder(true, true, true, true, true, true);
   sheet.getRange("A14:F17").setBorder(true, true, true, true, true, true);
   sheet.getRange("A20:F23").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A32:B39").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A42:I46").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A26:B34").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A37:I41").setBorder(true, true, true, true, true, true);
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
