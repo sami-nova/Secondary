@@ -134,6 +134,15 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
     // Initialize alertLevel for use in reactions later
     let alertLevel = { level: 'info', color: '#439FE0', icon: 'ℹ️', prefix: '' };
 
+    // For leaderboards, default to 'success' level since they're positive performance messages
+    const isLeaderboard = automation.format === 'leaderboard' ||
+                         automation.format === 'leaderboard_combined' ||
+                         (automation.messageFormat && automation.messageFormat.includes('leaderboard'));
+    if (isLeaderboard) {
+      alertLevel = { level: 'success', color: '#67C23A', icon: '✅', prefix: '' };
+      Logger.log("✓ Leaderboard detected - setting alertLevel to 'success' for reactions");
+    }
+
     // STEP 3: FEATURE 1 - Add Color-Coded Alert (only if enabled)
     try {
       if (automation.colorAlerts && automation.colorAlerts.enabled && typeof evaluateAlertLevel === 'function') {

@@ -1575,44 +1575,86 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 5: REGIONAL PERFORMANCE
+    // SECTION 5: PAID RATE CONTACTED 14DAY - TOP 3 WHO HIT/EXCEEDED TARGET
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*🌍 REGIONAL PERFORMANCE*"
+        text: "*📞 PAID RATE CONTACTED 14DAY - TARGET ACHIEVERS (TOP 3)*"
       }
     });
 
-    let regionalText = "";
-    regionalData.forEach((row, idx) => {
-      // Row format: [Week, Region, Total Sales, Total Cash, Churn Current, Churn Old, Killer Current, Killer Old, Top Manager]
-      const region = cleanSheetData(row[1]);
-      const totalSales = row[2];
-      const totalCash = row[3];
-      const churnCurrent = row[4];
-      const churnOld = row[5];
-      const killerCurrent = row[6];
-      const killerOld = row[7];
-      const topManager = cleanSheetData(row[8]);
+    let paidRateText = "";
+    try {
+      const bonusSheet = ss.getSheetByName("Secondary Sales Bonus - Churn Prevention part (from July 2025)");
 
-      if (!region) return;
+      if (bonusSheet) {
+        // Read all data from the bonus sheet (assuming headers in row 1, data starts row 2)
+        const bonusData = bonusSheet.getDataRange().getValues();
+        const headers = bonusData[0];
 
-      const regionEmoji = getRegionSlackEmoji(region);
+        // Find column indices dynamically
+        const regionIdx = headers.findIndex(h => h && h.toString().toLowerCase().includes('region'));
+        const managerIdx = headers.findIndex(h => h && h.toString().toLowerCase().includes('manager'));
+        const paidRateIdx = headers.findIndex(h => h && h.toString().toLowerCase().includes('paid_rate_contacted_1') && !h.toString().toLowerCase().includes('target'));
+        const targetIdx = headers.findIndex(h => h && h.toString().toLowerCase().includes('target_paid_rate'));
 
-      regionalText += `*${regionEmoji} ${region}*\n`;
-      regionalText += `├ Total Sales: *${totalSales}* | 💰 ${totalCash}\n`;
-      regionalText += `├ 🏆 Churn: ${churnCurrent} Current + ${churnOld} Old\n`;
-      regionalText += `├ 💪 Killer: ${killerCurrent} Current + ${killerOld} Old\n`;
-      regionalText += `└ Top Performer: ${topManager}\n\n`;
-    });
+        // Filter managers who hit or exceeded target, skip header row
+        const achievers = [];
+        for (let i = 1; i < bonusData.length; i++) {
+          const row = bonusData[i];
+          const manager = row[managerIdx] ? String(row[managerIdx]).trim() : '';
+          const region = row[regionIdx] ? String(row[regionIdx]).trim() : '';
+          const paidRate = parseFloat(row[paidRateIdx]) || 0;
+          const target = parseFloat(row[targetIdx]) || 0;
+
+          // Only include if they hit or exceeded target
+          if (manager && paidRate > 0 && target > 0 && paidRate >= target) {
+            const percentOfTarget = ((paidRate / target) * 100).toFixed(1);
+            achievers.push({
+              manager: manager,
+              region: region,
+              paidRate: paidRate,
+              target: target,
+              percentOfTarget: parseFloat(percentOfTarget),
+              exceededBy: paidRate - target
+            });
+          }
+        }
+
+        // Sort by how much they exceeded (descending) and take top 3
+        achievers.sort((a, b) => b.exceededBy - a.exceededBy);
+        const top3 = achievers.slice(0, 3);
+
+        // Build display text
+        top3.forEach((achiever, idx) => {
+          const rank = idx + 1;
+          const rankEmoji = rank === 1 ? '🥇' : rank === 2 ? '🥈' : '🥉';
+          const regionEmoji = getRegionSlackEmoji(achiever.region);
+
+          paidRateText += `${rankEmoji} *${achiever.manager}*`;
+          if (regionEmoji) paidRateText += ` ${regionEmoji}`;
+          paidRateText += `\n`;
+          paidRateText += `   └ Paid Rate: *${(achiever.paidRate * 100).toFixed(1)}%* | Target: ${(achiever.target * 100).toFixed(1)}% | Achievement: ${achiever.percentOfTarget}%\n\n`;
+        });
+
+        if (top3.length === 0) {
+          paidRateText = "_No managers have achieved the target yet_";
+        }
+      } else {
+        paidRateText = "_Bonus sheet not found_";
+      }
+    } catch (error) {
+      Logger.log(`Error reading paid rate data: ${error.message}`);
+      paidRateText = "_Error loading paid rate data_";
+    }
 
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: regionalText || "_No data available_"
+        text: paidRateText
       }
     });
 
@@ -1633,7 +1675,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       elements: [
         {
           type: "mrkdwn",
-          text: `📊 *Grand Total:* ${grandTotal} sales | 🏆 Churn: ${churnTotal} (${churnCurrent} Current + ${churnOld} Old) | 💪 Killer: ${killerTotal} (${killerCurrent} Current + ${killerOld} Old) | Updated: ${new Date().toLocaleString()}`
+          text: `📊 *Grand Total:* ${grandTotal} sales | 🏆 CP: ${churnTotal} (${churnCurrent} Current + ${churnOld} Old) | 💪 KB: ${killerTotal} (${killerCurrent} Current + ${killerOld} Old) | Updated: ${new Date().toLocaleString()}`
         }
       ]
     });
