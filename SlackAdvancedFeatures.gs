@@ -224,15 +224,29 @@ function addReactions(channel, timestamp, reactions) {
   try {
     const botToken = PropertiesService.getScriptProperties().getProperty("SLACK_BOT_TOKEN");
 
-    if (!botToken || !reactions || reactions.length === 0) {
-      return { success: true }; // Skip if no bot token or no reactions
+    Logger.log(`\n🔍 ADD REACTIONS DEBUG:`);
+    Logger.log(`  - botToken: ${botToken ? 'EXISTS (length: ' + botToken.length + ')' : 'MISSING'}`);
+    Logger.log(`  - channel: ${channel}`);
+    Logger.log(`  - timestamp: ${timestamp}`);
+    Logger.log(`  - reactions array: ${JSON.stringify(reactions)}`);
+
+    if (!botToken) {
+      Logger.log(`❌ CRITICAL: No bot token found in Script Properties`);
+      return { success: false, error: 'No bot token' };
+    }
+
+    if (!reactions || reactions.length === 0) {
+      Logger.log(`⚠️ No reactions to add (empty array)`);
+      return { success: true };
     }
 
     let successCount = 0;
+    let errors = [];
 
     for (const emoji of reactions) {
       // Remove colons if present
       const emojiName = emoji.replace(/:/g, '');
+      Logger.log(`\n  Adding reaction: "${emoji}" (cleaned: "${emojiName}")`);
 
       const payload = {
         channel: channel,
@@ -251,22 +265,37 @@ function addReactions(channel, timestamp, reactions) {
       };
 
       const response = UrlFetchApp.fetch("https://slack.com/api/reactions.add", options);
-      const result = JSON.parse(response.getContentText());
+      const responseText = response.getContentText();
+      Logger.log(`  Response: ${responseText}`);
+
+      const result = JSON.parse(responseText);
 
       if (result.ok) {
         successCount++;
+        Logger.log(`  ✅ Success!`);
       } else {
-        Logger.log(`Failed to add reaction ${emoji}: ${result.error}`);
+        const errorMsg = `${emoji}: ${result.error}`;
+        errors.push(errorMsg);
+        Logger.log(`  ❌ Failed: ${result.error}`);
+
+        // Log additional error details if available
+        if (result.needed) Logger.log(`     Needed scope: ${result.needed}`);
+        if (result.provided) Logger.log(`     Provided scope: ${result.provided}`);
       }
 
       // Add small delay between reactions
       Utilities.sleep(100);
     }
 
-    Logger.log(`✅ Added ${successCount}/${reactions.length} reactions`);
-    return { success: true, count: successCount };
+    Logger.log(`\n📊 FINAL RESULT: Added ${successCount}/${reactions.length} reactions`);
+    if (errors.length > 0) {
+      Logger.log(`❌ Errors: ${errors.join(', ')}`);
+    }
+
+    return { success: successCount > 0, count: successCount, errors: errors };
   } catch (error) {
-    Logger.log("Error adding reactions: " + error.message);
+    Logger.log("❌ Exception in addReactions: " + error.message);
+    Logger.log("❌ Stack: " + error.stack);
     return { success: false, error: error.message };
   }
 }

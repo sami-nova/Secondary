@@ -138,22 +138,40 @@ function createLeaderboardTemplateV2() {
   Logger.log("✓ Totals summary section added");
 
   // ============================================
-  // SECTION 6: PAID RATE CONTACTED 14DAY - TOP 3
+  // SECTION 6: KB PAID RATE CONTACTED 14DAY - TOP 3
   // ============================================
-  sheet.getRange("A36").setValue("📞 PAID RATE CONTACTED 14DAY - TOP 3");
+  sheet.getRange("A36").setValue("💪 KB PAID RATE CONTACTED 14DAY - TOP 3");
   sheet.getRange("A36:F36").merge();
-  sheet.getRange("A36:F36").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A36:F36").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const paidRateHeaders = ["Week", "Rank", "Manager Name", "Paid Rate %", "Target %", "Total Payments"];
-  sheet.getRange("A37:F37").setValues([paidRateHeaders]);
-  sheet.getRange("A37:F37").setBackground("#F3E5F5").setFontWeight("bold");
+  const kbPaidRateHeaders = ["Week", "Rank", "Region", "Paid Rate %", "Target %", "Total Payments"];
+  sheet.getRange("A37:F37").setValues([kbPaidRateHeaders]);
+  sheet.getRange("A37:F37").setBackground("#E3F2FD").setFontWeight("bold");
 
-  const paidRateData = [
-    [currentWeek, 1, "Valeria Lvova", "23.5%", "20.0%", "$435"],
-    [currentWeek, 2, "Stanislav Alekseev", "34.2%", "25.0%", "$380"],
-    [currentWeek, 3, "Marta Lewandowska", "32.9%", "28.0%", "$205"]
+  const kbPaidRateData = [
+    [currentWeek, 1, "IT", "40%", "20%", "$14"],
+    [currentWeek, 2, "PL", "33.33%", "20%", "$22"],
+    [currentWeek, 3, "RO", "22.15%", "11%", "$33"]
   ];
-  sheet.getRange("A38:F40").setValues(paidRateData);
+  sheet.getRange("A38:F40").setValues(kbPaidRateData);
+
+  // ============================================
+  // SECTION 7: CP PAID RATE CONTACTED 14DAY - TOP 3
+  // ============================================
+  sheet.getRange("A42").setValue("🏆 CP PAID RATE CONTACTED 14DAY - TOP 3");
+  sheet.getRange("A42:F42").merge();
+  sheet.getRange("A42:F42").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const cpPaidRateHeaders = ["Week", "Rank", "Region", "Paid Rate %", "Target %", "Total Payments"];
+  sheet.getRange("A43:F43").setValues([cpPaidRateHeaders]);
+  sheet.getRange("A43:F43").setBackground("#E8F5E9").setFontWeight("bold");
+
+  const cpPaidRateData = [
+    [currentWeek, 1, "TR", "35%", "25%", "$120"],
+    [currentWeek, 2, "FR", "28%", "20%", "$95"],
+    [currentWeek, 3, "DE", "22%", "20%", "$78"]
+  ];
+  sheet.getRange("A44:F46").setValues(cpPaidRateData);
 
   // ============================================
   // Formatting
@@ -162,10 +180,10 @@ function createLeaderboardTemplateV2() {
   // Set column widths
   sheet.setColumnWidth(1, 100);  // Week
   sheet.setColumnWidth(2, 60);   // Rank
-  sheet.setColumnWidth(3, 150);  // Manager Name
-  sheet.setColumnWidth(4, 100);  // Sales / Paid Rate %
-  sheet.setColumnWidth(5, 130);  // Cash Generated / Target %
-  sheet.setColumnWidth(6, 130);  // Region / Total Payments
+  sheet.setColumnWidth(3, 150);  // Region
+  sheet.setColumnWidth(4, 100);  // Paid Rate %
+  sheet.setColumnWidth(5, 130);  // Target %
+  sheet.setColumnWidth(6, 130);  // Total Payments
 
   // Add borders to all sections (Top 3 structure)
   sheet.getRange("A2:F5").setBorder(true, true, true, true, true, true);
@@ -174,6 +192,7 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A20:F23").setBorder(true, true, true, true, true, true);
   sheet.getRange("A26:B34").setBorder(true, true, true, true, true, true);
   sheet.getRange("A37:F40").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A43:F46").setBorder(true, true, true, true, true, true);
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -185,7 +204,8 @@ function createLeaderboardTemplateV2() {
     ["✓ Section 1-2: Churn Prevention (Current Base & Old Base) - TOP 3 EACH"],
     ["✓ Section 3-4: Killer Base (Current Base & Old Base) - TOP 3 EACH"],
     ["✓ Section 5: Totals Summary (editable)"],
-    ["✓ Section 6: Paid Rate Contacted 14day - TOP 3"],
+    ["✓ Section 6: KB Paid Rate Contacted 14day - TOP 3 REGIONS"],
+    ["✓ Section 7: CP Paid Rate Contacted 14day - TOP 3 REGIONS"],
     [""],
     ["COLUMNS IN EACH SECTION:"],
     ["• Week - Current week (2026-W04)"],
@@ -229,7 +249,8 @@ function createLeaderboardTemplateV2() {
     ["• Killer Current Base: A15:F17 (3 rows)"],
     ["• Killer Old Base: A21:F23 (3 rows)"],
     ["• Totals Summary: A27:B34 (8 metrics)"],
-    ["• Paid Rate 14day: A38:F40 (3 rows)"]
+    ["• KB Paid Rate 14day: A38:F40 (3 regions)"],
+    ["• CP Paid Rate 14day: A44:F46 (3 regions)"]
   ];
 
   instructionSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);

@@ -141,6 +141,8 @@ function sendEnhancedSlackMessage(automation, rowData, rowNumber, isBulk = false
     if (isLeaderboard) {
       alertLevel = { level: 'success', color: '#67C23A', icon: '✅', prefix: '' };
       Logger.log("✓ Leaderboard detected - setting alertLevel to 'success' for reactions");
+      Logger.log(`✓ Automation format: ${automation.format}`);
+      Logger.log(`✓ Alert level set to: ${alertLevel.level}`);
     }
 
     // STEP 3: FEATURE 1 - Add Color-Coded Alert (only if enabled)

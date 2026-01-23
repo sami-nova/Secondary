@@ -1379,7 +1379,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const killerCurrentData = sheet.getRange("A15:F17").getValues();
     const killerOldData = sheet.getRange("A21:F23").getValues();
     const totalsData = sheet.getRange("A27:B34").getValues();
-    const paidRateData = sheet.getRange("A38:F40").getValues();
+    const kbPaidRateData = sheet.getRange("A38:F40").getValues();
+    const cpPaidRateData = sheet.getRange("A44:F46").getValues();
 
     const blocks = [];
 
@@ -1575,38 +1576,116 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 5: PAID RATE CONTACTED 14DAY - TOP 3
+    // SECTION 5: KB PAID RATE CONTACTED 14DAY - TOP 3
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*📞 PAID RATE CONTACTED 14DAY - TOP 3*"
+        text: "*💪 KB PAID RATE CONTACTED 14DAY - TOP 3*"
       }
     });
 
-    let paidRateText = "";
-    paidRateData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Paid Rate %, Target %, Total Payments]
+    let kbPaidRateText = "";
+    kbPaidRateData.forEach((row, idx) => {
+      // Row format: [Week, Rank, Region, Paid Rate %, Target %, Total Payments]
       const rank = row[1];
-      const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-      const paidRate = row[3];
-      const target = row[4];
+      const region = cleanSheetData(row[2]);
+      let paidRate = row[3];
+      let target = row[4];
       const totalPayments = row[5];
 
-      if (!rank || !managerName) return;
+      if (!rank || !region) return;
+
+      // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
+      if (typeof paidRate === 'number' && paidRate < 1) {
+        paidRate = (paidRate * 100).toFixed(2) + '%';
+      } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
+        const num = parseFloat(paidRate);
+        if (!isNaN(num) && num < 1) {
+          paidRate = (num * 100).toFixed(2) + '%';
+        }
+      }
+
+      if (typeof target === 'number' && target < 1) {
+        target = (target * 100).toFixed(2) + '%';
+      } else if (typeof target === 'string' && !target.includes('%')) {
+        const num = parseFloat(target);
+        if (!isNaN(num) && num < 1) {
+          target = (num * 100).toFixed(2) + '%';
+        }
+      }
 
       const rankEmoji = getRankEmoji(rank);
+      const regionEmoji = getRegionSlackEmoji(region);
 
-      paidRateText += `${rankEmoji} *${managerName}*\n`;
-      paidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
+      kbPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+      kbPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
     });
 
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: paidRateText || "_No data available_"
+        text: kbPaidRateText || "_No data available_"
+      }
+    });
+
+    blocks.push({ type: "divider" });
+
+    // ============================================
+    // SECTION 6: CP PAID RATE CONTACTED 14DAY - TOP 3
+    // ============================================
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*🏆 CP PAID RATE CONTACTED 14DAY - TOP 3*"
+      }
+    });
+
+    let cpPaidRateText = "";
+    cpPaidRateData.forEach((row, idx) => {
+      // Row format: [Week, Rank, Region, Paid Rate %, Target %, Total Payments]
+      const rank = row[1];
+      const region = cleanSheetData(row[2]);
+      let paidRate = row[3];
+      let target = row[4];
+      const totalPayments = row[5];
+
+      if (!rank || !region) return;
+
+      // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
+      if (typeof paidRate === 'number' && paidRate < 1) {
+        paidRate = (paidRate * 100).toFixed(2) + '%';
+      } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
+        const num = parseFloat(paidRate);
+        if (!isNaN(num) && num < 1) {
+          paidRate = (num * 100).toFixed(2) + '%';
+        }
+      }
+
+      if (typeof target === 'number' && target < 1) {
+        target = (target * 100).toFixed(2) + '%';
+      } else if (typeof target === 'string' && !target.includes('%')) {
+        const num = parseFloat(target);
+        if (!isNaN(num) && num < 1) {
+          target = (num * 100).toFixed(2) + '%';
+        }
+      }
+
+      const rankEmoji = getRankEmoji(rank);
+      const regionEmoji = getRegionSlackEmoji(region);
+
+      cpPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+      cpPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: cpPaidRateText || "_No data available_"
       }
     });
 
