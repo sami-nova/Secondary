@@ -1,17 +1,16 @@
 # 🚀 NEW LEADERBOARD FEATURES - SETUP GUIDE
 
-This guide will help you set up and use the 6 new features added to your leaderboard system.
+This guide will help you set up and use the 5 new features added to your leaderboard system.
 
 ---
 
 ## 📋 Features Overview
 
 1. **🔥 Streak Tracking** - Track consecutive weeks in Top 3
-2. **🏆 Achievement Badges** - Award badges for special accomplishments
-3. **💡 Automatic Insights** - AI-generated commentary and highlights
-4. **📅 Multi-Frequency Options** - Daily/Weekly/Monthly formats
-5. **🎯 Interactive Buttons** - Clickable buttons for more details
-6. **📱 Mobile Optimization** - Clean format for mobile devices
+2. **💰 Highest Payments** - Show top 5 earners with user tagging
+3. **📅 Multi-Frequency Options** - Daily/Weekly/Monthly formats
+4. **🎯 Interactive Buttons** - Clickable buttons for more details
+5. **📱 Mobile Optimization** - Clean format for mobile devices
 
 ---
 
@@ -25,14 +24,12 @@ Run these functions **once** to create the tracking sheets:
 // In Google Apps Script Editor, run each function:
 
 createStreakTrackingSheet()      // Creates: "Streak Tracking" sheet
-createAchievementsSheet()         // Creates: "Achievements" sheet
-createInsightsSheet()             // Creates: "Insights" sheet (optional)
+createHighestPaymentsSheet()     // Creates: "Highest Payments" sheet
 ```
 
 **What this creates:**
 - **Streak Tracking**: Tracks consecutive weeks in Top 3
-- **Achievements**: Stores earned badges and accomplishments
-- **Insights**: Allows manual editing of insights (optional - auto-generates if not created)
+- **Highest Payments**: Shows top 5 earners by cash generated with regions, manager names, and Slack user IDs for @mentions
 
 ---
 
@@ -47,8 +44,7 @@ testEnhancedLeaderboard()
 This will:
 - Build the enhanced leaderboard
 - Update streaks automatically
-- Check for new achievements
-- Generate insights
+- Display highest payments section
 - Show you the full output
 
 ---
@@ -100,67 +96,54 @@ Names automatically show with streak:
 
 ---
 
-### 🏆 2. Achievement Badges
+### 💰 2. Highest Payments
 
-**Available Badges:**
-- 🏆 First Time Winner - First time reaching #1
-- 🎩 Hat Trick - Top 3 for 3 consecutive weeks
-- 🔥 Hot Streak - 5+ consecutive weeks
-- 💎 Legend - 10+ consecutive weeks
-- 🌟 Consistency - Top 3 for 10+ weeks total
-- 🎯 Perfect Week - 100%+ target achievement
+**What it shows:**
+- Top 5 earners by cash generated this week
+- Manager names (can use @mentions like '@Sami')
+- Regions (TR, ES, ARAB, etc.)
+- Payment amounts with proper formatting ($16,100)
+- Slack User IDs for automatic tagging
 
 **How it works:**
-- Automatically awarded when criteria met
-- Displayed next to manager names
-- Announced when newly earned
+1. Open "Highest Payments" sheet
+2. Update weekly with top 5 earners:
+   - Rank: 1-5 based on payment amount
+   - Manager Name: Full name or @mention format
+   - Region: Country code (TR, ES, ARAB, etc.)
+   - Payment: Dollar amount (just number like 16100, no $ symbol)
+   - Slack User ID: User's Slack ID for @mentions (e.g., U02905GQ32R)
+3. When leaderboard posts, section automatically appears
+
+**Slack User ID Tagging:**
+If you provide a Slack User ID:
+- Manager names starting with @ will become clickable mentions
+- Example: `@Sami` with User ID `U02905GQ32R` becomes a tagged mention in Slack
 
 **Manual Control:**
-Open "Achievements" sheet to:
-- View all earned badges
-- See latest achievements
-- Manually award special badges
+Edit "Highest Payments" sheet before posting:
+- Update top performers each week
+- Change payment amounts
+- Add/update Slack User IDs for tagging
+- Adjust regions
 
 **Display:**
-Names show with badges:
-- `John Smith 🔥3 🏆 🎩` = Streak + First Winner + Hat Trick
-
----
-
-### 💡 3. Automatic Insights
-
-**What it generates:**
-- Performance trends ("TR region grew 23%!")
-- New record announcements
-- Comeback stories
-- Top performer highlights
-- Target achievements
-
-**How it works:**
-1. Analyzes current week data
-2. Compares with historical data
-3. Generates 3-5 key insights
-4. Displays at top of leaderboard
-
-**Manual Override:**
-Want to customize insights?
-
-1. Open "Insights" sheet
-2. Find current week row
-3. Edit the insight text
-4. Leave blank to use auto-generated
-
-**Example Insights:**
 ```
-💡 WEEKLY INSIGHTS
-1. 🎉 John Smith earned 🏆 First Time Winner!
-2. 🌟 IT region leads KB with 40% paid rate!
-3. 🏆 Maria crushed it with 52 CP sales!
+💰 HIGHEST PAYMENTS THIS WEEK - TOP 5
+
+🥇 @Sami 🇹🇷
+   └ Payment: $16,100 | TR
+
+🥈 Maria Garcia 🇪🇸
+   └ Payment: $14,500 | ES
+
+🥉 Omar Al-Farsi 🇸🇦
+   └ Payment: $13,200 | ARAB
 ```
 
 ---
 
-### 📅 4. Multi-Frequency Options
+### 📅 3. Multi-Frequency Options
 
 **Three Format Modes:**
 
@@ -198,7 +181,7 @@ All formats read from the same sheet! Just update the sheet once, all formats wo
 
 ---
 
-### 🎯 5. Interactive Buttons
+### 🎯 4. Interactive Buttons
 
 **Buttons Added:**
 - 📊 View Full Stats - Detailed breakdown
@@ -231,7 +214,7 @@ Buttons won't appear. Feature gracefully skips if not configured.
 
 ---
 
-### 📱 6. Mobile Optimization
+### 📱 5. Mobile Optimization
 
 **What it does:**
 - Shorter blocks (less scrolling)
@@ -267,13 +250,15 @@ compareMobileVsDesktop()  // See side-by-side comparison
 ```javascript
 // Step 1: Create all sheets (run once)
 createStreakTrackingSheet()
-createAchievementsSheet()
-createInsightsSheet()
+createHighestPaymentsSheet()
 
-// Step 2: Test everything
+// Step 2: Update Highest Payments sheet with this week's top earners
+// (Open the sheet and manually enter top 5 earners with their payment amounts and user IDs)
+
+// Step 3: Test everything
 testEnhancedLeaderboard()
 
-// Step 3: Use in your automation
+// Step 4: Use in your automation
 // Your existing automation automatically gets all features!
 // Just post the leaderboard as normal
 ```
@@ -289,6 +274,7 @@ testEnhancedLeaderboard()
 ✅ Manager names
 ✅ Regions
 ✅ Cash amounts
+✅ Paid rate percentages
 ✅ Display date
 
 ### Streak Tracking Sheet
@@ -297,15 +283,12 @@ testEnhancedLeaderboard()
 ✅ Total weeks
 ✅ Badges
 
-### Achievements Sheet
-✅ Badges earned
-✅ Award new badges
-✅ Remove badges
-
-### Insights Sheet
-✅ Write custom insights
-✅ Override auto-generated
-✅ Remove insights
+### Highest Payments Sheet
+✅ Top earner names
+✅ Payment amounts
+✅ Regions
+✅ Slack User IDs for tagging
+✅ Rankings
 
 **Everything updates automatically when you post!**
 
@@ -320,13 +303,9 @@ Test individual features:
 updateStreaks("2026-W04")
 getTopStreaks(5)
 
-// Test achievements
-checkAchievements("2026-W04")
-getLatestAchievements(3)
-
-// Test insights
-generateInsights()
-getInsightsForDisplay("2026-W04")
+// Test highest payments
+getHighestPaymentsData()
+buildHighestPaymentsBlock()
 
 // Test formats
 testAllFormats()
@@ -336,6 +315,9 @@ testButtonResponses()
 
 // Test mobile vs desktop
 compareMobileVsDesktop()
+
+// Test all features at once
+testIndividualFeatures()
 ```
 
 ---
@@ -347,15 +329,17 @@ compareMobileVsDesktop()
 - Check that leaderboard has data
 - Run `updateStreaks(currentWeek)` manually
 
-**Badges not showing?**
-- Create "Achievements" sheet
-- Run `checkAchievements(currentWeek)`
-- Check "Achievements" sheet for data
+**Highest payments not showing?**
+- Create "Highest Payments" sheet with `createHighestPaymentsSheet()`
+- Make sure sheet has data (at least one row filled)
+- Check that payment amounts are numbers, not text
+- Verify Slack User IDs are valid (start with U, at least 9 characters)
 
-**Insights not appearing?**
-- They auto-generate if no manual ones exist
-- Check "Insights" sheet (create with `createInsightsSheet()`)
-- Run `generateInsights()` to test
+**User mentions not working?**
+- Verify Slack User ID format (e.g., U02905GQ32R)
+- Manager name should start with @ for tagging
+- Both manager name and user ID must be filled
+- Check that bot has permissions to mention users
 
 **Buttons not working?**
 - Deploy as web app first
@@ -395,26 +379,25 @@ if (streak >= 5) return '⚡';   // Lightning - 5+ weeks
 if (streak >= 3) return '🔥';   // Fire - 3+ weeks
 ```
 
-### Add New Achievements
-Edit `checkAchievements()` in `AchievementBadges.gs`:
+### Customize Highest Payments Display
+Edit `buildHighestPaymentsBlock()` in `HighestPayments.gs`:
 ```javascript
-// Example: Award for 20+ sales
-if (sales >= 20 && !hasAchievement(managerName, "💯")) {
-  newAchievements.push({
-    manager: managerName,
-    badge: "💯",
-    name: "Century Maker",
-    week: currentWeek
-  });
-}
+// Change number of top earners shown (default 5)
+const data = sheet.getRange("A3:F7").getValues();  // Change F7 to show more/less
+
+// Change title
+text: `*💰 HIGHEST PAYMENTS THIS WEEK - TOP 5*\n\n${paymentsText}`
 ```
 
-### Customize Insights
-Edit `generateInsights()` in `AutomaticInsights.gs`:
+### Add More Interactive Buttons
+Edit `addInteractiveButtons()` in `InteractiveButtons.gs`:
 ```javascript
-// Add your own insight rules
-if (grandTotal >= 600) {
-  insights.push(`🎊 RECORD BREAKER: ${grandTotal} sales!`);
+// Add a new button
+{
+  type: "button",
+  text: { type: "plain_text", text: "📊 Your Custom Button" },
+  value: "custom_action",
+  action_id: "button_custom"
 }
 ```
 

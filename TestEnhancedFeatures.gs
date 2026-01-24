@@ -10,25 +10,22 @@
  */
 function setupAllNewFeatures() {
   Logger.log("🚀 SETTING UP ALL NEW FEATURES\n");
-  Logger.log("This will create 3 new sheets:\n");
+  Logger.log("This will create 2 new sheets:\n");
   Logger.log("1. Streak Tracking");
-  Logger.log("2. Achievements");
-  Logger.log("3. Insights\n");
+  Logger.log("2. Highest Payments\n");
 
   // Create sheets
   createStreakTrackingSheet();
   Utilities.sleep(1000);
 
-  createAchievementsSheet();
-  Utilities.sleep(1000);
-
-  createInsightsSheet();
+  createHighestPaymentsSheet();
 
   Logger.log("\n✅ ALL SHEETS CREATED!");
   Logger.log("\n📋 Next steps:");
   Logger.log("1. Check the new sheets in your spreadsheet");
-  Logger.log("2. Run: testEnhancedLeaderboard()");
-  Logger.log("3. Check your Slack channel!");
+  Logger.log("2. Update Highest Payments sheet with this week's top earners");
+  Logger.log("3. Run: testEnhancedLeaderboard()");
+  Logger.log("4. Check your Slack channel!");
 }
 
 /**
@@ -102,26 +99,23 @@ function testIndividualFeatures() {
     Logger.log(`   ${i + 1}. ${s.name} ${s.badge} - ${s.streak} weeks`);
   });
 
-  // Test 2: Achievements
-  Logger.log("\n2️⃣ TESTING ACHIEVEMENT BADGES");
+  // Test 2: Highest Payments
+  Logger.log("\n2️⃣ TESTING HIGHEST PAYMENTS");
   Logger.log("─".repeat(60));
-  const newAchievements = checkAchievements(currentWeek);
-  Logger.log(`New achievements: ${newAchievements.length}`);
-  newAchievements.forEach(a => {
-    Logger.log(`   ${a.badge} ${a.manager} - ${a.name}`);
+  const paymentsData = getHighestPaymentsData();
+  Logger.log(`Found ${paymentsData.length} top earners:`);
+  paymentsData.forEach((p, i) => {
+    const formattedPayment = typeof p.payment === 'number'
+      ? p.payment.toLocaleString('en-US')
+      : p.payment;
+    Logger.log(`   ${i + 1}. ${p.managerName} (${p.region}) - $${formattedPayment}`);
+    if (p.userId) {
+      Logger.log(`      User ID: ${p.userId}`);
+    }
   });
 
-  // Test 3: Insights
-  Logger.log("\n3️⃣ TESTING AUTOMATIC INSIGHTS");
-  Logger.log("─".repeat(60));
-  const insights = generateInsights();
-  Logger.log(`Generated ${insights.length} insights:`);
-  insights.forEach((insight, i) => {
-    Logger.log(`   ${i + 1}. ${insight}`);
-  });
-
-  // Test 4: Multi-Frequency
-  Logger.log("\n4️⃣ TESTING MULTI-FREQUENCY FORMATS");
+  // Test 3: Multi-Frequency
+  Logger.log("\n3️⃣ TESTING MULTI-FREQUENCY FORMATS");
   Logger.log("─".repeat(60));
   const automation = { targetSheet: "Weekly Leaderboard", channel: "test" };
 
@@ -134,13 +128,13 @@ function testIndividualFeatures() {
   const monthly = buildMonthlyChampions(automation);
   Logger.log(`Monthly format: ${monthly.blocks ? monthly.blocks.length : 0} blocks`);
 
-  // Test 5: Buttons
-  Logger.log("\n5️⃣ TESTING INTERACTIVE BUTTONS");
+  // Test 4: Buttons
+  Logger.log("\n4️⃣ TESTING INTERACTIVE BUTTONS");
   Logger.log("─".repeat(60));
   testButtonResponses();
 
-  // Test 6: Mobile
-  Logger.log("\n6️⃣ TESTING MOBILE OPTIMIZATION");
+  // Test 5: Mobile
+  Logger.log("\n5️⃣ TESTING MOBILE OPTIMIZATION");
   Logger.log("─".repeat(60));
   const mobile = buildMobileOptimizedLeaderboard(automation);
   Logger.log(`Mobile format: ${mobile.blocks ? mobile.blocks.length : 0} blocks`);

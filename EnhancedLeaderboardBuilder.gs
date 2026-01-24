@@ -1,10 +1,9 @@
 /**
  * ENHANCED LEADERBOARD BUILDER
  *
- * Integrates all new features:
+ * Integrates enhanced features:
  * ✅ Streak tracking
- * ✅ Achievement badges
- * ✅ Automatic insights
+ * ✅ Highest payments section
  * ✅ Multi-frequency formats
  * ✅ Interactive buttons
  * ✅ Mobile optimization
@@ -13,7 +12,7 @@
  */
 
 /**
- * BUILD ENHANCED LEADERBOARD WITH ALL FEATURES
+ * BUILD ENHANCED LEADERBOARD WITH FEATURES
  * This is the main function to use going forward
  */
 function buildEnhancedLeaderboardWithFeatures(automation) {
@@ -26,21 +25,19 @@ function buildEnhancedLeaderboardWithFeatures(automation) {
       return { text: "Weekly Leaderboard sheet not found. Please create it first." };
     }
 
-    Logger.log("\n🚀 BUILDING ENHANCED LEADERBOARD WITH ALL FEATURES\n");
+    Logger.log("\n🚀 BUILDING ENHANCED LEADERBOARD WITH FEATURES\n");
 
     // Get current week
     const currentWeek = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
 
     // STEP 1: Update streaks (automatic tracking)
     Logger.log("1️⃣ Updating streaks...");
-    updateStreaks(currentWeek);
+    if (typeof updateStreaks === 'function') {
+      updateStreaks(currentWeek);
+    }
 
-    // STEP 2: Check and award achievements
-    Logger.log("2️⃣ Checking achievements...");
-    const newAchievements = checkAchievements(currentWeek);
-
-    // STEP 3: Build leaderboard based on format preference
-    Logger.log("3️⃣ Building leaderboard blocks...");
+    // STEP 2: Build leaderboard based on format preference
+    Logger.log("2️⃣ Building leaderboard blocks...");
 
     // Check if mobile format is preferred
     if (shouldUseMobileFormat(automation)) {
@@ -48,7 +45,7 @@ function buildEnhancedLeaderboardWithFeatures(automation) {
     }
 
     // Otherwise build full enhanced leaderboard
-    return buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements);
+    return buildFullEnhancedLeaderboard(automation, currentWeek);
 
   } catch (error) {
     Logger.log(`❌ Error building enhanced leaderboard: ${error.message}`);
@@ -61,7 +58,7 @@ function buildEnhancedLeaderboardWithFeatures(automation) {
  * BUILD FULL ENHANCED LEADERBOARD
  * Desktop version with all features
  */
-function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) {
+function buildFullEnhancedLeaderboard(automation, currentWeek) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(automation.targetSheet || "Weekly Leaderboard");
 
@@ -89,33 +86,9 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
     }
   });
 
-  // NEW ACHIEVEMENTS ANNOUNCEMENT (if any)
-  if (newAchievements && newAchievements.length > 0) {
-    const achievementsText = newAchievements
-      .map(a => `${a.badge} *${a.manager}* earned ${a.name}!`)
-      .join('\n');
+  blocks.push({ type: "divider" });
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: `*🎉 NEW ACHIEVEMENTS!*\n${achievementsText}`
-      }
-    });
-    blocks.push({ type: "divider" });
-  }
-
-  // AUTOMATIC INSIGHTS
-  const insights = getInsightsForDisplay(currentWeek);
-  if (insights.length > 0) {
-    const insightsBlock = createInsightsBlock(insights);
-    if (insightsBlock) {
-      blocks.push(insightsBlock);
-      blocks.push({ type: "divider" });
-    }
-  }
-
-  // SECTION 1: CP CURRENT - with streaks and badges
+  // SECTION 1: CP CURRENT - with streaks
   blocks.push({
     type: "section",
     text: {
@@ -138,22 +111,12 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
     const rankEmoji = getRankEmoji(rank);
     const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-    // ADD STREAK AND BADGES
-    const streakInfo = getManagerStreak(managerName);
-    const badges = getManagerBadges(managerName);
-
+    // ADD STREAK if function available
     let displayName = `*${managerName}*`;
-
-    // Add streak badge if exists
-    if (streakInfo.badge) {
-      displayName += ` ${streakInfo.badge}${streakInfo.streak}`;
-    }
-
-    // Add achievement badges (first 2)
-    if (badges) {
-      const badgeArray = badges.split(' ').slice(0, 2);
-      if (badgeArray.length > 0) {
-        displayName += ` ${badgeArray.join(' ')}`;
+    if (typeof getManagerStreak === 'function') {
+      const streakInfo = getManagerStreak(managerName);
+      if (streakInfo.badge) {
+        displayName += ` ${streakInfo.badge}${streakInfo.streak}`;
       }
     }
 
@@ -175,7 +138,7 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
 
   blocks.push({ type: "divider" });
 
-  // SECTION 2: CP OLD (same enhanced format)
+  // SECTION 2: CP OLD
   blocks.push({
     type: "section",
     text: {
@@ -197,14 +160,11 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
 
     const rankEmoji = getRankEmoji(rank);
     const regionEmoji = region ? getRegionSlackEmoji(region) : "";
-    const streakInfo = getManagerStreak(managerName);
-    const badges = getManagerBadges(managerName);
 
     let displayName = `*${managerName}*`;
-    if (streakInfo.badge) displayName += ` ${streakInfo.badge}${streakInfo.streak}`;
-    if (badges) {
-      const badgeArray = badges.split(' ').slice(0, 2);
-      if (badgeArray.length > 0) displayName += ` ${badgeArray.join(' ')}`;
+    if (typeof getManagerStreak === 'function') {
+      const streakInfo = getManagerStreak(managerName);
+      if (streakInfo.badge) displayName += ` ${streakInfo.badge}${streakInfo.streak}`;
     }
 
     cpOldText += `${rankEmoji} ${displayName}\n`;
@@ -223,7 +183,7 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
 
   blocks.push({ type: "divider" });
 
-  // SECTION 3: KB CURRENT (enhanced)
+  // SECTION 3: KB CURRENT
   blocks.push({
     type: "section",
     text: {
@@ -245,14 +205,11 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
 
     const rankEmoji = getRankEmoji(rank);
     const regionEmoji = region ? getRegionSlackEmoji(region) : "";
-    const streakInfo = getManagerStreak(managerName);
-    const badges = getManagerBadges(managerName);
 
     let displayName = `*${managerName}*`;
-    if (streakInfo.badge) displayName += ` ${streakInfo.badge}${streakInfo.streak}`;
-    if (badges) {
-      const badgeArray = badges.split(' ').slice(0, 2);
-      if (badgeArray.length > 0) displayName += ` ${badgeArray.join(' ')}`;
+    if (typeof getManagerStreak === 'function') {
+      const streakInfo = getManagerStreak(managerName);
+      if (streakInfo.badge) displayName += ` ${streakInfo.badge}${streakInfo.streak}`;
     }
 
     kbCurrentText += `${rankEmoji} ${displayName}\n`;
@@ -271,7 +228,7 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
 
   blocks.push({ type: "divider" });
 
-  // SECTION 4: KB OLD (enhanced)
+  // SECTION 4: KB OLD
   blocks.push({
     type: "section",
     text: {
@@ -293,14 +250,11 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
 
     const rankEmoji = getRankEmoji(rank);
     const regionEmoji = region ? getRegionSlackEmoji(region) : "";
-    const streakInfo = getManagerStreak(managerName);
-    const badges = getManagerBadges(managerName);
 
     let displayName = `*${managerName}*`;
-    if (streakInfo.badge) displayName += ` ${streakInfo.badge}${streakInfo.streak}`;
-    if (badges) {
-      const badgeArray = badges.split(' ').slice(0, 2);
-      if (badgeArray.length > 0) displayName += ` ${badgeArray.join(' ')}`;
+    if (typeof getManagerStreak === 'function') {
+      const streakInfo = getManagerStreak(managerName);
+      if (streakInfo.badge) displayName += ` ${streakInfo.badge}${streakInfo.streak}`;
     }
 
     kbOldText += `${rankEmoji} ${displayName}\n`;
@@ -319,8 +273,124 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
 
   blocks.push({ type: "divider" });
 
-  // Continue with KB and CP Paid Rate sections (same as before)
-  // ... [Include the KB and CP paid rate sections from SlackAutomationBuilder.gs]
+  // SECTION 5: KB PAID RATE
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: "*💪 KB PAID RATE CONTACTED 14DAY - TOP 3*"
+    }
+  });
+
+  let kbPaidRateText = "";
+  kbPaidRateData.forEach((row, idx) => {
+    const rank = row[1];
+    const region = row[2] ? String(row[2]).trim() : '';
+    let paidRate = row[3];
+    let target = row[4];
+    const totalPayments = row[5];
+
+    if (!rank || !region) return;
+
+    // Format percentages
+    if (typeof paidRate === 'number' && paidRate < 1) {
+      paidRate = (paidRate * 100).toFixed(2) + '%';
+    } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
+      const num = parseFloat(paidRate);
+      if (!isNaN(num) && num < 1) {
+        paidRate = (num * 100).toFixed(2) + '%';
+      }
+    }
+
+    if (typeof target === 'number' && target < 1) {
+      target = (target * 100).toFixed(2) + '%';
+    } else if (typeof target === 'string' && !target.includes('%')) {
+      const num = parseFloat(target);
+      if (!isNaN(num) && num < 1) {
+        target = (num * 100).toFixed(2) + '%';
+      }
+    }
+
+    const rankEmoji = getRankEmoji(rank);
+    const regionEmoji = getRegionSlackEmoji(region);
+
+    kbPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+    kbPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
+  });
+
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: kbPaidRateText || "_No data available_"
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  // SECTION 6: CP PAID RATE
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: "*🏆 CP PAID RATE CONTACTED 14DAY - TOP 3*"
+    }
+  });
+
+  let cpPaidRateText = "";
+  cpPaidRateData.forEach((row, idx) => {
+    const rank = row[1];
+    const region = row[2] ? String(row[2]).trim() : '';
+    let paidRate = row[3];
+    let target = row[4];
+    const totalPayments = row[5];
+
+    if (!rank || !region) return;
+
+    // Format percentages
+    if (typeof paidRate === 'number' && paidRate < 1) {
+      paidRate = (paidRate * 100).toFixed(2) + '%';
+    } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
+      const num = parseFloat(paidRate);
+      if (!isNaN(num) && num < 1) {
+        paidRate = (num * 100).toFixed(2) + '%';
+      }
+    }
+
+    if (typeof target === 'number' && target < 1) {
+      target = (target * 100).toFixed(2) + '%';
+    } else if (typeof target === 'string' && !target.includes('%')) {
+      const num = parseFloat(target);
+      if (!isNaN(num) && num < 1) {
+        target = (num * 100).toFixed(2) + '%';
+      }
+    }
+
+    const rankEmoji = getRankEmoji(rank);
+    const regionEmoji = getRegionSlackEmoji(region);
+
+    cpPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+    cpPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
+  });
+
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: cpPaidRateText || "_No data available_"
+    }
+  });
+
+  blocks.push({ type: "divider" });
+
+  // NEW SECTION: HIGHEST PAYMENTS THIS WEEK
+  if (typeof buildHighestPaymentsBlock === 'function') {
+    const highestPaymentsBlock = buildHighestPaymentsBlock();
+    if (highestPaymentsBlock) {
+      blocks.push(highestPaymentsBlock);
+      blocks.push({ type: "divider" });
+    }
+  }
 
   // FOOTER with totals
   const grandTotal = totalsData[1][1] || 0;
@@ -330,8 +400,6 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
   const killerTotal = totalsData[5][1] || 0;
   const killerCurrent = totalsData[6][1] || 0;
   const killerOld = totalsData[7][1] || 0;
-
-  blocks.push({ type: "divider" });
 
   blocks.push({
     type: "context",
@@ -343,8 +411,10 @@ function buildFullEnhancedLeaderboard(automation, currentWeek, newAchievements) 
 
   // ADD INTERACTIVE BUTTONS (if enabled)
   if (automation.interactiveButtons && automation.interactiveButtons.enabled) {
-    Logger.log("4️⃣ Adding interactive buttons...");
-    addInteractiveButtons(blocks, automation);
+    Logger.log("3️⃣ Adding interactive buttons...");
+    if (typeof addInteractiveButtons === 'function') {
+      addInteractiveButtons(blocks, automation);
+    }
   }
 
   Logger.log(`\n✅ Enhanced leaderboard built with ${blocks.length} blocks`);
