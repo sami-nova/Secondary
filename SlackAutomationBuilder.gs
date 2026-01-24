@@ -1381,6 +1381,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const totalsData = sheet.getRange("A27:B34").getValues();
     const kbPaidRateData = sheet.getRange("A38:F40").getValues();
     const cpPaidRateData = sheet.getRange("A44:F46").getValues();
+    const highestPaymentsData = sheet.getRange("A50:E54").getValues();
 
     const blocks = [];
 
@@ -1686,6 +1687,49 @@ function buildCombinedLeaderboardFromSheet(automation) {
       text: {
         type: "mrkdwn",
         text: cpPaidRateText || "_No data available_"
+      }
+    });
+
+    blocks.push({ type: "divider" });
+
+    // ============================================
+    // SECTION 7: HIGHEST PAYMENTS THIS WEEK - TOP 5
+    // ============================================
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*💰 HIGHEST PAYMENTS THIS WEEK - TOP 5*"
+      }
+    });
+
+    let highestPaymentsText = "";
+    highestPaymentsData.forEach((row, idx) => {
+      // Row format: [Week, Rank, Manager Name, Region, Payment ($)]
+      const rank = row[1];
+      const managerName = cleanSheetData(row[2]);
+      const region = cleanSheetData(row[3]);
+      const payment = row[4];
+
+      if (!rank || !managerName) return;
+
+      // Format payment with commas
+      const formattedPayment = typeof payment === 'number'
+        ? payment.toLocaleString('en-US')
+        : payment;
+
+      const rankEmoji = getRankEmoji(rank);
+      const regionEmoji = getRegionSlackEmoji(region);
+
+      highestPaymentsText += `${rankEmoji} *${managerName}* ${regionEmoji}\n`;
+      highestPaymentsText += `   └ Payment: *$${formattedPayment}* | ${region}\n\n`;
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: highestPaymentsText || "_No data available_"
       }
     });
 

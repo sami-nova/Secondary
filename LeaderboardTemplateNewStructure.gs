@@ -174,15 +174,35 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A44:F46").setValues(cpPaidRateData);
 
   // ============================================
+  // SECTION 8: HIGHEST PAYMENTS THIS WEEK - TOP 5
+  // ============================================
+  sheet.getRange("A48").setValue("💰 HIGHEST PAYMENTS THIS WEEK - TOP 5");
+  sheet.getRange("A48:E48").merge();
+  sheet.getRange("A48:E48").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const highestPaymentsHeaders = ["Week", "Rank", "Manager Name", "Region", "Payment ($)"];
+  sheet.getRange("A49:E49").setValues([highestPaymentsHeaders]);
+  sheet.getRange("A49:E49").setBackground("#FFE0B2").setFontWeight("bold");
+
+  const highestPaymentsData = [
+    [currentWeek, 1, "@Sami", "TR", 16100],
+    [currentWeek, 2, "Maria Garcia", "ES", 14500],
+    [currentWeek, 3, "Omar Al-Farsi", "ARAB", 13200],
+    [currentWeek, 4, "John Smith", "FR", 12500],
+    [currentWeek, 5, "Lisa Anderson", "IT", 11800]
+  ];
+  sheet.getRange("A50:E54").setValues(highestPaymentsData);
+
+  // ============================================
   // Formatting
   // ============================================
 
   // Set column widths
   sheet.setColumnWidth(1, 100);  // Week
   sheet.setColumnWidth(2, 60);   // Rank
-  sheet.setColumnWidth(3, 150);  // Region
-  sheet.setColumnWidth(4, 100);  // Paid Rate %
-  sheet.setColumnWidth(5, 130);  // Target %
+  sheet.setColumnWidth(3, 150);  // Manager Name/Region
+  sheet.setColumnWidth(4, 100);  // Region/Paid Rate %
+  sheet.setColumnWidth(5, 130);  // Payment/Target %
   sheet.setColumnWidth(6, 130);  // Total Payments
 
   // Add borders to all sections (Top 3 structure)
@@ -193,6 +213,7 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A26:B34").setBorder(true, true, true, true, true, true);
   sheet.getRange("A37:F40").setBorder(true, true, true, true, true, true);
   sheet.getRange("A43:F46").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A49:E54").setBorder(true, true, true, true, true, true);
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -206,6 +227,7 @@ function createLeaderboardTemplateV2() {
     ["✓ Section 5: Totals Summary (editable)"],
     ["✓ Section 6: KB Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 7: CP Paid Rate Contacted 14day - TOP 3 REGIONS"],
+    ["✓ Section 8: Highest Payments This Week - TOP 5"],
     [""],
     ["COLUMNS IN EACH SECTION:"],
     ["• Week - Current week (2026-W04)"],
@@ -250,7 +272,8 @@ function createLeaderboardTemplateV2() {
     ["• Killer Old Base: A21:F23 (3 rows)"],
     ["• Totals Summary: A27:B34 (8 metrics)"],
     ["• KB Paid Rate 14day: A38:F40 (3 regions)"],
-    ["• CP Paid Rate 14day: A44:F46 (3 regions)"]
+    ["• CP Paid Rate 14day: A44:F46 (3 regions)"],
+    ["• Highest Payments: A50:E54 (5 managers)"]
   ];
 
   instructionSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
