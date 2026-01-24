@@ -1381,7 +1381,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const totalsData = sheet.getRange("A27:B34").getValues();
     const kbPaidRateData = sheet.getRange("A38:F40").getValues();
     const cpPaidRateData = sheet.getRange("A44:F46").getValues();
-    const highestPaymentsData = sheet.getRange("A50:E54").getValues();
+    const highestPaymentsData = sheet.getRange("A50:F52").getValues();
 
     const blocks = [];
 
@@ -1693,25 +1693,35 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 7: HIGHEST PAYMENTS THIS WEEK - TOP 5
+    // SECTION 7: HIGHEST PAYMENTS THIS WEEK - TOP 3
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*💰 HIGHEST PAYMENTS THIS WEEK - TOP 5*"
+        text: "*💰 HIGHEST PAYMENTS THIS WEEK - TOP 3*"
       }
     });
 
     let highestPaymentsText = "";
     highestPaymentsData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Region, Payment ($)]
+      // Row format: [Week, Rank, Manager Name, Region, Payment ($), Slack User ID]
       const rank = row[1];
-      const managerName = cleanSheetData(row[2]);
+      let managerName = row[2];
       const region = cleanSheetData(row[3]);
       const payment = row[4];
+      const userId = cleanSheetData(row[5]);
 
       if (!rank || !managerName) return;
+
+      // Apply manager mentions (supports both direct User ID and Manager Tags lookup)
+      if (userId && userId.startsWith('U') && userId.length >= 9) {
+        // If User ID is provided directly in the sheet, use it
+        managerName = `<@${userId}>`;
+      } else {
+        // Otherwise, use the applyManagerMentions function (looks up from Manager Tags sheet)
+        managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(managerName) : cleanSheetData(managerName);
+      }
 
       // Format payment with commas
       const formattedPayment = typeof payment === 'number'
