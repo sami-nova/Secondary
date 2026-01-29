@@ -1,12 +1,12 @@
 /**
- * Manager Schedule Automation Script
+ * Manager Schedule Automation Script v2.0
  *
- * This Google Apps Script automates the manager schedule sheet with:
+ * Features:
  * - Auto-coloring based on dropdown selections
- * - Monthly sheet generation
- * - Email reminders for managers to fill schedules
- * - Data validation and error checking
- * - Summary dashboard generation
+ * - Monthly sheet generation with region grouping
+ * - Slack notifications for reminders
+ * - Auto-fill week pattern (fill first week, auto-populate rest)
+ * - Summary calculations and reports
  *
  * SETUP INSTRUCTIONS:
  * 1. Open your Google Sheet
@@ -15,14 +15,15 @@
  * 4. Save the project (Ctrl+S)
  * 5. Refresh your Google Sheet - you'll see a new "Schedule Manager" menu
  * 6. Run initial setup from the menu
+ * 7. Configure Slack webhook URL in the Settings sheet
  */
 
 // ============================================
-// CONFIGURATION - Customize these values
+// CONFIGURATION
 // ============================================
 
 const CONFIG = {
-  // Column indices (1-based, adjust if your sheet structure differs)
+  // Column indices (1-based)
   MANAGER_NAME_COL: 1,      // Column A
   REGION_COL: 2,            // Column B
   PROCEDURES_COL: 3,        // Column C
@@ -34,26 +35,41 @@ const CONFIG = {
 
   // Color coding (hex colors)
   COLORS: {
-    HOLIDAY: '#FFEB3B',      // Yellow
-    VACATION: '#4CAF50',     // Green
-    SICK_LEAVE: '#F44336',   // Red
-    DAY_OFF: '#2196F3',      // Blue
-    WORK_HOURS: '#FFFFFF',   // White (default)
+    HOLIDAY: '#FFF9C4',      // Light Yellow
+    VACATION: '#C8E6C9',     // Light Green
+    SICK_LEAVE: '#FFCDD2',   // Light Red
+    DAY_OFF: '#BBDEFB',      // Light Blue
+    WORK_HOURS: '#FFFFFF',   // White
     HEADER: '#1565C0',       // Dark blue for headers
     HEADER_TEXT: '#FFFFFF',  // White text for headers
-    WEEKEND: '#F5F5F5',      // Light gray for weekends
-    EMPTY: '#EEEEEE'         // Light gray for empty cells
+    WEEKEND: '#FFF3E0',      // Light orange for weekends
+    EMPTY: '#F5F5F5',        // Light gray for empty
+    REGION_HEADER: '#37474F', // Dark gray for region headers
+    REGION_SEPARATOR: '#ECEFF1' // Light gray for region separators
   },
 
-  // Schedule options for dropdown
+  // Updated schedule options based on your dropdown
   SCHEDULE_OPTIONS: [
     '9:00-18:00',
+    '9:00-17:00',
+    '9:00-17:30',
+    '9:00-13:00',
+    '9:30-17:30',
     '9:30-18:30',
+    '10:00-18:00',
     '10:00-19:00',
+    '10:00-14:00',
+    '10:30-19:00',
     '10:30-19:30',
+    '11:00-19:00',
     '11:00-20:00',
+    '12:00-20:00',
+    '12:00-21:00',
+    '13:00-21:00',
     '13:00-22:00',
+    '15:00-17:00',
     '16:00-01:00',
+    '17:00-01:00',
     '8:00-17:00',
     'Day off',
     'Holiday',
@@ -61,8 +77,20 @@ const CONFIG = {
     'Sick Leave'
   ],
 
-  // Region options
-  REGIONS: ['Arab', 'CZ', 'DE', 'ES', 'FR', 'IL', 'IT', 'PL', 'RO', 'RU', 'TR'],
+  // Region options with display order
+  REGIONS: [
+    { code: 'Arab', name: 'Arab Region', color: '#E3F2FD' },
+    { code: 'CZ', name: 'Czech Republic', color: '#F3E5F5' },
+    { code: 'DE', name: 'Germany', color: '#E8F5E9' },
+    { code: 'ES', name: 'Spain', color: '#FFF8E1' },
+    { code: 'FR', name: 'France', color: '#E0F7FA' },
+    { code: 'IL', name: 'Israel', color: '#FCE4EC' },
+    { code: 'IT', name: 'Italy', color: '#F1F8E9' },
+    { code: 'PL', name: 'Poland', color: '#EDE7F6' },
+    { code: 'RO', name: 'Romania', color: '#E8EAF6' },
+    { code: 'RU', name: 'Russia', color: '#EFEBE9' },
+    { code: 'TR', name: 'Turkey', color: '#FFEBEE' }
+  ],
 
   // Procedure options
   PROCEDURES: [
@@ -83,70 +111,65 @@ const CONFIG = {
     'Care Calls, Churn Prevention, NPS'
   ],
 
-  // Email settings
-  EMAIL_SUBJECT: 'Reminder: Please Fill Your Schedule',
-  DAYS_BEFORE_MONTH_END: 5,  // Send reminder X days before month ends
-
-  // Summary columns (added at the end)
+  // Summary columns
   SUMMARY_COLUMNS: ['Work Days', 'Vacations', 'Holidays', 'Sick Days']
 };
 
 
 // ============================================
-// MENU AND TRIGGERS
+// MENU AND INITIALIZATION
 // ============================================
 
-/**
- * Creates custom menu when spreadsheet opens
- */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  ui.createMenu('Schedule Manager')
-    .addItem('Initial Setup', 'initialSetup')
+  ui.createMenu('📅 Schedule Manager')
+    .addItem('🚀 Initial Setup', 'initialSetup')
     .addSeparator()
-    .addSubMenu(ui.createMenu('Monthly Operations')
+    .addSubMenu(ui.createMenu('📆 Monthly Operations')
       .addItem('Generate Next Month Sheet', 'generateNextMonthSheet')
-      .addItem('Generate Specific Month...', 'promptGenerateMonth'))
-    .addSubMenu(ui.createMenu('Formatting')
+      .addItem('Generate Specific Month...', 'promptGenerateMonth')
+      .addItem('Generate Region View', 'generateRegionView'))
+    .addSubMenu(ui.createMenu('🔄 Auto-Fill')
+      .addItem('Fill Month from First Week', 'autoFillFromFirstWeek')
+      .addItem('Fill Selected Row from First Week', 'autoFillSelectedRow'))
+    .addSubMenu(ui.createMenu('🎨 Formatting')
       .addItem('Apply Colors to Current Sheet', 'applyColorsToCurrentSheet')
       .addItem('Refresh Dropdowns', 'refreshDropdowns')
-      .addItem('Format Headers', 'formatHeaders'))
-    .addSubMenu(ui.createMenu('Calculations')
+      .addItem('Format Headers', 'formatHeadersMenu')
+      .addItem('Group by Region', 'groupByRegion'))
+    .addSubMenu(ui.createMenu('📊 Calculations')
       .addItem('Recalculate All Summaries', 'recalculateAllSummaries')
       .addItem('Add Summary Formulas', 'addSummaryFormulas'))
-    .addSubMenu(ui.createMenu('Reminders')
-      .addItem('Send Reminder to All Managers', 'sendReminderToAll')
-      .addItem('Setup Automatic Reminders', 'setupAutomaticReminders')
-      .addItem('Remove Automatic Reminders', 'removeAutomaticReminders'))
-    .addSubMenu(ui.createMenu('Reports')
+    .addSubMenu(ui.createMenu('💬 Slack Notifications')
+      .addItem('Send Reminder to All', 'sendSlackReminderToAll')
+      .addItem('Setup Slack Webhook...', 'setupSlackWebhook')
+      .addItem('Test Slack Connection', 'testSlackConnection')
+      .addItem('Setup Auto Reminders (25th)', 'setupAutomaticReminders')
+      .addItem('Remove Auto Reminders', 'removeAutomaticReminders'))
+    .addSubMenu(ui.createMenu('📈 Reports')
       .addItem('Generate Monthly Summary', 'generateMonthlySummary')
-      .addItem('Generate Coverage Report', 'generateCoverageReport'))
+      .addItem('Generate Coverage Report', 'generateCoverageReport')
+      .addItem('Generate Region Dashboard', 'generateRegionDashboard'))
     .addSeparator()
-    .addItem('Help & Documentation', 'showHelp')
+    .addItem('⚙️ Settings', 'openSettings')
+    .addItem('❓ Help', 'showHelp')
     .addToUi();
 }
 
-/**
- * Trigger that runs when cells are edited
- */
 function onEdit(e) {
   const sheet = e.source.getActiveSheet();
   const range = e.range;
   const row = range.getRow();
   const col = range.getColumn();
 
-  // Skip if editing header row or manager info columns
-  if (row < CONFIG.DATA_START_ROW || col < CONFIG.SCHEDULE_START_COL) {
-    return;
-  }
+  // Skip header rows and non-schedule columns
+  if (row < CONFIG.DATA_START_ROW || col < CONFIG.SCHEDULE_START_COL) return;
 
-  // Skip if this is a summary column (last 4 columns typically)
+  // Skip summary columns
   const lastCol = sheet.getLastColumn();
-  if (col > lastCol - CONFIG.SUMMARY_COLUMNS.length) {
-    return;
-  }
+  if (col > lastCol - CONFIG.SUMMARY_COLUMNS.length) return;
 
-  // Apply color based on the new value
+  // Apply color
   const value = e.value;
   applyColorToCell(range, value);
 }
@@ -156,18 +179,15 @@ function onEdit(e) {
 // INITIAL SETUP
 // ============================================
 
-/**
- * Performs initial setup of the spreadsheet
- */
 function initialSetup() {
   const ui = SpreadsheetApp.getUi();
   const response = ui.alert(
     'Initial Setup',
     'This will:\n' +
-    '1. Set up automatic color formatting trigger\n' +
-    '2. Format the current sheet headers\n' +
-    '3. Apply dropdowns to schedule cells\n' +
-    '4. Add summary formulas\n\n' +
+    '1. Create a Settings sheet for Slack webhook\n' +
+    '2. Set up automatic color formatting\n' +
+    '3. Format the current sheet\n' +
+    '4. Apply dropdowns and formulas\n\n' +
     'Continue?',
     ui.ButtonSet.YES_NO
   );
@@ -175,47 +195,643 @@ function initialSetup() {
   if (response !== ui.Button.YES) return;
 
   try {
-    // Setup triggers
+    createSettingsSheet();
     setupEditTrigger();
 
-    // Format current sheet
     const sheet = SpreadsheetApp.getActiveSheet();
     formatHeaders(sheet);
     applyDropdownsToSheet(sheet);
     addSummaryFormulas();
     applyColorsToCurrentSheet();
 
-    ui.alert('Setup Complete', 'Initial setup completed successfully!', ui.ButtonSet.OK);
+    ui.alert('Setup Complete!',
+      'Initial setup completed successfully!\n\n' +
+      'Next steps:\n' +
+      '1. Go to Settings sheet to configure Slack webhook\n' +
+      '2. Use "Auto-Fill" to populate schedules quickly',
+      ui.ButtonSet.OK);
   } catch (error) {
     ui.alert('Error', 'Setup failed: ' + error.message, ui.ButtonSet.OK);
   }
 }
 
-/**
- * Sets up the edit trigger for automatic color formatting
- */
+function createSettingsSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Settings');
+
+  if (!sheet) {
+    sheet = ss.insertSheet('Settings');
+
+    // Headers
+    sheet.getRange('A1:B1').setValues([['Setting', 'Value']]);
+    sheet.getRange('A1:B1')
+      .setBackground(CONFIG.COLORS.HEADER)
+      .setFontColor(CONFIG.COLORS.HEADER_TEXT)
+      .setFontWeight('bold');
+
+    // Settings
+    const settings = [
+      ['Slack Webhook URL', ''],
+      ['Slack Channel', '#schedule-reminders'],
+      ['Reminder Day of Month', '25'],
+      ['Auto-fill Default Pattern', 'Copy Week 1']
+    ];
+    sheet.getRange(2, 1, settings.length, 2).setValues(settings);
+
+    // Instructions
+    sheet.getRange('D1').setValue('Instructions');
+    sheet.getRange('D1').setFontWeight('bold');
+    sheet.getRange('D2:D6').setValues([
+      ['1. Create a Slack Incoming Webhook at: https://api.slack.com/apps'],
+      ['2. Copy the webhook URL and paste it in cell B2'],
+      ['3. The channel in B3 is for display purposes only'],
+      ['4. Reminders will be sent on the day specified in B4'],
+      ['5. Save and test the connection from the menu']
+    ]);
+
+    sheet.autoResizeColumns(1, 4);
+    sheet.setColumnWidth(4, 400);
+  }
+
+  return sheet;
+}
+
 function setupEditTrigger() {
-  // Remove existing triggers first
   const triggers = ScriptApp.getProjectTriggers();
   triggers.forEach(trigger => {
-    if (trigger.getHandlerFunction() === 'onEdit') {
+    if (trigger.getHandlerFunction() === 'onEditInstallable') {
       ScriptApp.deleteTrigger(trigger);
     }
   });
 
-  // Note: onEdit is a simple trigger that runs automatically
-  // For installable trigger with more permissions:
   ScriptApp.newTrigger('onEditInstallable')
     .forSpreadsheet(SpreadsheetApp.getActive())
     .onEdit()
     .create();
 }
 
-/**
- * Installable edit trigger with full permissions
- */
 function onEditInstallable(e) {
   onEdit(e);
+}
+
+
+// ============================================
+// AUTO-FILL WEEK PATTERN
+// ============================================
+
+/**
+ * Fills the entire month based on the first week's pattern
+ */
+function autoFillFromFirstWeek() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.getActiveSheet();
+
+  const response = ui.alert(
+    'Auto-Fill Month',
+    'This will copy Week 1 (first 7 days) pattern to all remaining weeks for ALL managers.\n\n' +
+    'Make sure the first week is filled correctly before proceeding.\n\n' +
+    'Continue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) return;
+
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  const scheduleEndCol = lastCol - CONFIG.SUMMARY_COLUMNS.length;
+  const daysInMonth = scheduleEndCol - CONFIG.SCHEDULE_START_COL + 1;
+
+  if (daysInMonth < 7) {
+    ui.alert('Error', 'Not enough days in schedule. Need at least 7 days.', ui.ButtonSet.OK);
+    return;
+  }
+
+  let filledCount = 0;
+
+  for (let row = CONFIG.DATA_START_ROW; row <= lastRow; row++) {
+    // Skip region header rows (check if column A has region-like content)
+    const managerName = sheet.getRange(row, CONFIG.MANAGER_NAME_COL).getValue();
+    if (!managerName || isRegionHeader(managerName)) continue;
+
+    // Get first week pattern (7 days)
+    const firstWeekRange = sheet.getRange(row, CONFIG.SCHEDULE_START_COL, 1, 7);
+    const firstWeekValues = firstWeekRange.getValues()[0];
+
+    // Check if first week has data
+    const hasData = firstWeekValues.some(v => v !== '');
+    if (!hasData) continue;
+
+    // Fill remaining weeks
+    for (let dayIndex = 7; dayIndex < daysInMonth; dayIndex++) {
+      const patternIndex = dayIndex % 7;
+      const targetCol = CONFIG.SCHEDULE_START_COL + dayIndex;
+      const currentValue = sheet.getRange(row, targetCol).getValue();
+
+      // Only fill if cell is empty
+      if (!currentValue) {
+        sheet.getRange(row, targetCol).setValue(firstWeekValues[patternIndex]);
+      }
+    }
+    filledCount++;
+  }
+
+  // Apply colors
+  applyColorsToCurrentSheet();
+
+  ui.alert('Complete', `Auto-filled schedules for ${filledCount} managers based on Week 1 pattern.`, ui.ButtonSet.OK);
+}
+
+/**
+ * Fills only the selected row based on its first week
+ */
+function autoFillSelectedRow() {
+  const ui = SpreadsheetApp.getUi();
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const selection = sheet.getActiveRange();
+  const row = selection.getRow();
+
+  if (row < CONFIG.DATA_START_ROW) {
+    ui.alert('Error', 'Please select a manager row (not the header).', ui.ButtonSet.OK);
+    return;
+  }
+
+  const managerName = sheet.getRange(row, CONFIG.MANAGER_NAME_COL).getValue();
+
+  const response = ui.alert(
+    'Auto-Fill Row',
+    `Fill remaining weeks for "${managerName}" based on Week 1 pattern?`,
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) return;
+
+  const lastCol = sheet.getLastColumn();
+  const scheduleEndCol = lastCol - CONFIG.SUMMARY_COLUMNS.length;
+  const daysInMonth = scheduleEndCol - CONFIG.SCHEDULE_START_COL + 1;
+
+  // Get first week pattern
+  const firstWeekRange = sheet.getRange(row, CONFIG.SCHEDULE_START_COL, 1, 7);
+  const firstWeekValues = firstWeekRange.getValues()[0];
+
+  // Fill remaining weeks
+  let filledCells = 0;
+  for (let dayIndex = 7; dayIndex < daysInMonth; dayIndex++) {
+    const patternIndex = dayIndex % 7;
+    const targetCol = CONFIG.SCHEDULE_START_COL + dayIndex;
+    const currentValue = sheet.getRange(row, targetCol).getValue();
+
+    if (!currentValue && firstWeekValues[patternIndex]) {
+      sheet.getRange(row, targetCol).setValue(firstWeekValues[patternIndex]);
+      filledCells++;
+    }
+  }
+
+  // Apply colors to the row
+  const rowRange = sheet.getRange(row, CONFIG.SCHEDULE_START_COL, 1, daysInMonth);
+  const values = rowRange.getValues()[0];
+  const backgrounds = values.map(v => getColorForValue(v));
+  rowRange.setBackgrounds([backgrounds]);
+
+  ui.alert('Complete', `Filled ${filledCells} cells for ${managerName}.`, ui.ButtonSet.OK);
+}
+
+function isRegionHeader(value) {
+  const regionCodes = CONFIG.REGIONS.map(r => r.code);
+  return regionCodes.includes(value) || value.toString().startsWith('---');
+}
+
+
+// ============================================
+// REGION-GROUPED VIEW
+// ============================================
+
+/**
+ * Generates a view grouped by region with visual separators
+ */
+function generateRegionView() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sourceSheet = SpreadsheetApp.getActiveSheet();
+  const sheetName = sourceSheet.getName() + ' (By Region)';
+
+  // Check if view already exists
+  let viewSheet = ss.getSheetByName(sheetName);
+  if (viewSheet) {
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.alert('Sheet Exists', `"${sheetName}" exists. Replace it?`, ui.ButtonSet.YES_NO);
+    if (response !== ui.Button.YES) return;
+    ss.deleteSheet(viewSheet);
+  }
+
+  viewSheet = ss.insertSheet(sheetName);
+
+  // Get source data
+  const lastRow = sourceSheet.getLastRow();
+  const lastCol = sourceSheet.getLastColumn();
+  const headers = sourceSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  const data = sourceSheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  // Group data by region
+  const regionGroups = {};
+  CONFIG.REGIONS.forEach(r => regionGroups[r.code] = []);
+
+  data.forEach(row => {
+    const region = row[CONFIG.REGION_COL - 1];
+    if (regionGroups[region]) {
+      regionGroups[region].push(row);
+    } else {
+      // Unknown region - add to first group
+      if (!regionGroups['Other']) regionGroups['Other'] = [];
+      regionGroups['Other'].push(row);
+    }
+  });
+
+  // Build grouped view
+  let currentRow = 1;
+
+  // Add headers
+  viewSheet.getRange(currentRow, 1, 1, headers.length).setValues([headers]);
+  formatHeaders(viewSheet);
+  currentRow++;
+
+  // Add each region
+  CONFIG.REGIONS.forEach(region => {
+    const managers = regionGroups[region.code];
+    if (!managers || managers.length === 0) return;
+
+    // Region header row
+    const regionHeaderRow = new Array(headers.length).fill('');
+    regionHeaderRow[0] = `▼ ${region.name} (${region.code}) - ${managers.length} managers`;
+    viewSheet.getRange(currentRow, 1, 1, headers.length).setValues([regionHeaderRow]);
+    viewSheet.getRange(currentRow, 1, 1, headers.length)
+      .setBackground(CONFIG.COLORS.REGION_HEADER)
+      .setFontColor('#FFFFFF')
+      .setFontWeight('bold')
+      .setFontSize(11);
+    viewSheet.getRange(currentRow, 1, 1, 3).merge();
+    currentRow++;
+
+    // Manager rows
+    managers.forEach(manager => {
+      viewSheet.getRange(currentRow, 1, 1, manager.length).setValues([manager]);
+      // Apply region-specific background tint
+      viewSheet.getRange(currentRow, 1, 1, 3).setBackground(region.color);
+      currentRow++;
+    });
+
+    // Spacer row
+    viewSheet.getRange(currentRow, 1, 1, headers.length)
+      .setBackground(CONFIG.COLORS.REGION_SEPARATOR);
+    viewSheet.setRowHeight(currentRow, 8);
+    currentRow++;
+  });
+
+  // Apply formatting
+  applyDropdownsToSheet(viewSheet);
+
+  // Apply colors to schedule cells
+  const scheduleEndCol = lastCol - CONFIG.SUMMARY_COLUMNS.length;
+  for (let row = 2; row <= viewSheet.getLastRow(); row++) {
+    const firstCell = viewSheet.getRange(row, 1).getValue();
+    if (firstCell && !firstCell.toString().startsWith('▼') &&
+        viewSheet.getRange(row, CONFIG.SCHEDULE_START_COL).getValue()) {
+      const rowValues = viewSheet.getRange(row, CONFIG.SCHEDULE_START_COL, 1, scheduleEndCol - CONFIG.SCHEDULE_START_COL + 1).getValues()[0];
+      const backgrounds = rowValues.map(v => getColorForValue(v));
+      viewSheet.getRange(row, CONFIG.SCHEDULE_START_COL, 1, backgrounds.length).setBackgrounds([backgrounds]);
+    }
+  }
+
+  // Freeze
+  viewSheet.setFrozenRows(1);
+  viewSheet.setFrozenColumns(3);
+  viewSheet.autoResizeColumns(1, 3);
+
+  ss.setActiveSheet(viewSheet);
+  SpreadsheetApp.getActiveSpreadsheet().toast(`Region view "${sheetName}" created!`, 'Complete', 5);
+}
+
+/**
+ * Sorts and groups current sheet by region
+ */
+function groupByRegion() {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+
+  if (lastRow < 3) {
+    SpreadsheetApp.getUi().alert('Error', 'Not enough data to sort.', SpreadsheetApp.getUi().ButtonSet.OK);
+    return;
+  }
+
+  // Sort by region (column B)
+  const range = sheet.getRange(CONFIG.DATA_START_ROW, 1, lastRow - CONFIG.DATA_START_ROW + 1, lastCol);
+  range.sort({ column: CONFIG.REGION_COL, ascending: true });
+
+  // Apply alternating region colors
+  const data = sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.REGION_COL, lastRow - CONFIG.DATA_START_ROW + 1, 1).getValues();
+  let currentRegion = '';
+
+  for (let i = 0; i < data.length; i++) {
+    const region = data[i][0];
+    const row = CONFIG.DATA_START_ROW + i;
+
+    if (region !== currentRegion) {
+      currentRegion = region;
+    }
+
+    // Find region color
+    const regionConfig = CONFIG.REGIONS.find(r => r.code === region);
+    if (regionConfig) {
+      sheet.getRange(row, 1, 1, 3).setBackground(regionConfig.color);
+    }
+  }
+
+  SpreadsheetApp.getActiveSpreadsheet().toast('Sheet grouped by region!', 'Complete', 3);
+}
+
+
+// ============================================
+// SLACK NOTIFICATIONS
+// ============================================
+
+/**
+ * Gets Slack webhook URL from Settings sheet
+ */
+function getSlackWebhookUrl() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const settingsSheet = ss.getSheetByName('Settings');
+
+  if (!settingsSheet) {
+    throw new Error('Settings sheet not found. Run Initial Setup first.');
+  }
+
+  const url = settingsSheet.getRange('B2').getValue();
+  if (!url || !url.toString().startsWith('https://hooks.slack.com')) {
+    throw new Error('Invalid Slack webhook URL. Please configure in Settings sheet.');
+  }
+
+  return url;
+}
+
+/**
+ * Sends a message to Slack
+ */
+function sendSlackMessage(message, blocks) {
+  const webhookUrl = getSlackWebhookUrl();
+
+  const payload = {
+    text: message,
+    blocks: blocks || undefined
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  const response = UrlFetchApp.fetch(webhookUrl, options);
+  const responseCode = response.getResponseCode();
+
+  if (responseCode !== 200) {
+    throw new Error(`Slack API error: ${response.getContentText()}`);
+  }
+
+  return true;
+}
+
+/**
+ * Tests Slack connection
+ */
+function testSlackConnection() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetUrl = ss.getUrl();
+
+    const blocks = [
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: '✅ *Slack Connection Test Successful!*\n\nYour schedule reminder system is configured correctly.'
+        }
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `📊 *Schedule Sheet:* <${sheetUrl}|Click to open>`
+        }
+      }
+    ];
+
+    sendSlackMessage('Schedule Manager Test', blocks);
+    ui.alert('Success!', 'Test message sent to Slack successfully!', ui.ButtonSet.OK);
+  } catch (error) {
+    ui.alert('Error', 'Failed to send to Slack: ' + error.message, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Sends schedule reminder to Slack
+ */
+function sendSlackReminderToAll() {
+  const ui = SpreadsheetApp.getUi();
+
+  const response = ui.alert(
+    'Send Slack Reminder',
+    'This will send a reminder to your Slack channel for all managers to fill their schedules.\n\nContinue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response !== ui.Button.YES) return;
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetUrl = ss.getUrl();
+    const nextMonth = getNextMonthName();
+
+    // Get list of managers who haven't completed their schedule
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const incompleteManagers = getIncompleteManagers(sheet);
+
+    let managerList = '';
+    if (incompleteManagers.length > 0) {
+      managerList = incompleteManagers.slice(0, 10).map(m => `• ${m.name} (${m.missing} days)`).join('\n');
+      if (incompleteManagers.length > 10) {
+        managerList += `\n• ...and ${incompleteManagers.length - 10} more`;
+      }
+    }
+
+    const blocks = [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: '📅 Schedule Reminder',
+          emoji: true
+        }
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*Please fill in your schedule for ${nextMonth}*\n\nDon't forget to complete your working hours, days off, vacations, and holidays.`
+        }
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `📊 *Schedule Sheet:* <${sheetUrl}|Click here to open>`
+        }
+      }
+    ];
+
+    if (managerList) {
+      blocks.push({
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `⚠️ *Managers with incomplete schedules:*\n${managerList}`
+        }
+      });
+    }
+
+    blocks.push({
+      type: 'context',
+      elements: [{
+        type: 'mrkdwn',
+        text: '💡 _Tip: Fill in Week 1, then use Auto-Fill to populate the rest!_'
+      }]
+    });
+
+    sendSlackMessage(`Schedule Reminder - ${nextMonth}`, blocks);
+    ui.alert('Success!', 'Reminder sent to Slack!', ui.ButtonSet.OK);
+  } catch (error) {
+    ui.alert('Error', 'Failed to send: ' + error.message, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Gets list of managers with incomplete schedules
+ */
+function getIncompleteManagers(sheet) {
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  const scheduleEndCol = lastCol - CONFIG.SUMMARY_COLUMNS.length;
+
+  const incomplete = [];
+
+  for (let row = CONFIG.DATA_START_ROW; row <= lastRow; row++) {
+    const name = sheet.getRange(row, CONFIG.MANAGER_NAME_COL).getValue();
+    if (!name || isRegionHeader(name)) continue;
+
+    const scheduleRange = sheet.getRange(row, CONFIG.SCHEDULE_START_COL, 1, scheduleEndCol - CONFIG.SCHEDULE_START_COL + 1);
+    const values = scheduleRange.getValues()[0];
+    const emptyCount = values.filter(v => !v).length;
+
+    if (emptyCount > 0) {
+      incomplete.push({ name: name, missing: emptyCount });
+    }
+  }
+
+  return incomplete.sort((a, b) => b.missing - a.missing);
+}
+
+/**
+ * Setup Slack webhook URL
+ */
+function setupSlackWebhook() {
+  const ui = SpreadsheetApp.getUi();
+
+  const response = ui.prompt(
+    'Setup Slack Webhook',
+    'Enter your Slack Incoming Webhook URL:\n\n(Get one from https://api.slack.com/apps)',
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (response.getSelectedButton() !== ui.Button.OK) return;
+
+  const url = response.getResponseText().trim();
+
+  if (!url.startsWith('https://hooks.slack.com')) {
+    ui.alert('Error', 'Invalid webhook URL. Must start with https://hooks.slack.com', ui.ButtonSet.OK);
+    return;
+  }
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let settingsSheet = ss.getSheetByName('Settings');
+
+  if (!settingsSheet) {
+    settingsSheet = createSettingsSheet();
+  }
+
+  settingsSheet.getRange('B2').setValue(url);
+  ui.alert('Success!', 'Slack webhook URL saved. Use "Test Slack Connection" to verify.', ui.ButtonSet.OK);
+}
+
+/**
+ * Sets up automatic monthly Slack reminders
+ */
+function setupAutomaticReminders() {
+  removeAutomaticReminders();
+
+  ScriptApp.newTrigger('automaticSlackReminder')
+    .timeBased()
+    .onMonthDay(25)
+    .atHour(9)
+    .create();
+
+  SpreadsheetApp.getUi().alert('Success', 'Automatic Slack reminders set up! Messages will be sent on the 25th of each month at 9 AM.', SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+function removeAutomaticReminders() {
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'automaticSlackReminder') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+}
+
+function automaticSlackReminder() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheetUrl = ss.getUrl();
+    const nextMonth = getNextMonthName();
+
+    const blocks = [
+      {
+        type: 'header',
+        text: {
+          type: 'plain_text',
+          text: '📅 Monthly Schedule Reminder',
+          emoji: true
+        }
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `*Reminder: Please fill in your schedule for ${nextMonth}*\n\nThe month is ending soon - make sure to complete your schedule!`
+        }
+      },
+      {
+        type: 'section',
+        text: {
+          type: 'mrkdwn',
+          text: `📊 <${sheetUrl}|Click here to open the schedule>`
+        }
+      }
+    ];
+
+    sendSlackMessage(`Monthly Schedule Reminder - ${nextMonth}`, blocks);
+  } catch (error) {
+    console.error('Failed to send automatic reminder:', error);
+  }
 }
 
 
@@ -223,76 +839,10 @@ function onEditInstallable(e) {
 // COLOR FORMATTING
 // ============================================
 
-/**
- * Applies color to a single cell based on its value
- */
 function applyColorToCell(range, value) {
-  if (!value) {
-    range.setBackground(CONFIG.COLORS.EMPTY);
-    return;
-  }
-
-  const valueLower = value.toString().toLowerCase();
-
-  if (valueLower.includes('holiday')) {
-    range.setBackground(CONFIG.COLORS.HOLIDAY);
-  } else if (valueLower.includes('vacation')) {
-    range.setBackground(CONFIG.COLORS.VACATION);
-  } else if (valueLower.includes('sick')) {
-    range.setBackground(CONFIG.COLORS.SICK_LEAVE);
-  } else if (valueLower.includes('day off') || valueLower === 'off') {
-    range.setBackground(CONFIG.COLORS.DAY_OFF);
-  } else if (valueLower.includes(':')) {
-    // Work hours (contains time like "9:00-18:00")
-    range.setBackground(CONFIG.COLORS.WORK_HOURS);
-  } else {
-    range.setBackground(CONFIG.COLORS.EMPTY);
-  }
+  range.setBackground(getColorForValue(value));
 }
 
-/**
- * Applies colors to all schedule cells in the current sheet
- */
-function applyColorsToCurrentSheet() {
-  const sheet = SpreadsheetApp.getActiveSheet();
-  const lastRow = sheet.getLastRow();
-  const lastCol = sheet.getLastColumn();
-
-  // Calculate the range of schedule cells (excluding summary columns)
-  const scheduleEndCol = lastCol - CONFIG.SUMMARY_COLUMNS.length;
-
-  if (scheduleEndCol < CONFIG.SCHEDULE_START_COL) return;
-
-  const range = sheet.getRange(
-    CONFIG.DATA_START_ROW,
-    CONFIG.SCHEDULE_START_COL,
-    lastRow - CONFIG.DATA_START_ROW + 1,
-    scheduleEndCol - CONFIG.SCHEDULE_START_COL + 1
-  );
-
-  const values = range.getValues();
-  const backgrounds = [];
-
-  for (let i = 0; i < values.length; i++) {
-    const rowColors = [];
-    for (let j = 0; j < values[i].length; j++) {
-      const value = values[i][j];
-      rowColors.push(getColorForValue(value));
-    }
-    backgrounds.push(rowColors);
-  }
-
-  range.setBackgrounds(backgrounds);
-
-  // Also color weekend columns
-  colorWeekendColumns(sheet);
-
-  SpreadsheetApp.getActiveSpreadsheet().toast('Colors applied successfully!', 'Complete', 3);
-}
-
-/**
- * Returns the appropriate color for a cell value
- */
 function getColorForValue(value) {
   if (!value) return CONFIG.COLORS.EMPTY;
 
@@ -307,18 +857,37 @@ function getColorForValue(value) {
   return CONFIG.COLORS.EMPTY;
 }
 
-/**
- * Colors weekend columns with a subtle background
- */
+function applyColorsToCurrentSheet() {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  const scheduleEndCol = lastCol - CONFIG.SUMMARY_COLUMNS.length;
+
+  if (scheduleEndCol < CONFIG.SCHEDULE_START_COL) return;
+
+  const range = sheet.getRange(
+    CONFIG.DATA_START_ROW,
+    CONFIG.SCHEDULE_START_COL,
+    lastRow - CONFIG.DATA_START_ROW + 1,
+    scheduleEndCol - CONFIG.SCHEDULE_START_COL + 1
+  );
+
+  const values = range.getValues();
+  const backgrounds = values.map(row => row.map(v => getColorForValue(v)));
+
+  range.setBackgrounds(backgrounds);
+  colorWeekendColumns(sheet);
+
+  SpreadsheetApp.getActiveSpreadsheet().toast('Colors applied!', 'Complete', 3);
+}
+
 function colorWeekendColumns(sheet) {
   const headerRow = sheet.getRange(CONFIG.HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0];
 
   for (let col = CONFIG.SCHEDULE_START_COL - 1; col < headerRow.length; col++) {
     const header = headerRow[col];
-    if (header && (header.toString().includes('Sat') || header.toString().includes('Sun'))) {
-      // Apply subtle weekend styling to header only
-      sheet.getRange(CONFIG.HEADER_ROW, col + 1)
-        .setBackground('#FFF3E0');
+    if (header && (header.toString().startsWith('Sat') || header.toString().startsWith('Sun'))) {
+      sheet.getRange(CONFIG.HEADER_ROW, col + 1).setBackground(CONFIG.COLORS.WEEKEND);
     }
   }
 }
@@ -328,59 +897,41 @@ function colorWeekendColumns(sheet) {
 // DROPDOWN MANAGEMENT
 // ============================================
 
-/**
- * Refreshes dropdowns on the current sheet
- */
 function refreshDropdowns() {
   const sheet = SpreadsheetApp.getActiveSheet();
   applyDropdownsToSheet(sheet);
   SpreadsheetApp.getActiveSpreadsheet().toast('Dropdowns refreshed!', 'Complete', 3);
 }
 
-/**
- * Applies dropdown validation to schedule cells
- */
 function applyDropdownsToSheet(sheet) {
   const lastRow = sheet.getLastRow();
   const lastCol = sheet.getLastColumn();
-
-  // Calculate schedule range (excluding summary columns)
   const scheduleEndCol = lastCol - CONFIG.SUMMARY_COLUMNS.length;
 
   if (lastRow < CONFIG.DATA_START_ROW || scheduleEndCol < CONFIG.SCHEDULE_START_COL) return;
 
-  // Create dropdown rule for schedule options
+  // Schedule dropdown
   const scheduleRule = SpreadsheetApp.newDataValidation()
     .requireValueInList(CONFIG.SCHEDULE_OPTIONS, true)
     .setAllowInvalid(false)
     .build();
 
-  // Apply to schedule range
-  const scheduleRange = sheet.getRange(
+  sheet.getRange(
     CONFIG.DATA_START_ROW,
     CONFIG.SCHEDULE_START_COL,
     lastRow - CONFIG.DATA_START_ROW + 1,
     scheduleEndCol - CONFIG.SCHEDULE_START_COL + 1
-  );
-  scheduleRange.setDataValidation(scheduleRule);
+  ).setDataValidation(scheduleRule);
 
-  // Apply region dropdown
+  // Region dropdown
+  const regionCodes = CONFIG.REGIONS.map(r => r.code);
   const regionRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(CONFIG.REGIONS, true)
+    .requireValueInList(regionCodes, true)
     .setAllowInvalid(false)
     .build();
 
   sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.REGION_COL, lastRow - CONFIG.DATA_START_ROW + 1, 1)
     .setDataValidation(regionRule);
-
-  // Apply procedures dropdown
-  const proceduresRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(CONFIG.PROCEDURES, true)
-    .setAllowInvalid(true) // Allow custom combinations
-    .build();
-
-  sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.PROCEDURES_COL, lastRow - CONFIG.DATA_START_ROW + 1, 1)
-    .setDataValidation(proceduresRule);
 }
 
 
@@ -388,70 +939,49 @@ function applyDropdownsToSheet(sheet) {
 // MONTHLY SHEET GENERATION
 // ============================================
 
-/**
- * Generates a sheet for the next month
- */
 function generateNextMonthSheet() {
   const today = new Date();
   const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
   generateMonthSheet(nextMonth.getFullYear(), nextMonth.getMonth());
 }
 
-/**
- * Prompts user to select a specific month to generate
- */
 function promptGenerateMonth() {
   const ui = SpreadsheetApp.getUi();
-
-  const monthResponse = ui.prompt(
+  const response = ui.prompt(
     'Generate Month Sheet',
     'Enter month name (e.g., "February 2026"):',
     ui.ButtonSet.OK_CANCEL
   );
 
-  if (monthResponse.getSelectedButton() !== ui.Button.OK) return;
+  if (response.getSelectedButton() !== ui.Button.OK) return;
 
-  const monthStr = monthResponse.getResponseText();
-  const date = new Date(monthStr + ' 1');
-
+  const date = new Date(response.getResponseText() + ' 1');
   if (isNaN(date.getTime())) {
-    ui.alert('Error', 'Invalid date format. Please use format like "February 2026"', ui.ButtonSet.OK);
+    ui.alert('Error', 'Invalid date format.', ui.ButtonSet.OK);
     return;
   }
 
   generateMonthSheet(date.getFullYear(), date.getMonth());
 }
 
-/**
- * Generates a new sheet for the specified month
- */
 function generateMonthSheet(year, month) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                       'July', 'August', 'September', 'October', 'November', 'December'];
   const sheetName = monthNames[month] + ' ' + year;
 
-  // Check if sheet already exists
   let sheet = ss.getSheetByName(sheetName);
   if (sheet) {
     const ui = SpreadsheetApp.getUi();
-    const response = ui.alert(
-      'Sheet Exists',
-      `Sheet "${sheetName}" already exists. Do you want to replace it?`,
-      ui.ButtonSet.YES_NO
-    );
+    const response = ui.alert('Sheet Exists', `"${sheetName}" exists. Replace it?`, ui.ButtonSet.YES_NO);
     if (response !== ui.Button.YES) return;
     ss.deleteSheet(sheet);
   }
 
-  // Get manager data from the most recent month sheet
   const sourceSheet = findMostRecentMonthSheet(ss) || ss.getSheets()[0];
   const managerData = getManagerData(sourceSheet);
 
-  // Create new sheet
   sheet = ss.insertSheet(sheetName);
-
-  // Get days in month
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   // Build headers
@@ -464,54 +994,52 @@ function generateMonthSheet(year, month) {
     headers.push(`${dayName}, ${monthNames[month].substring(0, 3)} ${day}`);
   }
 
-  // Add summary columns
   headers.push(...CONFIG.SUMMARY_COLUMNS);
-
-  // Set headers
   sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
 
-  // Add manager data
+  // Add manager data (grouped by region)
   if (managerData.length > 0) {
+    // Sort by region
+    managerData.sort((a, b) => {
+      const aIndex = CONFIG.REGIONS.findIndex(r => r.code === a.region);
+      const bIndex = CONFIG.REGIONS.findIndex(r => r.code === b.region);
+      return aIndex - bIndex;
+    });
+
     const dataRows = managerData.map(manager => {
       const row = [manager.name, manager.region, manager.procedures];
-      // Add empty cells for each day
-      for (let i = 0; i < daysInMonth; i++) {
-        row.push('');
-      }
-      // Add placeholder for summary (will be filled by formulas)
-      for (let i = 0; i < CONFIG.SUMMARY_COLUMNS.length; i++) {
-        row.push('');
-      }
+      for (let i = 0; i < daysInMonth; i++) row.push('');
+      for (let i = 0; i < CONFIG.SUMMARY_COLUMNS.length; i++) row.push('');
       return row;
     });
 
     sheet.getRange(2, 1, dataRows.length, dataRows[0].length).setValues(dataRows);
+
+    // Apply region colors
+    let currentRegion = '';
+    for (let i = 0; i < managerData.length; i++) {
+      const region = managerData[i].region;
+      const row = i + 2;
+      const regionConfig = CONFIG.REGIONS.find(r => r.code === region);
+      if (regionConfig) {
+        sheet.getRange(row, 1, 1, 3).setBackground(regionConfig.color);
+      }
+    }
   }
 
-  // Format the sheet
   formatHeaders(sheet);
   applyDropdownsToSheet(sheet);
   addSummaryFormulasToSheet(sheet, daysInMonth);
-
-  // Highlight weekends
   highlightWeekends(sheet, year, month, daysInMonth);
 
-  // Freeze first row and first 3 columns
   sheet.setFrozenRows(1);
   sheet.setFrozenColumns(3);
+  sheet.autoResizeColumns(1, 3);
 
-  // Auto-resize columns
-  sheet.autoResizeColumns(1, headers.length);
-
-  SpreadsheetApp.getActiveSpreadsheet().toast(`Sheet "${sheetName}" created successfully!`, 'Complete', 5);
-
-  // Activate the new sheet
   ss.setActiveSheet(sheet);
+  SpreadsheetApp.getActiveSpreadsheet().toast(`"${sheetName}" created!`, 'Complete', 5);
 }
 
-/**
- * Finds the most recent month sheet
- */
 function findMostRecentMonthSheet(ss) {
   const sheets = ss.getSheets();
   const monthPattern = /(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}/;
@@ -533,36 +1061,24 @@ function findMostRecentMonthSheet(ss) {
   return mostRecent;
 }
 
-/**
- * Gets manager data from a source sheet
- */
 function getManagerData(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return [];
 
   const data = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
-
   return data
-    .filter(row => row[0]) // Filter out empty rows
-    .map(row => ({
-      name: row[0],
-      region: row[1],
-      procedures: row[2]
-    }));
+    .filter(row => row[0] && !isRegionHeader(row[0]))
+    .map(row => ({ name: row[0], region: row[1], procedures: row[2] }));
 }
 
-/**
- * Highlights weekend columns
- */
 function highlightWeekends(sheet, year, month, daysInMonth) {
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, month, day);
     const dayOfWeek = date.getDay();
-
-    if (dayOfWeek === 0 || dayOfWeek === 6) { // Sunday or Saturday
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
       const col = CONFIG.SCHEDULE_START_COL + day - 1;
       sheet.getRange(CONFIG.HEADER_ROW, col)
-        .setBackground('#FFF3E0')
+        .setBackground(CONFIG.COLORS.WEEKEND)
         .setFontColor('#E65100');
     }
   }
@@ -573,12 +1089,12 @@ function highlightWeekends(sheet, year, month, daysInMonth) {
 // HEADER FORMATTING
 // ============================================
 
-/**
- * Formats headers with professional styling
- */
-function formatHeaders(sheet) {
-  if (!sheet) sheet = SpreadsheetApp.getActiveSheet();
+function formatHeadersMenu() {
+  formatHeaders(SpreadsheetApp.getActiveSheet());
+  SpreadsheetApp.getActiveSpreadsheet().toast('Headers formatted!', 'Complete', 3);
+}
 
+function formatHeaders(sheet) {
   const lastCol = sheet.getLastColumn();
   const headerRange = sheet.getRange(CONFIG.HEADER_ROW, 1, 1, lastCol);
 
@@ -589,19 +1105,17 @@ function formatHeaders(sheet) {
     .setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
 
-  // Set row height
   sheet.setRowHeight(CONFIG.HEADER_ROW, 40);
 
-  // Style manager info columns differently
-  sheet.getRange(CONFIG.HEADER_ROW, 1, 1, 3)
-    .setBackground('#0D47A1');
+  // Manager info columns
+  sheet.getRange(CONFIG.HEADER_ROW, 1, 1, 3).setBackground('#0D47A1');
 
-  // Style summary columns
+  // Summary columns
   const summaryStartCol = lastCol - CONFIG.SUMMARY_COLUMNS.length + 1;
-  sheet.getRange(CONFIG.HEADER_ROW, summaryStartCol, 1, CONFIG.SUMMARY_COLUMNS.length)
-    .setBackground('#1B5E20');
-
-  SpreadsheetApp.getActiveSpreadsheet().toast('Headers formatted!', 'Complete', 3);
+  if (summaryStartCol > 0) {
+    sheet.getRange(CONFIG.HEADER_ROW, summaryStartCol, 1, CONFIG.SUMMARY_COLUMNS.length)
+      .setBackground('#1B5E20');
+  }
 }
 
 
@@ -609,21 +1123,15 @@ function formatHeaders(sheet) {
 // SUMMARY FORMULAS
 // ============================================
 
-/**
- * Adds summary formulas to the current sheet
- */
 function addSummaryFormulas() {
   const sheet = SpreadsheetApp.getActiveSheet();
   const lastCol = sheet.getLastColumn();
-  const lastRow = sheet.getLastRow();
-
-  // Find where schedule columns end (before summary columns)
   const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  let scheduleEndCol = lastCol;
 
+  let scheduleEndCol = lastCol;
   for (let i = headers.length - 1; i >= 0; i--) {
     if (CONFIG.SUMMARY_COLUMNS.includes(headers[i])) {
-      scheduleEndCol = i; // 0-indexed, so this is the column before
+      scheduleEndCol = i;
     }
   }
 
@@ -631,76 +1139,48 @@ function addSummaryFormulas() {
   addSummaryFormulasToSheet(sheet, daysInSchedule);
 }
 
-/**
- * Adds summary formulas to a specific sheet
- */
 function addSummaryFormulasToSheet(sheet, daysInMonth) {
   const lastRow = sheet.getLastRow();
   if (lastRow < CONFIG.DATA_START_ROW) return;
 
   const scheduleStartCol = CONFIG.SCHEDULE_START_COL;
   const scheduleEndCol = scheduleStartCol + daysInMonth - 1;
-
-  // Column letters for formulas
   const startColLetter = columnToLetter(scheduleStartCol);
   const endColLetter = columnToLetter(scheduleEndCol);
 
-  // Summary column positions
   const workDaysCol = scheduleEndCol + 1;
   const vacationsCol = scheduleEndCol + 2;
   const holidaysCol = scheduleEndCol + 3;
   const sickDaysCol = scheduleEndCol + 4;
 
-  // Add headers if not present
   sheet.getRange(1, workDaysCol).setValue('Work Days');
   sheet.getRange(1, vacationsCol).setValue('Vacations');
   sheet.getRange(1, holidaysCol).setValue('Holidays');
   sheet.getRange(1, sickDaysCol).setValue('Sick Days');
 
-  // Add formulas for each row
   for (let row = CONFIG.DATA_START_ROW; row <= lastRow; row++) {
+    const managerName = sheet.getRange(row, CONFIG.MANAGER_NAME_COL).getValue();
+    if (!managerName || isRegionHeader(managerName)) continue;
+
     const rangeStr = `${startColLetter}${row}:${endColLetter}${row}`;
 
-    // Work Days: Count cells with time pattern (contains ":")
-    sheet.getRange(row, workDaysCol).setFormula(
-      `=SUMPRODUCT(--ISNUMBER(SEARCH(":",${rangeStr})))`
-    );
-
-    // Vacations: Count "Vacation"
-    sheet.getRange(row, vacationsCol).setFormula(
-      `=COUNTIF(${rangeStr},"*Vacation*")`
-    );
-
-    // Holidays: Count "Holiday"
-    sheet.getRange(row, holidaysCol).setFormula(
-      `=COUNTIF(${rangeStr},"*Holiday*")`
-    );
-
-    // Sick Days: Count "Sick"
-    sheet.getRange(row, sickDaysCol).setFormula(
-      `=COUNTIF(${rangeStr},"*Sick*")`
-    );
+    sheet.getRange(row, workDaysCol).setFormula(`=SUMPRODUCT(--ISNUMBER(SEARCH(":",${rangeStr})))`);
+    sheet.getRange(row, vacationsCol).setFormula(`=COUNTIF(${rangeStr},"*Vacation*")`);
+    sheet.getRange(row, holidaysCol).setFormula(`=COUNTIF(${rangeStr},"*Holiday*")`);
+    sheet.getRange(row, sickDaysCol).setFormula(`=COUNTIF(${rangeStr},"*Sick*")`);
   }
 
-  // Format summary columns
-  const summaryRange = sheet.getRange(CONFIG.DATA_START_ROW, workDaysCol, lastRow - CONFIG.DATA_START_ROW + 1, 4);
-  summaryRange
+  sheet.getRange(CONFIG.DATA_START_ROW, workDaysCol, lastRow - CONFIG.DATA_START_ROW + 1, 4)
     .setHorizontalAlignment('center')
     .setNumberFormat('0');
 
   SpreadsheetApp.getActiveSpreadsheet().toast('Summary formulas added!', 'Complete', 3);
 }
 
-/**
- * Recalculates all summaries
- */
 function recalculateAllSummaries() {
   addSummaryFormulas();
 }
 
-/**
- * Converts column number to letter
- */
 function columnToLetter(column) {
   let temp, letter = '';
   while (column > 0) {
@@ -713,195 +1193,13 @@ function columnToLetter(column) {
 
 
 // ============================================
-// EMAIL REMINDERS
-// ============================================
-
-/**
- * Sends reminder emails to all managers
- */
-function sendReminderToAll() {
-  const ui = SpreadsheetApp.getUi();
-
-  const response = ui.alert(
-    'Send Reminders',
-    'This will send email reminders to all managers.\n\n' +
-    'Note: You need to have a "Manager Emails" sheet with columns:\n' +
-    'Manager Name | Email\n\n' +
-    'Continue?',
-    ui.ButtonSet.YES_NO
-  );
-
-  if (response !== ui.Button.YES) return;
-
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const emailSheet = ss.getSheetByName('Manager Emails');
-
-  if (!emailSheet) {
-    ui.alert('Error', 'Please create a "Manager Emails" sheet with columns: Manager Name, Email', ui.ButtonSet.OK);
-    createEmailTemplateSheet();
-    return;
-  }
-
-  const emailData = emailSheet.getRange(2, 1, emailSheet.getLastRow() - 1, 2).getValues();
-  const nextMonth = getNextMonthName();
-
-  let sentCount = 0;
-  let errorCount = 0;
-
-  emailData.forEach(row => {
-    const name = row[0];
-    const email = row[1];
-
-    if (email && email.includes('@')) {
-      try {
-        sendReminderEmail(name, email, nextMonth);
-        sentCount++;
-      } catch (e) {
-        errorCount++;
-        console.error(`Failed to send email to ${email}: ${e.message}`);
-      }
-    }
-  });
-
-  ui.alert('Complete', `Sent ${sentCount} reminders. ${errorCount} failed.`, ui.ButtonSet.OK);
-}
-
-/**
- * Sends reminder email to a single manager
- */
-function sendReminderEmail(name, email, monthName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheetUrl = ss.getUrl();
-
-  const subject = `${CONFIG.EMAIL_SUBJECT} - ${monthName}`;
-  const body = `
-Hello ${name},
-
-This is a friendly reminder to fill in your schedule for ${monthName}.
-
-Please access the schedule sheet here:
-${sheetUrl}
-
-Please complete your schedule by selecting your working hours, days off, vacations, or holidays for each day.
-
-Thank you!
-
----
-This is an automated message from the Schedule Management System.
-  `;
-
-  MailApp.sendEmail({
-    to: email,
-    subject: subject,
-    body: body
-  });
-}
-
-/**
- * Creates a template sheet for manager emails
- */
-function createEmailTemplateSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName('Manager Emails');
-
-  if (!sheet) {
-    sheet = ss.insertSheet('Manager Emails');
-    sheet.getRange('A1:B1').setValues([['Manager Name', 'Email']]);
-    sheet.getRange('A1:B1')
-      .setBackground(CONFIG.COLORS.HEADER)
-      .setFontColor(CONFIG.COLORS.HEADER_TEXT)
-      .setFontWeight('bold');
-
-    // Add sample data
-    sheet.getRange('A2:B2').setValues([['Sample Manager', 'manager@example.com']]);
-
-    sheet.autoResizeColumns(1, 2);
-  }
-
-  ss.setActiveSheet(sheet);
-}
-
-/**
- * Gets the next month name
- */
-function getNextMonthName() {
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                      'July', 'August', 'September', 'October', 'November', 'December'];
-  const today = new Date();
-  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-  return monthNames[nextMonth.getMonth()] + ' ' + nextMonth.getFullYear();
-}
-
-/**
- * Sets up automatic monthly reminders
- */
-function setupAutomaticReminders() {
-  // Remove existing reminder triggers
-  removeAutomaticReminders();
-
-  // Create new trigger to run on the 25th of each month
-  ScriptApp.newTrigger('automaticMonthlyReminder')
-    .timeBased()
-    .onMonthDay(25)
-    .atHour(9)
-    .create();
-
-  SpreadsheetApp.getUi().alert('Success', 'Automatic reminders set up! Emails will be sent on the 25th of each month.', SpreadsheetApp.getUi().ButtonSet.OK);
-}
-
-/**
- * Removes automatic reminder triggers
- */
-function removeAutomaticReminders() {
-  const triggers = ScriptApp.getProjectTriggers();
-  triggers.forEach(trigger => {
-    if (trigger.getHandlerFunction() === 'automaticMonthlyReminder') {
-      ScriptApp.deleteTrigger(trigger);
-    }
-  });
-
-  SpreadsheetApp.getActiveSpreadsheet().toast('Automatic reminders removed.', 'Complete', 3);
-}
-
-/**
- * Automatic monthly reminder function (called by trigger)
- */
-function automaticMonthlyReminder() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const emailSheet = ss.getSheetByName('Manager Emails');
-
-  if (!emailSheet) return;
-
-  const emailData = emailSheet.getRange(2, 1, emailSheet.getLastRow() - 1, 2).getValues();
-  const nextMonth = getNextMonthName();
-
-  emailData.forEach(row => {
-    const name = row[0];
-    const email = row[1];
-
-    if (email && email.includes('@')) {
-      try {
-        sendReminderEmail(name, email, nextMonth);
-      } catch (e) {
-        console.error(`Failed to send email to ${email}: ${e.message}`);
-      }
-    }
-  });
-}
-
-
-// ============================================
 // REPORTS
 // ============================================
 
-/**
- * Generates a monthly summary report
- */
 function generateMonthlySummary() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sourceSheet = SpreadsheetApp.getActiveSheet();
 
-  // Create or get summary sheet
   let summarySheet = ss.getSheetByName('Monthly Summary');
   if (!summarySheet) {
     summarySheet = ss.insertSheet('Monthly Summary');
@@ -909,7 +1207,6 @@ function generateMonthlySummary() {
     summarySheet.clear();
   }
 
-  // Get data from source sheet
   const lastRow = sourceSheet.getLastRow();
   const lastCol = sourceSheet.getLastColumn();
 
@@ -918,17 +1215,16 @@ function generateMonthlySummary() {
     return;
   }
 
-  // Headers for summary
   const summaryHeaders = ['Region', 'Total Managers', 'Total Work Days', 'Total Vacations', 'Total Holidays', 'Total Sick Days', 'Avg Work Days'];
   summarySheet.getRange(1, 1, 1, summaryHeaders.length).setValues([summaryHeaders]);
 
-  // Get all data
   const data = sourceSheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-
-  // Group by region
   const regionStats = {};
 
   data.forEach(row => {
+    const name = row[0];
+    if (!name || isRegionHeader(name)) return;
+
     const region = row[1] || 'Unknown';
     const workDays = parseFloat(row[lastCol - 4]) || 0;
     const vacations = parseFloat(row[lastCol - 3]) || 0;
@@ -936,13 +1232,7 @@ function generateMonthlySummary() {
     const sickDays = parseFloat(row[lastCol - 1]) || 0;
 
     if (!regionStats[region]) {
-      regionStats[region] = {
-        count: 0,
-        workDays: 0,
-        vacations: 0,
-        holidays: 0,
-        sickDays: 0
-      };
+      regionStats[region] = { count: 0, workDays: 0, vacations: 0, holidays: 0, sickDays: 0 };
     }
 
     regionStats[region].count++;
@@ -952,7 +1242,6 @@ function generateMonthlySummary() {
     regionStats[region].sickDays += sickDays;
   });
 
-  // Build summary rows
   const summaryRows = Object.keys(regionStats).sort().map(region => {
     const stats = regionStats[region];
     return [
@@ -966,7 +1255,6 @@ function generateMonthlySummary() {
     ];
   });
 
-  // Add totals row
   const totals = Object.values(regionStats).reduce((acc, stats) => {
     acc.count += stats.count;
     acc.workDays += stats.workDays;
@@ -976,20 +1264,10 @@ function generateMonthlySummary() {
     return acc;
   }, { count: 0, workDays: 0, vacations: 0, holidays: 0, sickDays: 0 });
 
-  summaryRows.push([
-    'TOTAL',
-    totals.count,
-    totals.workDays,
-    totals.vacations,
-    totals.holidays,
-    totals.sickDays,
-    (totals.workDays / totals.count).toFixed(1)
-  ]);
+  summaryRows.push(['TOTAL', totals.count, totals.workDays, totals.vacations, totals.holidays, totals.sickDays, (totals.workDays / totals.count).toFixed(1)]);
 
-  // Write data
   summarySheet.getRange(2, 1, summaryRows.length, summaryHeaders.length).setValues(summaryRows);
 
-  // Format
   summarySheet.getRange(1, 1, 1, summaryHeaders.length)
     .setBackground(CONFIG.COLORS.HEADER)
     .setFontColor(CONFIG.COLORS.HEADER_TEXT)
@@ -1000,19 +1278,14 @@ function generateMonthlySummary() {
     .setFontWeight('bold');
 
   summarySheet.autoResizeColumns(1, summaryHeaders.length);
-
   ss.setActiveSheet(summarySheet);
-  SpreadsheetApp.getActiveSpreadsheet().toast('Monthly summary generated!', 'Complete', 3);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Summary generated!', 'Complete', 3);
 }
 
-/**
- * Generates a coverage report showing who's working each day
- */
 function generateCoverageReport() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sourceSheet = SpreadsheetApp.getActiveSheet();
 
-  // Create or get coverage sheet
   let coverageSheet = ss.getSheetByName('Coverage Report');
   if (!coverageSheet) {
     coverageSheet = ss.insertSheet('Coverage Report');
@@ -1028,178 +1301,199 @@ function generateCoverageReport() {
     return;
   }
 
-  // Get headers and data
   const headers = sourceSheet.getRange(1, 1, 1, lastCol).getValues()[0];
   const data = sourceSheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
 
-  // Find day columns
   const dayColumns = [];
   for (let i = CONFIG.SCHEDULE_START_COL - 1; i < headers.length - CONFIG.SUMMARY_COLUMNS.length; i++) {
     dayColumns.push({ index: i, header: headers[i] });
   }
 
-  // Coverage headers
   const coverageHeaders = ['Date', 'Working', 'Day Off', 'Vacation', 'Holiday', 'Sick', 'Coverage %'];
   coverageSheet.getRange(1, 1, 1, coverageHeaders.length).setValues([coverageHeaders]);
 
-  // Calculate coverage for each day
-  const coverageRows = dayColumns.map(day => {
-    let working = 0, dayOff = 0, vacation = 0, holiday = 0, sick = 0, empty = 0;
+  const validData = data.filter(row => row[0] && !isRegionHeader(row[0]));
 
-    data.forEach(row => {
+  const coverageRows = dayColumns.map(day => {
+    let working = 0, dayOff = 0, vacation = 0, holiday = 0, sick = 0;
+
+    validData.forEach(row => {
       const value = row[day.index];
-      if (!value) {
-        empty++;
-      } else if (value.toString().includes(':')) {
-        working++;
-      } else if (value.toString().toLowerCase().includes('day off')) {
-        dayOff++;
-      } else if (value.toString().toLowerCase().includes('vacation')) {
-        vacation++;
-      } else if (value.toString().toLowerCase().includes('holiday')) {
-        holiday++;
-      } else if (value.toString().toLowerCase().includes('sick')) {
-        sick++;
-      }
+      if (!value) return;
+      const valueLower = value.toString().toLowerCase();
+      if (valueLower.includes(':')) working++;
+      else if (valueLower.includes('day off')) dayOff++;
+      else if (valueLower.includes('vacation')) vacation++;
+      else if (valueLower.includes('holiday')) holiday++;
+      else if (valueLower.includes('sick')) sick++;
     });
 
-    const total = data.length;
-    const coveragePercent = ((working / total) * 100).toFixed(1);
+    const total = validData.length;
+    const coveragePercent = total > 0 ? ((working / total) * 100).toFixed(1) : '0';
 
     return [day.header, working, dayOff, vacation, holiday, sick, coveragePercent + '%'];
   });
 
   coverageSheet.getRange(2, 1, coverageRows.length, coverageHeaders.length).setValues(coverageRows);
 
-  // Format
   coverageSheet.getRange(1, 1, 1, coverageHeaders.length)
     .setBackground(CONFIG.COLORS.HEADER)
     .setFontColor(CONFIG.COLORS.HEADER_TEXT)
     .setFontWeight('bold');
 
-  // Conditional formatting for coverage percentage
-  const coverageRange = coverageSheet.getRange(2, 7, coverageRows.length, 1);
-
   coverageSheet.autoResizeColumns(1, coverageHeaders.length);
-
   ss.setActiveSheet(coverageSheet);
   SpreadsheetApp.getActiveSpreadsheet().toast('Coverage report generated!', 'Complete', 3);
 }
 
+function generateRegionDashboard() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sourceSheet = SpreadsheetApp.getActiveSheet();
+
+  let dashSheet = ss.getSheetByName('Region Dashboard');
+  if (!dashSheet) {
+    dashSheet = ss.insertSheet('Region Dashboard');
+  } else {
+    dashSheet.clear();
+  }
+
+  const lastRow = sourceSheet.getLastRow();
+  const lastCol = sourceSheet.getLastColumn();
+
+  if (lastRow < 2) {
+    SpreadsheetApp.getUi().alert('Error', 'No data.', SpreadsheetApp.getUi().ButtonSet.OK);
+    return;
+  }
+
+  const data = sourceSheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
+
+  // Title
+  dashSheet.getRange('A1').setValue('Region Dashboard');
+  dashSheet.getRange('A1').setFontSize(18).setFontWeight('bold');
+
+  let currentRow = 3;
+
+  CONFIG.REGIONS.forEach(region => {
+    const regionData = data.filter(row => row[1] === region.code && row[0] && !isRegionHeader(row[0]));
+    if (regionData.length === 0) return;
+
+    // Region header
+    dashSheet.getRange(currentRow, 1).setValue(`${region.name} (${region.code})`);
+    dashSheet.getRange(currentRow, 1, 1, 5)
+      .setBackground(region.color)
+      .setFontWeight('bold')
+      .setFontSize(12);
+    dashSheet.getRange(currentRow, 1, 1, 5).merge();
+    currentRow++;
+
+    // Stats header
+    dashSheet.getRange(currentRow, 1, 1, 5).setValues([['Manager', 'Work Days', 'Vacations', 'Holidays', 'Sick Days']]);
+    dashSheet.getRange(currentRow, 1, 1, 5).setFontWeight('bold').setBackground('#ECEFF1');
+    currentRow++;
+
+    // Manager stats
+    regionData.forEach(row => {
+      dashSheet.getRange(currentRow, 1, 1, 5).setValues([[
+        row[0],
+        row[lastCol - 4] || 0,
+        row[lastCol - 3] || 0,
+        row[lastCol - 2] || 0,
+        row[lastCol - 1] || 0
+      ]]);
+      currentRow++;
+    });
+
+    // Region total
+    const totals = regionData.reduce((acc, row) => {
+      acc.workDays += parseFloat(row[lastCol - 4]) || 0;
+      acc.vacations += parseFloat(row[lastCol - 3]) || 0;
+      acc.holidays += parseFloat(row[lastCol - 2]) || 0;
+      acc.sickDays += parseFloat(row[lastCol - 1]) || 0;
+      return acc;
+    }, { workDays: 0, vacations: 0, holidays: 0, sickDays: 0 });
+
+    dashSheet.getRange(currentRow, 1, 1, 5).setValues([[
+      `Total (${regionData.length} managers)`,
+      totals.workDays,
+      totals.vacations,
+      totals.holidays,
+      totals.sickDays
+    ]]);
+    dashSheet.getRange(currentRow, 1, 1, 5).setFontWeight('bold').setBackground('#E8F5E9');
+    currentRow += 2;
+  });
+
+  dashSheet.autoResizeColumns(1, 5);
+  ss.setActiveSheet(dashSheet);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Dashboard generated!', 'Complete', 3);
+}
+
 
 // ============================================
-// HELP & DOCUMENTATION
+// SETTINGS & HELP
 // ============================================
 
-/**
- * Shows help documentation
- */
+function openSettings() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName('Settings');
+  if (!sheet) {
+    sheet = createSettingsSheet();
+  }
+  ss.setActiveSheet(sheet);
+}
+
+function getNextMonthName() {
+  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December'];
+  const today = new Date();
+  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  return monthNames[nextMonth.getMonth()] + ' ' + nextMonth.getFullYear();
+}
+
 function showHelp() {
   const ui = SpreadsheetApp.getUi();
 
   const helpText = `
-SCHEDULE MANAGER - HELP
+SCHEDULE MANAGER v2.0 - HELP
 
-QUICK START:
-1. Run "Initial Setup" from the menu to configure everything
-2. Use "Generate Next Month Sheet" to create new monthly sheets
-3. Managers fill in their schedules using the dropdowns
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+AUTO-FILL FEATURE (NEW!)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Fill in Week 1 (first 7 days), then use:
+• "Fill Month from First Week" - fills ALL managers
+• "Fill Selected Row" - fills just one manager
 
-FEATURES:
+The pattern repeats: Day 1→8→15→22, Day 2→9→16→23, etc.
 
-Auto-Coloring:
-- Yellow = Holiday
-- Green = Vacation
-- Red = Sick Leave
-- Blue = Day Off
-- White = Work Hours
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SLACK NOTIFICATIONS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Create a Slack app at api.slack.com
+2. Add an Incoming Webhook
+3. Go to Settings sheet or use menu to add URL
+4. Test connection, then send reminders!
 
-Monthly Operations:
-- Generate sheets for any month
-- Manager info is copied automatically
-- Summary formulas are added automatically
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COLOR CODING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Yellow = Holiday
+• Green = Vacation
+• Red = Sick Leave
+• Blue = Day Off
+• White = Work Hours
 
-Email Reminders:
-- Create "Manager Emails" sheet with name and email columns
-- Send manual reminders or set up automatic monthly reminders
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+REGION VIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Use "Generate Region View" to create a
+grouped view with visual separators.
 
-Reports:
-- Monthly Summary: Stats grouped by region
-- Coverage Report: Daily staffing levels
-
-KEYBOARD SHORTCUTS:
-None - use the Schedule Manager menu
-
-SUPPORT:
-Contact your administrator for help.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+KEYBOARD TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Select a cell and press Enter to see dropdown.
+Use arrow keys + Enter to select quickly.
   `;
 
   ui.alert('Schedule Manager Help', helpText, ui.ButtonSet.OK);
-}
-
-
-// ============================================
-// UTILITY FUNCTIONS
-// ============================================
-
-/**
- * Validates that all managers have filled their schedule
- */
-function validateScheduleCompletion() {
-  const sheet = SpreadsheetApp.getActiveSheet();
-  const lastRow = sheet.getLastRow();
-  const lastCol = sheet.getLastColumn();
-
-  const scheduleEndCol = lastCol - CONFIG.SUMMARY_COLUMNS.length;
-  const scheduleRange = sheet.getRange(
-    CONFIG.DATA_START_ROW,
-    CONFIG.SCHEDULE_START_COL,
-    lastRow - CONFIG.DATA_START_ROW + 1,
-    scheduleEndCol - CONFIG.SCHEDULE_START_COL + 1
-  );
-
-  const values = scheduleRange.getValues();
-  const names = sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.MANAGER_NAME_COL, lastRow - CONFIG.DATA_START_ROW + 1, 1).getValues();
-
-  const incomplete = [];
-
-  values.forEach((row, index) => {
-    const emptyCount = row.filter(cell => !cell).length;
-    if (emptyCount > 0) {
-      incomplete.push({
-        name: names[index][0],
-        missing: emptyCount
-      });
-    }
-  });
-
-  if (incomplete.length === 0) {
-    SpreadsheetApp.getUi().alert('Complete', 'All managers have completed their schedules!', SpreadsheetApp.getUi().ButtonSet.OK);
-  } else {
-    const message = incomplete.map(m => `${m.name}: ${m.missing} days missing`).join('\n');
-    SpreadsheetApp.getUi().alert('Incomplete Schedules', message, SpreadsheetApp.getUi().ButtonSet.OK);
-  }
-}
-
-/**
- * Exports the current month data to JSON (for integration with other systems)
- */
-function exportToJson() {
-  const sheet = SpreadsheetApp.getActiveSheet();
-  const lastRow = sheet.getLastRow();
-  const lastCol = sheet.getLastColumn();
-
-  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
-  const data = sheet.getRange(2, 1, lastRow - 1, lastCol).getValues();
-
-  const jsonData = data.map(row => {
-    const obj = {};
-    headers.forEach((header, index) => {
-      obj[header] = row[index];
-    });
-    return obj;
-  });
-
-  console.log(JSON.stringify(jsonData, null, 2));
-  SpreadsheetApp.getUi().alert('Export Complete', 'JSON data has been logged to the console. Check View > Logs.', SpreadsheetApp.getUi().ButtonSet.OK);
 }

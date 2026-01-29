@@ -1,17 +1,16 @@
-# Manager Schedule Sheet - Automation Setup Guide
+# Manager Schedule Sheet - Automation Setup Guide v2.0
 
 This guide explains how to set up the automated schedule management system for your Google Sheets.
 
-## Features Overview
+## New in Version 2.0
 
 | Feature | Description |
 |---------|-------------|
-| **Auto-Coloring** | Cells automatically change color based on selection (Holiday=Yellow, Vacation=Green, etc.) |
-| **Monthly Sheet Generator** | One-click creation of new monthly sheets with all formatting and formulas |
-| **Email Reminders** | Automated or manual reminders to managers to fill their schedules |
-| **Summary Calculations** | Automatic counting of work days, vacations, holidays, and sick days |
-| **Coverage Reports** | Generate reports showing staffing levels per day |
-| **Regional Summaries** | Statistics grouped by region |
+| **Auto-Fill Week Pattern** | Fill Week 1, auto-populate the rest of the month |
+| **Slack Notifications** | Send reminders via Slack instead of email |
+| **Region-Grouped View** | Visual organization by region with separators |
+| **Region Dashboard** | Summary stats per region |
+| **More Working Hours** | 20+ shift time options |
 
 ---
 
@@ -49,182 +48,298 @@ This guide explains how to set up the automated schedule management system for y
 
 1. Click **Schedule Manager** > **Initial Setup**
 2. Click **Yes** when prompted
-3. Done! Your sheet is now automated
+3. Configure Slack webhook in the Settings sheet
+4. Done!
 
 ---
 
-## Detailed Feature Guide
+## Auto-Fill Week Pattern (New!)
 
-### Auto-Coloring
+This is the fastest way to fill schedules. Managers only need to fill **Week 1 (7 days)**, and the script copies that pattern to the rest of the month.
 
-Once set up, cells will automatically change color when you select a value:
+### How It Works
 
-| Value | Color |
+```
+Week 1:  Mon | Tue | Wed | Thu | Fri | Sat | Sun
+         9-18  9-18  9-18  9-18  9-18  Off   Off
+
+Auto-fills to:
+Week 2:  Mon | Tue | Wed | Thu | Fri | Sat | Sun
+         9-18  9-18  9-18  9-18  9-18  Off   Off
+Week 3:  (same pattern)
+Week 4:  (same pattern)
+```
+
+### Using Auto-Fill
+
+**Option 1: Fill All Managers**
+1. Make sure all managers have filled their first week
+2. Go to **Schedule Manager** > **Auto-Fill** > **Fill Month from First Week**
+3. Confirm - all empty cells will be populated
+
+**Option 2: Fill One Manager**
+1. Click on any cell in that manager's row
+2. Go to **Schedule Manager** > **Auto-Fill** > **Fill Selected Row from First Week**
+3. Only that manager's row will be filled
+
+### Important Notes
+
+- Only fills empty cells (won't overwrite existing data)
+- Vacations/holidays in Week 1 will repeat (adjust manually after)
+- Works best when schedule is consistent week-to-week
+
+---
+
+## Slack Notifications
+
+### Setting Up Slack Webhook
+
+1. Go to https://api.slack.com/apps
+2. Click **Create New App** > **From scratch**
+3. Name it "Schedule Reminders" and select your workspace
+4. Go to **Incoming Webhooks** > Turn it ON
+5. Click **Add New Webhook to Workspace**
+6. Select the channel for reminders
+7. Copy the Webhook URL
+
+### Adding Webhook to Google Sheets
+
+**Method 1: Via Menu**
+1. Go to **Schedule Manager** > **Slack Notifications** > **Setup Slack Webhook...**
+2. Paste your webhook URL
+3. Click OK
+
+**Method 2: Via Settings Sheet**
+1. Go to **Schedule Manager** > **Settings**
+2. Paste the webhook URL in cell B2
+
+### Testing Connection
+
+1. Go to **Schedule Manager** > **Slack Notifications** > **Test Slack Connection**
+2. Check your Slack channel for the test message
+
+### Sending Reminders
+
+**Manual Reminder:**
+- Go to **Schedule Manager** > **Slack Notifications** > **Send Reminder to All**
+
+**Automatic Monthly Reminder:**
+1. Go to **Schedule Manager** > **Slack Notifications** > **Setup Auto Reminders (25th)**
+2. Reminders will be sent on the 25th of each month at 9 AM
+
+### Sample Slack Message
+
+```
+📅 Schedule Reminder
+
+Please fill in your schedule for February 2026
+
+Don't forget to complete your working hours, days off, vacations, and holidays.
+
+📊 Schedule Sheet: Click here to open
+
+⚠️ Managers with incomplete schedules:
+• John Smith (15 days)
+• Jane Doe (10 days)
+
+💡 Tip: Fill in Week 1, then use Auto-Fill to populate the rest!
+```
+
+---
+
+## Region-Grouped Views
+
+### Generate Region View
+
+Creates a new sheet with managers visually grouped by region:
+
+1. Open your schedule month sheet
+2. Go to **Schedule Manager** > **Monthly Operations** > **Generate Region View**
+
+This creates a sheet like:
+```
+▼ Arab Region (Arab) - 3 managers
+  Al Abu        | Arab | Killer Base...
+  Passant       | Arab | Care Calls...
+  Abdalkarim    | Arab | Churn...
+─────────────────────────────────────
+▼ Czech Republic (CZ) - 1 manager
+  Anastasia     | CZ   | Churn...
+─────────────────────────────────────
+```
+
+### Group Current Sheet by Region
+
+Sorts the current sheet by region and applies color coding:
+
+1. Go to **Schedule Manager** > **Formatting** > **Group by Region**
+
+Each region gets a subtle background color for the manager info columns.
+
+### Region Dashboard
+
+Generates a summary dashboard showing stats per region:
+
+1. Go to **Schedule Manager** > **Reports** > **Generate Region Dashboard**
+
+---
+
+## Working Hours Options
+
+The dropdown now includes these shift times:
+
+| Shift | Hours |
 |-------|-------|
-| Any time (9:00-18:00, etc.) | White |
-| Day off | Blue |
-| Holiday | Yellow |
-| Vacation | Green |
-| Sick Leave | Red |
+| 8:00-17:00 | 9 hours |
+| 9:00-13:00 | 4 hours (half day) |
+| 9:00-17:00 | 8 hours |
+| 9:00-17:30 | 8.5 hours |
+| 9:00-18:00 | 9 hours |
+| 9:30-17:30 | 8 hours |
+| 9:30-18:30 | 9 hours |
+| 10:00-14:00 | 4 hours (half day) |
+| 10:00-18:00 | 8 hours |
+| 10:00-19:00 | 9 hours |
+| 10:30-19:00 | 8.5 hours |
+| 10:30-19:30 | 9 hours |
+| 11:00-19:00 | 8 hours |
+| 11:00-20:00 | 9 hours |
+| 12:00-20:00 | 8 hours |
+| 12:00-21:00 | 9 hours |
+| 13:00-21:00 | 8 hours |
+| 13:00-22:00 | 9 hours |
+| 15:00-17:00 | 2 hours |
+| 16:00-01:00 | 9 hours (night) |
+| 17:00-01:00 | 8 hours (night) |
 
-**To manually apply colors to existing data:**
-- Go to **Schedule Manager** > **Formatting** > **Apply Colors to Current Sheet**
-
----
-
-### Monthly Sheet Generator
-
-Generate new monthly sheets with all formatting, dropdowns, and formulas pre-configured.
-
-**To generate next month's sheet:**
-1. Go to **Schedule Manager** > **Monthly Operations** > **Generate Next Month Sheet**
-
-**To generate a specific month:**
-1. Go to **Schedule Manager** > **Monthly Operations** > **Generate Specific Month...**
-2. Enter the month name (e.g., "March 2026")
-
-**What gets created:**
-- All day columns with proper headers (Mon, Jan 15, etc.)
-- Manager names, regions, and procedures copied from previous month
-- Dropdown menus on all schedule cells
-- Summary formulas (Work Days, Vacations, Holidays, Sick Days)
-- Weekend columns highlighted
-- Frozen header row and manager columns
+Plus: Day off, Holiday, Vacation, Sick Leave
 
 ---
 
-### Email Reminders
+## Color Coding
 
-Send reminder emails to managers when it's time to fill their schedules.
+| Status | Color | Hex Code |
+|--------|-------|----------|
+| Work Hours | White | #FFFFFF |
+| Day Off | Light Blue | #BBDEFB |
+| Holiday | Light Yellow | #FFF9C4 |
+| Vacation | Light Green | #C8E6C9 |
+| Sick Leave | Light Red | #FFCDD2 |
+| Empty | Light Gray | #F5F5F5 |
+| Weekend Header | Light Orange | #FFF3E0 |
 
-#### Setting Up Manager Emails
+### Region Colors
 
-1. Create a new sheet named **"Manager Emails"**
-2. Add two columns: **Manager Name** | **Email**
-3. Fill in manager names and their email addresses
+Each region has a subtle tint for the manager info columns:
 
-Example:
-| Manager Name | Email |
-|--------------|-------|
-| Al Abu | al.abu@company.com |
-| Passant Elsayed | passant.e@company.com |
-
-#### Sending Manual Reminders
-
-1. Go to **Schedule Manager** > **Reminders** > **Send Reminder to All Managers**
-2. Confirm the action
-
-#### Setting Up Automatic Reminders
-
-1. Go to **Schedule Manager** > **Reminders** > **Setup Automatic Reminders**
-2. Emails will be sent automatically on the 25th of each month
+| Region | Color |
+|--------|-------|
+| Arab | Light Blue |
+| CZ | Light Purple |
+| DE | Light Green |
+| ES | Light Amber |
+| FR | Light Cyan |
+| IL | Light Pink |
+| IT | Light Lime |
+| PL | Light Deep Purple |
+| RO | Light Indigo |
+| RU | Light Brown |
+| TR | Light Red |
 
 ---
 
-### Reports
+## Reports
 
-#### Monthly Summary Report
+### Monthly Summary
 
 Shows statistics grouped by region:
 - Total managers per region
 - Total work days, vacations, holidays, sick days
 - Average work days per manager
 
-**To generate:**
-1. Open the month sheet you want to summarize
-2. Go to **Schedule Manager** > **Reports** > **Generate Monthly Summary**
+### Coverage Report
 
-#### Coverage Report
-
-Shows staffing levels for each day:
-- Number of people working
+Shows daily staffing levels:
+- Number of people working each day
 - Number on vacation, holiday, sick, day off
 - Coverage percentage
 
-**To generate:**
-1. Open the month sheet
-2. Go to **Schedule Manager** > **Reports** > **Generate Coverage Report**
+### Region Dashboard
 
----
-
-## Customization
-
-### Modifying Schedule Options
-
-To change the available dropdown options, edit the `CONFIG.SCHEDULE_OPTIONS` array in the script:
-
-```javascript
-SCHEDULE_OPTIONS: [
-  '9:00-18:00',
-  '9:30-18:30',
-  '10:00-19:00',
-  // Add your custom times here
-  'Day off',
-  'Holiday',
-  'Vacation',
-  'Sick Leave'
-],
-```
-
-### Modifying Colors
-
-Edit the `CONFIG.COLORS` object:
-
-```javascript
-COLORS: {
-  HOLIDAY: '#FFEB3B',      // Yellow
-  VACATION: '#4CAF50',     // Green
-  SICK_LEAVE: '#F44336',   // Red
-  DAY_OFF: '#2196F3',      // Blue
-  // Change these hex codes as needed
-},
-```
-
-### Adding New Regions
-
-Edit the `CONFIG.REGIONS` array:
-
-```javascript
-REGIONS: ['Arab', 'CZ', 'DE', 'ES', 'FR', 'IL', 'IT', 'PL', 'RO', 'RU', 'TR', 'US'],
-```
+Visual dashboard with:
+- Each region in a separate section
+- Individual manager stats
+- Region totals
 
 ---
 
 ## Troubleshooting
 
-### Menu doesn't appear
+### Auto-Fill not working
 
-1. Make sure you saved the script
-2. Refresh the Google Sheet page
-3. If still not working, run the `onOpen` function manually from the script editor
+1. Make sure the first 7 days (Week 1) have data
+2. Check that empty cells exist to fill
+3. Ensure you're on a month sheet (not a report)
 
-### Colors not applying automatically
+### Slack messages not sending
 
-1. Go to **Schedule Manager** > **Initial Setup** to set up the edit trigger
-2. Make sure you authorized all permissions
+1. Verify webhook URL starts with `https://hooks.slack.com`
+2. Test the connection first
+3. Check that the Slack app is installed in your workspace
 
-### Formulas not calculating
+### Region colors not showing
 
-1. Go to **Schedule Manager** > **Calculations** > **Add Summary Formulas**
-2. Make sure your data is in the expected columns
+1. Run **Schedule Manager** > **Formatting** > **Group by Region**
+2. Or regenerate the month sheet
 
-### Email reminders not sending
+### Menu not appearing
 
-1. Check that you have a "Manager Emails" sheet with correct format
-2. Make sure email addresses are valid
-3. Check that you authorized Gmail permissions
+1. Refresh the Google Sheet page
+2. Run `onOpen` function manually from Apps Script
+3. Re-authorize permissions if prompted
 
 ---
 
 ## Best Practices
 
-1. **Generate sheets in advance**: Create next month's sheet before the current month ends
-2. **Send reminders early**: Set up automatic reminders for the 25th to give managers time
-3. **Use the coverage report**: Check staffing levels before approving vacations
-4. **Keep manager list updated**: Update the Manager Emails sheet when team changes
+1. **Use Auto-Fill**: Have managers fill only Week 1, then auto-fill the rest
+2. **Send Slack reminders early**: Use the 25th reminder to give managers time
+3. **Generate Region View**: Use for easier visual review by team leads
+4. **Check Coverage Report**: Before approving vacation requests
+5. **Keep Settings updated**: Update Slack webhook if channel changes
 
 ---
 
-## Support
+## Menu Reference
 
-For issues or feature requests, contact your system administrator.
+```
+📅 Schedule Manager
+├── 🚀 Initial Setup
+├── 📆 Monthly Operations
+│   ├── Generate Next Month Sheet
+│   ├── Generate Specific Month...
+│   └── Generate Region View
+├── 🔄 Auto-Fill
+│   ├── Fill Month from First Week
+│   └── Fill Selected Row from First Week
+├── 🎨 Formatting
+│   ├── Apply Colors to Current Sheet
+│   ├── Refresh Dropdowns
+│   ├── Format Headers
+│   └── Group by Region
+├── 📊 Calculations
+│   ├── Recalculate All Summaries
+│   └── Add Summary Formulas
+├── 💬 Slack Notifications
+│   ├── Send Reminder to All
+│   ├── Setup Slack Webhook...
+│   ├── Test Slack Connection
+│   ├── Setup Auto Reminders (25th)
+│   └── Remove Auto Reminders
+├── 📈 Reports
+│   ├── Generate Monthly Summary
+│   ├── Generate Coverage Report
+│   └── Generate Region Dashboard
+├── ⚙️ Settings
+└── ❓ Help
+```
