@@ -1401,6 +1401,68 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
+    // MANAGER OF THE WEEK - Find top performer across all sections
+    // ============================================
+    const allManagers = [];
+
+    // Collect all #1 ranked managers from each section
+    [churnCurrentData, churnOldData, killerCurrentData, killerOldData].forEach((sectionData, sectionIdx) => {
+      const sectionNames = ["CP Current", "CP Old", "KB Current", "KB Old"];
+      sectionData.forEach(row => {
+        const rank = row[1];
+        if (rank === 1) {
+          const managerName = row[2];
+          const sales = row[3];
+          const wow = row[4] ? String(row[4]).trim() : "";
+          const cashRaw = row[5];
+          const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
+          const section = sectionNames[sectionIdx];
+
+          if (managerName && sales) {
+            allManagers.push({
+              name: managerName,
+              sales: sales,
+              wow: wow,
+              cash: cashGenerated,
+              section: section
+            });
+          }
+        }
+      });
+    });
+
+    // Find manager with highest sales
+    if (allManagers.length > 0) {
+      const topManager = allManagers.reduce((max, manager) =>
+        manager.sales > max.sales ? manager : max
+      );
+
+      const displayName = typeof applyManagerMentions === 'function'
+        ? applyManagerMentions(topManager.name)
+        : cleanSheetData(topManager.name);
+
+      let wowDisplay = "";
+      if (topManager.wow) {
+        const wowNum = parseInt(topManager.wow.replace(/[^0-9-]/g, ''));
+        const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
+                        !isNaN(wowNum) && wowNum >= 10 ? '📈' :
+                        !isNaN(wowNum) && wowNum >= 1 ? '➕' :
+                        !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
+        wowDisplay = ` | ${wowEmoji} ${topManager.wow} WoW`;
+      }
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `⭐ *MANAGER OF THE WEEK*\n🏆 ${displayName} - *${topManager.sales} sales* | 💰 ${topManager.cash}${wowDisplay}\n_Leading in ${topManager.section}_`
+        }
+      });
+
+      blocks.push({ type: "divider" });
+    }
+
+    // ============================================
     // SECTION 1: CHURN PREVENTION - CURRENT BASE - TOP 3
     // ============================================
     blocks.push({
@@ -1427,10 +1489,15 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      // Build sales text with optional WoW
+      // Build sales text with optional WoW (color-coded)
       let salesText = `${sales} sales`;
       if (wow) {
-        const wowEmoji = wow.startsWith('+') ? '📈' : wow.startsWith('-') ? '📉' : '➡️';
+        // Parse WoW number for color-coding
+        const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+        const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
+                        !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
+                        !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
+                        !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
         salesText += ` (${wowEmoji} ${wow} WoW)`;
       }
 
@@ -1479,10 +1546,15 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      // Build sales text with optional WoW
+      // Build sales text with optional WoW (color-coded)
       let salesText = `${sales} sales`;
       if (wow) {
-        const wowEmoji = wow.startsWith('+') ? '📈' : wow.startsWith('-') ? '📉' : '➡️';
+        // Parse WoW number for color-coding
+        const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+        const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
+                        !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
+                        !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
+                        !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
         salesText += ` (${wowEmoji} ${wow} WoW)`;
       }
 
@@ -1531,10 +1603,15 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      // Build sales text with optional WoW
+      // Build sales text with optional WoW (color-coded)
       let salesText = `${sales} sales`;
       if (wow) {
-        const wowEmoji = wow.startsWith('+') ? '📈' : wow.startsWith('-') ? '📉' : '➡️';
+        // Parse WoW number for color-coding
+        const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+        const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
+                        !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
+                        !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
+                        !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
         salesText += ` (${wowEmoji} ${wow} WoW)`;
       }
 
@@ -1583,10 +1660,15 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      // Build sales text with optional WoW
+      // Build sales text with optional WoW (color-coded)
       let salesText = `${sales} sales`;
       if (wow) {
-        const wowEmoji = wow.startsWith('+') ? '📈' : wow.startsWith('-') ? '📉' : '➡️';
+        // Parse WoW number for color-coding
+        const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+        const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
+                        !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
+                        !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
+                        !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
         salesText += ` (${wowEmoji} ${wow} WoW)`;
       }
 
