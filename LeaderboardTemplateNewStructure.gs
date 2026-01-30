@@ -138,58 +138,79 @@ function createLeaderboardTemplateV2() {
   Logger.log("✓ Totals summary section added");
 
   // ============================================
+  // SECTION 5.5: MANAGER OF THE WEEK (EDITABLE)
+  // ============================================
+  sheet.getRange("A36").setValue("⭐ MANAGER OF THE WEEK");
+  sheet.getRange("A36:E36").merge();
+  sheet.getRange("A36:E36").setBackground("#FFD700").setFontColor("black").setFontWeight("bold").setFontSize(12);
+
+  const managerOfWeekHeaders = ["Manager Name", "Sales", "Cash Generated", "WoW", "Description"];
+  sheet.getRange("A37:E37").setValues([managerOfWeekHeaders]);
+  sheet.getRange("A37:E37").setBackground("#FFF9C4").setFontWeight("bold");
+
+  const managerOfWeekData = [
+    ["Omar Al-Farsi", 58, "$16,100", "+18", "Leading in KB Old"]
+  ];
+  sheet.getRange("A38:E38").setValues(managerOfWeekData);
+
+  // Add borders
+  sheet.getRange("A36:E38").setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
+
+  Logger.log("✓ Manager of the Week section added");
+
+  // ============================================
   // SECTION 6: KB PAID RATE CONTACTED 14DAY - TOP 3
   // ============================================
-  sheet.getRange("A36").setValue("💪 KB PAID RATE CONTACTED 14DAY - TOP 3");
-  sheet.getRange("A36:F36").merge();
-  sheet.getRange("A36:F36").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A40").setValue("💪 KB PAID RATE CONTACTED 14DAY - TOP 3");
+  sheet.getRange("A40:F40").merge();
+  sheet.getRange("A40:F40").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const kbPaidRateHeaders = ["Week", "Rank", "Region", "Paid Rate %", "Target %", "Total Payments"];
-  sheet.getRange("A37:F37").setValues([kbPaidRateHeaders]);
-  sheet.getRange("A37:F37").setBackground("#E3F2FD").setFontWeight("bold");
+  sheet.getRange("A41:F41").setValues([kbPaidRateHeaders]);
+  sheet.getRange("A41:F41").setBackground("#E3F2FD").setFontWeight("bold");
 
   const kbPaidRateData = [
     [currentWeek, 1, "IT", "40%", "20%", "$14"],
     [currentWeek, 2, "PL", "33.33%", "20%", "$22"],
     [currentWeek, 3, "RO", "22.15%", "11%", "$33"]
   ];
-  sheet.getRange("A38:F40").setValues(kbPaidRateData);
+  sheet.getRange("A42:F44").setValues(kbPaidRateData);
 
   // ============================================
   // SECTION 7: CP PAID RATE CONTACTED 14DAY - TOP 3
   // ============================================
-  sheet.getRange("A42").setValue("🏆 CP PAID RATE CONTACTED 14DAY - TOP 3");
-  sheet.getRange("A42:F42").merge();
-  sheet.getRange("A42:F42").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A46").setValue("🏆 CP PAID RATE CONTACTED 14DAY - TOP 3");
+  sheet.getRange("A46:F46").merge();
+  sheet.getRange("A46:F46").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const cpPaidRateHeaders = ["Week", "Rank", "Region", "Paid Rate %", "Target %", "Total Payments"];
-  sheet.getRange("A43:F43").setValues([cpPaidRateHeaders]);
-  sheet.getRange("A43:F43").setBackground("#E8F5E9").setFontWeight("bold");
+  sheet.getRange("A47:F47").setValues([cpPaidRateHeaders]);
+  sheet.getRange("A47:F47").setBackground("#E8F5E9").setFontWeight("bold");
 
   const cpPaidRateData = [
     [currentWeek, 1, "TR", "35%", "25%", "$120"],
     [currentWeek, 2, "FR", "28%", "20%", "$95"],
     [currentWeek, 3, "DE", "22%", "20%", "$78"]
   ];
-  sheet.getRange("A44:F46").setValues(cpPaidRateData);
+  sheet.getRange("A48:F50").setValues(cpPaidRateData);
 
   // ============================================
   // SECTION 8: HIGHEST PAYMENTS THIS WEEK - TOP 3
   // ============================================
-  sheet.getRange("A48").setValue("💰 HIGHEST PAYMENTS THIS WEEK - TOP 3");
-  sheet.getRange("A48:F48").merge();
-  sheet.getRange("A48:F48").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A52").setValue("💰 HIGHEST PAYMENTS THIS WEEK - TOP 3");
+  sheet.getRange("A52:F52").merge();
+  sheet.getRange("A52:F52").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const highestPaymentsHeaders = ["Week", "Rank", "Manager Name", "Region", "Payment ($)", "Slack User ID"];
-  sheet.getRange("A49:F49").setValues([highestPaymentsHeaders]);
-  sheet.getRange("A49:F49").setBackground("#FFE0B2").setFontWeight("bold");
+  sheet.getRange("A53:F53").setValues([highestPaymentsHeaders]);
+  sheet.getRange("A53:F53").setBackground("#FFE0B2").setFontWeight("bold");
 
   const highestPaymentsData = [
     [currentWeek, 1, "@Sami", "TR", 16100, "U02905GQ32R"],
     [currentWeek, 2, "Maria Garcia", "ES", 14500, ""],
     [currentWeek, 3, "Omar Al-Farsi", "ARAB", 13200, ""]
   ];
-  sheet.getRange("A50:F52").setValues(highestPaymentsData);
+  sheet.getRange("A54:F56").setValues(highestPaymentsData);
 
   // ============================================
   // Formatting
@@ -209,9 +230,10 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A14:G17").setBorder(true, true, true, true, true, true);
   sheet.getRange("A20:G23").setBorder(true, true, true, true, true, true);
   sheet.getRange("A26:B34").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A37:F40").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A43:F46").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A49:F52").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A37:E38").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A41:F44").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A47:F50").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A53:F56").setBorder(true, true, true, true, true, true);
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -223,6 +245,7 @@ function createLeaderboardTemplateV2() {
     ["✓ Section 1-2: Churn Prevention (Current Base & Old Base) - TOP 3 EACH"],
     ["✓ Section 3-4: Killer Base (Current Base & Old Base) - TOP 3 EACH"],
     ["✓ Section 5: Totals Summary (editable)"],
+    ["✓ Section 5.5: Manager of the Week (EDITABLE)"],
     ["✓ Section 6: KB Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 7: CP Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 8: Highest Payments This Week - TOP 3"],
@@ -244,7 +267,15 @@ function createLeaderboardTemplateV2() {
     ["4. Update Rank column (1, 2, 3)"],
     ["5. Update WoW column with week-over-week change (e.g., '+15', '-8')"],
     ["6. Update Regional Performance totals"],
-    ["7. Update Highest Payments section"],
+    ["7. Update Manager of the Week section (A38)"],
+    ["8. Update Highest Payments section"],
+    [""],
+    ["MANAGER OF THE WEEK (EDITABLE):"],
+    ["• Highlight the top performer of the week"],
+    ["• Fields: Manager Name | Sales | Cash Generated | WoW | Description"],
+    ["• Description examples: 'Leading in CP Current', 'Top performer across all sections'"],
+    ["• Fully editable - override automatic selection if needed"],
+    ["• If left empty, will auto-calculate from #1 ranked managers"],
     [""],
     ["WEEK OVER WEEK (WoW) COLUMN:"],
     ["• Shows performance change from previous week"],
@@ -280,9 +311,10 @@ function createLeaderboardTemplateV2() {
     ["• Killer Current Base: A15:G17 (3 rows, includes WoW column)"],
     ["• Killer Old Base: A21:G23 (3 rows, includes WoW column)"],
     ["• Totals Summary: A27:B34 (8 metrics)"],
-    ["• KB Paid Rate 14day: A38:F40 (3 regions)"],
-    ["• CP Paid Rate 14day: A44:F46 (3 regions)"],
-    ["• Highest Payments: A50:F52 (3 managers)"]
+    ["• Manager of the Week: A38:E38 (1 row, editable)"],
+    ["• KB Paid Rate 14day: A42:F44 (3 regions)"],
+    ["• CP Paid Rate 14day: A48:F50 (3 regions)"],
+    ["• Highest Payments: A54:F56 (3 managers)"]
   ];
 
   instructionSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);

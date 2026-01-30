@@ -1379,9 +1379,10 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const killerCurrentData = sheet.getRange("A15:G17").getValues();
     const killerOldData = sheet.getRange("A21:G23").getValues();
     const totalsData = sheet.getRange("A27:B34").getValues();
-    const kbPaidRateData = sheet.getRange("A38:F40").getValues();
-    const cpPaidRateData = sheet.getRange("A44:F46").getValues();
-    const highestPaymentsData = sheet.getRange("A50:F52").getValues();
+    const managerOfWeekData = sheet.getRange("A38:E38").getValues();
+    const kbPaidRateData = sheet.getRange("A42:F44").getValues();
+    const cpPaidRateData = sheet.getRange("A48:F50").getValues();
+    const highestPaymentsData = sheet.getRange("A54:F56").getValues();
 
     const blocks = [];
 
@@ -1401,61 +1402,101 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // MANAGER OF THE WEEK - Find top performer across all sections
+    // MANAGER OF THE WEEK - Read from sheet (editable) or auto-calculate
     // ============================================
-    const allManagers = [];
+    // Row format: [Manager Name, Sales, Cash Generated, WoW, Description]
+    const manualManager = managerOfWeekData[0];
+    const hasManualData = manualManager && manualManager[0] && String(manualManager[0]).trim() !== "";
 
-    // Collect all #1 ranked managers from each section
-    [churnCurrentData, churnOldData, killerCurrentData, killerOldData].forEach((sectionData, sectionIdx) => {
-      const sectionNames = ["CP Current", "CP Old", "KB Current", "KB Old"];
-      sectionData.forEach(row => {
-        const rank = row[1];
-        if (rank === 1) {
-          const managerName = row[2];
-          const sales = row[3];
-          const wow = row[4] ? String(row[4]).trim() : "";
-          const cashRaw = row[5];
-          const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-          const section = sectionNames[sectionIdx];
+    let managerOfWeekDisplay = null;
 
-          if (managerName && sales) {
-            allManagers.push({
-              name: managerName,
-              sales: sales,
-              wow: wow,
-              cash: cashGenerated,
-              section: section
-            });
-          }
-        }
-      });
-    });
-
-    // Find manager with highest sales
-    if (allManagers.length > 0) {
-      const topManager = allManagers.reduce((max, manager) =>
-        manager.sales > max.sales ? manager : max
-      );
+    if (hasManualData) {
+      // Use manual data from sheet
+      const managerName = manualManager[0];
+      const sales = manualManager[1];
+      const cashRaw = manualManager[2];
+      const wow = manualManager[3] ? String(manualManager[3]).trim() : "";
+      const description = manualManager[4] ? String(manualManager[4]).trim() : "";
 
       const displayName = typeof applyManagerMentions === 'function'
-        ? applyManagerMentions(topManager.name)
-        : cleanSheetData(topManager.name);
+        ? applyManagerMentions(managerName)
+        : cleanSheetData(managerName);
+
+      const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
 
       let wowDisplay = "";
-      if (topManager.wow) {
-        const wowNum = parseInt(topManager.wow.replace(/[^0-9-]/g, ''));
+      if (wow) {
+        const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
         const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
                         !isNaN(wowNum) && wowNum >= 10 ? '📈' :
                         !isNaN(wowNum) && wowNum >= 1 ? '➕' :
                         !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-        wowDisplay = ` | ${wowEmoji} ${topManager.wow} WoW`;
+        wowDisplay = ` | ${wowEmoji} ${wow} WoW`;
       }
 
+      const descriptionLine = description ? `\n_${description}_` : "";
+
+      managerOfWeekDisplay = `⭐ *MANAGER OF THE WEEK*\n🏆 ${displayName} - *${sales} sales* | 💰 ${cashGenerated}${wowDisplay}${descriptionLine}`;
+
+    } else {
+      // Auto-calculate from #1 ranked managers
+      const allManagers = [];
+
+      [churnCurrentData, churnOldData, killerCurrentData, killerOldData].forEach((sectionData, sectionIdx) => {
+        const sectionNames = ["CP Current", "CP Old", "KB Current", "KB Old"];
+        sectionData.forEach(row => {
+          const rank = row[1];
+          if (rank === 1) {
+            const managerName = row[2];
+            const sales = row[3];
+            const wow = row[4] ? String(row[4]).trim() : "";
+            const cashRaw = row[5];
+            const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
+            const section = sectionNames[sectionIdx];
+
+            if (managerName && sales) {
+              allManagers.push({
+                name: managerName,
+                sales: sales,
+                wow: wow,
+                cash: cashGenerated,
+                section: section
+              });
+            }
+          }
+        });
+      });
+
+      if (allManagers.length > 0) {
+        const topManager = allManagers.reduce((max, manager) =>
+          manager.sales > max.sales ? manager : max
+        );
+
+        const displayName = typeof applyManagerMentions === 'function'
+          ? applyManagerMentions(topManager.name)
+          : cleanSheetData(topManager.name);
+
+        let wowDisplay = "";
+        if (topManager.wow) {
+          const wowNum = parseInt(topManager.wow.replace(/[^0-9-]/g, ''));
+          const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
+                          !isNaN(wowNum) && wowNum >= 10 ? '📈' :
+                          !isNaN(wowNum) && wowNum >= 1 ? '➕' :
+                          !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
+          wowDisplay = ` | ${wowEmoji} ${topManager.wow} WoW`;
+        }
+
+        managerOfWeekDisplay = `⭐ *MANAGER OF THE WEEK*\n🏆 ${displayName} - *${topManager.sales} sales* | 💰 ${topManager.cash}${wowDisplay}\n_Leading in ${topManager.section}_`;
+      }
+    }
+
+    // Display Manager of the Week if we have data
+    if (managerOfWeekDisplay) {
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `⭐ *MANAGER OF THE WEEK*\n🏆 ${displayName} - *${topManager.sales} sales* | 💰 ${topManager.cash}${wowDisplay}\n_Leading in ${topManager.section}_`
+          text: managerOfWeekDisplay
         }
       });
 
