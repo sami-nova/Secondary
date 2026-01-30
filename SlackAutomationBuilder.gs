@@ -1382,6 +1382,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const kbPaidRateData = sheet.getRange("A38:F40").getValues();
     const cpPaidRateData = sheet.getRange("A44:F46").getValues();
     const highestPaymentsData = sheet.getRange("A50:F52").getValues();
+    const wowData = sheet.getRange("A56:D67").getValues();
 
     const blocks = [];
 
@@ -1742,6 +1743,74 @@ function buildCombinedLeaderboardFromSheet(automation) {
         text: highestPaymentsText || "_No data available_"
       }
     });
+
+    blocks.push({ type: "divider" });
+
+    // ============================================
+    // SECTION 8: WEEK OVER WEEK CHANGES - TOP 3 PER SECTION
+    // ============================================
+    // Check if WoW data exists (not empty at start of month)
+    const hasWowData = wowData.some(row => row[1] && row[1].toString().trim() !== "");
+
+    if (hasWowData) {
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*📈 WEEK OVER WEEK CHANGES*"
+        }
+      });
+
+      // Group WoW data by section
+      const wowBySection = {
+        "CP Current": [],
+        "CP Old": [],
+        "KB Current": [],
+        "KB Old": []
+      };
+
+      wowData.forEach((row) => {
+        // Row format: [Week, Manager Name, Section, WoW Change]
+        const managerName = row[1] ? String(row[1]).trim() : "";
+        const section = row[2] ? String(row[2]).trim() : "";
+        const wowChange = row[3] ? String(row[3]).trim() : "";
+
+        if (managerName && section && wowChange && wowBySection[section] !== undefined) {
+          wowBySection[section].push({ manager: managerName, change: wowChange });
+        }
+      });
+
+      // Display WoW changes by section
+      let wowText = "";
+
+      const sectionEmojis = {
+        "CP Current": "🏆",
+        "CP Old": "🏆",
+        "KB Current": "💪",
+        "KB Old": "💪"
+      };
+
+      Object.keys(wowBySection).forEach(section => {
+        const changes = wowBySection[section];
+        if (changes.length > 0) {
+          const emoji = sectionEmojis[section] || "📊";
+          wowText += `\n${emoji} *${section}*\n`;
+          changes.forEach((item, idx) => {
+            const changeEmoji = item.change.startsWith('+') ? '📈' :
+                               item.change.startsWith('-') ? '📉' : '➡️';
+            wowText += `   ${idx + 1}. ${item.manager}: ${changeEmoji} ${item.change}\n`;
+          });
+        }
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: wowText || "_No changes this week_"
+        }
+      });
+    }
 
     // Footer with stats from sheet (you can update these manually)
     // Note: totalsData[0] is Display Date, so actual totals start at index 1

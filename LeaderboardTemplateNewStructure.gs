@@ -192,6 +192,33 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A50:F52").setValues(highestPaymentsData);
 
   // ============================================
+  // SECTION 9: WEEK OVER WEEK CHANGES (EDITABLE)
+  // ============================================
+  sheet.getRange("A54").setValue("📈 WEEK OVER WEEK CHANGES - TOP 3 PER SECTION");
+  sheet.getRange("A54:D54").merge();
+  sheet.getRange("A54:D54").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const wowHeaders = ["Week", "Manager Name", "Section", "WoW Change"];
+  sheet.getRange("A55:D55").setValues([wowHeaders]);
+  sheet.getRange("A55:D55").setBackground("#E1BEE7").setFontWeight("bold");
+
+  const wowData = [
+    [currentWeek, "@Ipek Oztufekci", "CP Current", "+15%"],
+    [currentWeek, "@Merve Odali", "CP Current", "+8%"],
+    [currentWeek, "@Valeria Lvova", "CP Current", "+5%"],
+    [currentWeek, "@Merve Odali", "CP Old", "+20%"],
+    [currentWeek, "@Matthew Adouko", "CP Old", "+12%"],
+    [currentWeek, "@Ipek Oztufekci", "CP Old", "-3%"],
+    [currentWeek, "@Marionela Albu", "KB Current", "+25%"],
+    [currentWeek, "@Abdallah", "KB Current", "+10%"],
+    [currentWeek, "@Nida", "KB Current", "+7%"],
+    [currentWeek, "@Abdallah", "KB Old", "+18%"],
+    [currentWeek, "@Valeria Lvova", "KB Old", "+14%"],
+    [currentWeek, "@Tugce Kalafat", "KB Old", "+6%"]
+  ];
+  sheet.getRange("A56:D67").setValues(wowData);
+
+  // ============================================
   // Formatting
   // ============================================
 
@@ -212,6 +239,7 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A37:F40").setBorder(true, true, true, true, true, true);
   sheet.getRange("A43:F46").setBorder(true, true, true, true, true, true);
   sheet.getRange("A49:F52").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A55:D67").setBorder(true, true, true, true, true, true);
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -226,6 +254,7 @@ function createLeaderboardTemplateV2() {
     ["✓ Section 6: KB Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 7: CP Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 8: Highest Payments This Week - TOP 3"],
+    ["✓ Section 9: Week over Week Changes (WoW) - TOP 3 per section (editable)"],
     [""],
     ["COLUMNS IN EACH SECTION:"],
     ["• Week - Current week (2026-W04)"],
@@ -241,6 +270,16 @@ function createLeaderboardTemplateV2() {
     ["3. Re-rank managers by Sales (sort descending)"],
     ["4. Update Rank column (1, 2, 3)"],
     ["5. Update Regional Performance totals"],
+    ["6. Update WoW Changes section (A56:D67) with this week's changes"],
+    [""],
+    ["WEEK OVER WEEK CHANGES (WoW):"],
+    ["• Shows performance changes from previous week"],
+    ["• Format: Manager Name | Section | WoW Change"],
+    ["• Sections: 'CP Current', 'CP Old', 'KB Current', 'KB Old'"],
+    ["• WoW Change examples: '+15%', '-5%', '+10 sales', 'No change'"],
+    ["• Can be EMPTY at start of month (data will be reset)"],
+    ["• Fully editable - enter any text you want"],
+    ["• Top 3 per section = 12 rows total"],
     [""],
     ["IMPORTANT - DATA CLEANING:"],
     ["• DO NOT include 'private channel' text in Manager Name or Region"],
@@ -271,7 +310,8 @@ function createLeaderboardTemplateV2() {
     ["• Totals Summary: A27:B34 (8 metrics)"],
     ["• KB Paid Rate 14day: A38:F40 (3 regions)"],
     ["• CP Paid Rate 14day: A44:F46 (3 regions)"],
-    ["• Highest Payments: A50:F52 (3 managers)"]
+    ["• Highest Payments: A50:F52 (3 managers)"],
+    ["• WoW Changes: A56:D67 (12 rows - 3 per section, editable)"]
   ];
 
   instructionSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
