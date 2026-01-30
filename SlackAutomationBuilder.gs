@@ -1424,19 +1424,25 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
 
-      let wowDisplay = "";
+      // Build formatted display with better spacing
+      let displayText = `⭐ *MANAGER OF THE WEEK*\n\n🏆 *${displayName}*\n`;
+      displayText += `   • Sales: *${sales} sales*\n`;
+      displayText += `   • Cash: *${cashGenerated}*`;
+
       if (wow) {
         const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
         const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
                         !isNaN(wowNum) && wowNum >= 10 ? '📈' :
                         !isNaN(wowNum) && wowNum >= 1 ? '➕' :
                         !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-        wowDisplay = ` | ${wowEmoji} ${wow} WoW`;
+        displayText += `\n   • WoW: ${wowEmoji} *${wow}*`;
       }
 
-      const descriptionLine = description ? `\n_${description}_` : "";
+      if (description) {
+        displayText += `\n\n_${description}_`;
+      }
 
-      managerOfWeekDisplay = `⭐ *MANAGER OF THE WEEK*\n🏆 ${displayName} - *${sales} sales* | 💰 ${cashGenerated}${wowDisplay}${descriptionLine}`;
+      managerOfWeekDisplay = displayText;
 
     } else {
       // Auto-calculate from #1 ranked managers
@@ -1476,17 +1482,23 @@ function buildCombinedLeaderboardFromSheet(automation) {
           ? applyManagerMentions(topManager.name)
           : cleanSheetData(topManager.name);
 
-        let wowDisplay = "";
+        // Build formatted display with better spacing
+        let displayText = `⭐ *MANAGER OF THE WEEK*\n\n🏆 *${displayName}*\n`;
+        displayText += `   • Sales: *${topManager.sales} sales*\n`;
+        displayText += `   • Cash: *${topManager.cash}*`;
+
         if (topManager.wow) {
           const wowNum = parseInt(topManager.wow.replace(/[^0-9-]/g, ''));
           const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
                           !isNaN(wowNum) && wowNum >= 10 ? '📈' :
                           !isNaN(wowNum) && wowNum >= 1 ? '➕' :
                           !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-          wowDisplay = ` | ${wowEmoji} ${topManager.wow} WoW`;
+          displayText += `\n   • WoW: ${wowEmoji} *${topManager.wow}*`;
         }
 
-        managerOfWeekDisplay = `⭐ *MANAGER OF THE WEEK*\n🏆 ${displayName} - *${topManager.sales} sales* | 💰 ${topManager.cash}${wowDisplay}\n_Leading in ${topManager.section}_`;
+        displayText += `\n\n_Leading in ${topManager.section}_`;
+
+        managerOfWeekDisplay = displayText;
       }
     }
 
@@ -1561,59 +1573,64 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 2: CHURN PREVENTION - OLD BASE - TOP 3
+    // SECTION 2: CHURN PREVENTION - OLD BASE - TOP 3 (OPTIONAL)
     // ============================================
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: "*🏆 CHURN PREVENTION - OLD BASE - TOP 3*"
-      }
-    });
+    // Check if there's any data before displaying this section
+    const hasChurnOldData = churnOldData.some(row => row[1] && row[2]); // Check if has rank and manager name
 
-    let churnOldText = "";
-    churnOldData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
-      const rank = row[1];
-      const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-      const sales = row[3];
-      const wow = row[4] ? String(row[4]).trim() : "";
-      const cashRaw = row[5];
-      const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-      const region = cleanSheetData(row[6]);
+    if (hasChurnOldData) {
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*🏆 CHURN PREVENTION - OLD BASE - TOP 3*"
+        }
+      });
 
-      if (!rank || !managerName) return;
+      let churnOldText = "";
+      churnOldData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
+        const rank = row[1];
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+        const sales = row[3];
+        const wow = row[4] ? String(row[4]).trim() : "";
+        const cashRaw = row[5];
+        const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
+        const region = cleanSheetData(row[6]);
 
-      const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+        if (!rank || !managerName) return;
 
-      // Build sales text with optional WoW (color-coded)
-      let salesText = `${sales} sales`;
-      if (wow) {
-        // Parse WoW number for color-coding
-        const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
-        const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
-                        !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
-                        !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
-                        !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
-        salesText += ` (${wowEmoji} ${wow} WoW)`;
-      }
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      churnOldText += `${rankEmoji} *${managerName}*\n`;
-      churnOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
-      if (region) {
-        churnOldText += ` | ${regionEmoji} ${region}`;
-      }
-      churnOldText += `\n\n`;
-    });
+        // Build sales text with optional WoW (color-coded)
+        let salesText = `${sales} sales`;
+        if (wow) {
+          // Parse WoW number for color-coding
+          const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+          const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
+                          !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
+                          !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
+                          !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
+          salesText += ` (${wowEmoji} ${wow} WoW)`;
+        }
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: churnOldText || "_No data available_"
-      }
-    });
+        churnOldText += `${rankEmoji} *${managerName}*\n`;
+        churnOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
+        if (region) {
+          churnOldText += ` | ${regionEmoji} ${region}`;
+        }
+        churnOldText += `\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: churnOldText || "_No data available_"
+        }
+      });
+    }
 
     blocks.push({ type: "divider" });
 
