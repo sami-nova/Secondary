@@ -1374,15 +1374,14 @@ function buildCombinedLeaderboardFromSheet(automation) {
     }
 
     // Get all data sections from the sheet (TOP 3 STRUCTURE)
-    const churnCurrentData = sheet.getRange("A3:F5").getValues();
-    const churnOldData = sheet.getRange("A9:F11").getValues();
-    const killerCurrentData = sheet.getRange("A15:F17").getValues();
-    const killerOldData = sheet.getRange("A21:F23").getValues();
+    const churnCurrentData = sheet.getRange("A3:G5").getValues();
+    const churnOldData = sheet.getRange("A9:G11").getValues();
+    const killerCurrentData = sheet.getRange("A15:G17").getValues();
+    const killerOldData = sheet.getRange("A21:G23").getValues();
     const totalsData = sheet.getRange("A27:B34").getValues();
     const kbPaidRateData = sheet.getRange("A38:F40").getValues();
     const cpPaidRateData = sheet.getRange("A44:F46").getValues();
     const highestPaymentsData = sheet.getRange("A50:F52").getValues();
-    const wowData = sheet.getRange("A56:D67").getValues();
 
     const blocks = [];
 
@@ -1414,21 +1413,29 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     let churnCurrentText = "";
     churnCurrentData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
+      // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
       const rank = row[1];
       const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
       const sales = row[3];
-      const cashRaw = row[4];
+      const wow = row[4] ? String(row[4]).trim() : "";
+      const cashRaw = row[5];
       const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-      const region = cleanSheetData(row[5]);
+      const region = cleanSheetData(row[6]);
 
       if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
+      // Build sales text with optional WoW
+      let salesText = `${sales} sales`;
+      if (wow) {
+        const wowEmoji = wow.startsWith('+') ? '📈' : wow.startsWith('-') ? '📉' : '➡️';
+        salesText += ` (${wowEmoji} ${wow} WoW)`;
+      }
+
       churnCurrentText += `${rankEmoji} *${managerName}*\n`;
-      churnCurrentText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
+      churnCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
       if (region) {
         churnCurrentText += ` | ${regionEmoji} ${region}`;
       }
@@ -1458,21 +1465,29 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     let churnOldText = "";
     churnOldData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
+      // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
       const rank = row[1];
       const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
       const sales = row[3];
-      const cashRaw = row[4];
+      const wow = row[4] ? String(row[4]).trim() : "";
+      const cashRaw = row[5];
       const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-      const region = cleanSheetData(row[5]);
+      const region = cleanSheetData(row[6]);
 
       if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
+      // Build sales text with optional WoW
+      let salesText = `${sales} sales`;
+      if (wow) {
+        const wowEmoji = wow.startsWith('+') ? '📈' : wow.startsWith('-') ? '📉' : '➡️';
+        salesText += ` (${wowEmoji} ${wow} WoW)`;
+      }
+
       churnOldText += `${rankEmoji} *${managerName}*\n`;
-      churnOldText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
+      churnOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
       if (region) {
         churnOldText += ` | ${regionEmoji} ${region}`;
       }
@@ -1502,21 +1517,29 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     let killerCurrentText = "";
     killerCurrentData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
+      // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
       const rank = row[1];
       const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
       const sales = row[3];
-      const cashRaw = row[4];
+      const wow = row[4] ? String(row[4]).trim() : "";
+      const cashRaw = row[5];
       const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-      const region = cleanSheetData(row[5]);
+      const region = cleanSheetData(row[6]);
 
       if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
+      // Build sales text with optional WoW
+      let salesText = `${sales} sales`;
+      if (wow) {
+        const wowEmoji = wow.startsWith('+') ? '📈' : wow.startsWith('-') ? '📉' : '➡️';
+        salesText += ` (${wowEmoji} ${wow} WoW)`;
+      }
+
       killerCurrentText += `${rankEmoji} *${managerName}*\n`;
-      killerCurrentText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
+      killerCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
       if (region) {
         killerCurrentText += ` | ${regionEmoji} ${region}`;
       }
@@ -1546,21 +1569,29 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     let killerOldText = "";
     killerOldData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Sales, Cash Generated, Region]
+      // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
       const rank = row[1];
       const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
       const sales = row[3];
-      const cashRaw = row[4];
+      const wow = row[4] ? String(row[4]).trim() : "";
+      const cashRaw = row[5];
       const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-      const region = cleanSheetData(row[5]);
+      const region = cleanSheetData(row[6]);
 
       if (!rank || !managerName) return;
 
       const rankEmoji = getRankEmoji(rank);
       const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
+      // Build sales text with optional WoW
+      let salesText = `${sales} sales`;
+      if (wow) {
+        const wowEmoji = wow.startsWith('+') ? '📈' : wow.startsWith('-') ? '📉' : '➡️';
+        salesText += ` (${wowEmoji} ${wow} WoW)`;
+      }
+
       killerOldText += `${rankEmoji} *${managerName}*\n`;
-      killerOldText += `   └ ${sales} sales | 💰 ${cashGenerated}`;
+      killerOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
       if (region) {
         killerOldText += ` | ${regionEmoji} ${region}`;
       }
@@ -1743,74 +1774,6 @@ function buildCombinedLeaderboardFromSheet(automation) {
         text: highestPaymentsText || "_No data available_"
       }
     });
-
-    blocks.push({ type: "divider" });
-
-    // ============================================
-    // SECTION 8: WEEK OVER WEEK CHANGES - TOP 3 PER SECTION
-    // ============================================
-    // Check if WoW data exists (not empty at start of month)
-    const hasWowData = wowData.some(row => row[1] && row[1].toString().trim() !== "");
-
-    if (hasWowData) {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: "*📈 WEEK OVER WEEK CHANGES*"
-        }
-      });
-
-      // Group WoW data by section
-      const wowBySection = {
-        "CP Current": [],
-        "CP Old": [],
-        "KB Current": [],
-        "KB Old": []
-      };
-
-      wowData.forEach((row) => {
-        // Row format: [Week, Manager Name, Section, WoW Change]
-        const managerName = row[1] ? String(row[1]).trim() : "";
-        const section = row[2] ? String(row[2]).trim() : "";
-        const wowChange = row[3] ? String(row[3]).trim() : "";
-
-        if (managerName && section && wowChange && wowBySection[section] !== undefined) {
-          wowBySection[section].push({ manager: managerName, change: wowChange });
-        }
-      });
-
-      // Display WoW changes by section
-      let wowText = "";
-
-      const sectionEmojis = {
-        "CP Current": "🏆",
-        "CP Old": "🏆",
-        "KB Current": "💪",
-        "KB Old": "💪"
-      };
-
-      Object.keys(wowBySection).forEach(section => {
-        const changes = wowBySection[section];
-        if (changes.length > 0) {
-          const emoji = sectionEmojis[section] || "📊";
-          wowText += `\n${emoji} *${section}*\n`;
-          changes.forEach((item, idx) => {
-            const changeEmoji = item.change.startsWith('+') ? '📈' :
-                               item.change.startsWith('-') ? '📉' : '➡️';
-            wowText += `   ${idx + 1}. ${item.manager}: ${changeEmoji} ${item.change}\n`;
-          });
-        }
-      });
-
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: wowText || "_No changes this week_"
-        }
-      });
-    }
 
     // Footer with stats from sheet (you can update these manually)
     // Note: totalsData[0] is Display Date, so actual totals start at index 1

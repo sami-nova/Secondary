@@ -41,73 +41,73 @@ function createLeaderboardTemplateV2() {
   // SECTION 1: CHURN PREVENTION - CURRENT BASE - TOP 3
   // ============================================
   sheet.getRange("A1").setValue("🏆 CHURN PREVENTION - CURRENT BASE - TOP 3");
-  sheet.getRange("A1:F1").merge();
-  sheet.getRange("A1:F1").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A1:G1").merge();
+  sheet.getRange("A1:G1").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const churnCurrentHeaders = ["Week", "Rank", "Manager Name", "Sales", "Cash Generated", "Region"];
-  sheet.getRange("A2:F2").setValues([churnCurrentHeaders]);
-  sheet.getRange("A2:F2").setBackground("#E8F5E9").setFontWeight("bold");
+  const churnCurrentHeaders = ["Week", "Rank", "Manager Name", "Sales", "WoW", "Cash Generated", "Region"];
+  sheet.getRange("A2:G2").setValues([churnCurrentHeaders]);
+  sheet.getRange("A2:G2").setBackground("#E8F5E9").setFontWeight("bold");
 
   const churnCurrentData = [
-    [currentWeek, 1, "John Smith", 45, "$12,500", "TR"],
-    [currentWeek, 2, "Sarah Johnson", 42, "$11,800", "FR"],
-    [currentWeek, 3, "Mike Chen", 38, "$10,200", "DE"]
+    [currentWeek, 1, "John Smith", 45, "+15", "$12,500", "TR"],
+    [currentWeek, 2, "Sarah Johnson", 42, "+8", "$11,800", "FR"],
+    [currentWeek, 3, "Mike Chen", 38, "+5", "$10,200", "DE"]
   ];
-  sheet.getRange("A3:F5").setValues(churnCurrentData);
+  sheet.getRange("A3:G5").setValues(churnCurrentData);
 
   // ============================================
   // SECTION 2: CHURN PREVENTION - OLD BASE - TOP 3
   // ============================================
   sheet.getRange("A7").setValue("🏆 CHURN PREVENTION - OLD BASE - TOP 3");
-  sheet.getRange("A7:F7").merge();
-  sheet.getRange("A7:F7").setBackground("#66BB6A").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A7:G7").merge();
+  sheet.getRange("A7:G7").setBackground("#66BB6A").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const churnOldHeaders = ["Week", "Rank", "Manager Name", "Sales", "Cash Generated", "Region"];
-  sheet.getRange("A8:F8").setValues([churnOldHeaders]);
-  sheet.getRange("A8:F8").setBackground("#E8F5E9").setFontWeight("bold");
+  const churnOldHeaders = ["Week", "Rank", "Manager Name", "Sales", "WoW", "Cash Generated", "Region"];
+  sheet.getRange("A8:G8").setValues([churnOldHeaders]);
+  sheet.getRange("A8:G8").setBackground("#E8F5E9").setFontWeight("bold");
 
   const churnOldData = [
-    [currentWeek, 1, "Maria Garcia", 52, "$14,500", "ES"],
-    [currentWeek, 2, "Ahmed Hassan", 48, "$13,200", "ARAB"],
-    [currentWeek, 3, "Lisa Anderson", 44, "$12,100", "IT"]
+    [currentWeek, 1, "Maria Garcia", 52, "+20", "$14,500", "ES"],
+    [currentWeek, 2, "Ahmed Hassan", 48, "+12", "$13,200", "ARAB"],
+    [currentWeek, 3, "Lisa Anderson", 44, "-3", "$12,100", "IT"]
   ];
-  sheet.getRange("A9:F11").setValues(churnOldData);
+  sheet.getRange("A9:G11").setValues(churnOldData);
 
   // ============================================
   // SECTION 3: KILLER BASE - CURRENT BASE - TOP 3
   // ============================================
   sheet.getRange("A13").setValue("💪 KILLER BASE - CURRENT BASE - TOP 3");
-  sheet.getRange("A13:F13").merge();
-  sheet.getRange("A13:F13").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A13:G13").merge();
+  sheet.getRange("A13:G13").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const killerCurrentHeaders = ["Week", "Rank", "Manager Name", "Sales", "Cash Generated", "Region"];
-  sheet.getRange("A14:F14").setValues([killerCurrentHeaders]);
-  sheet.getRange("A14:F14").setBackground("#E3F2FD").setFontWeight("bold");
+  const killerCurrentHeaders = ["Week", "Rank", "Manager Name", "Sales", "WoW", "Cash Generated", "Region"];
+  sheet.getRange("A14:G14").setValues([killerCurrentHeaders]);
+  sheet.getRange("A14:G14").setBackground("#E3F2FD").setFontWeight("bold");
 
   const killerCurrentData = [
-    [currentWeek, 1, "James Lee", 55, "$15,200", "PL"],
-    [currentWeek, 2, "Rachel Green", 50, "$14,000", "CZ"],
-    [currentWeek, 3, "Carlos Silva", 46, "$12,800", "RO"]
+    [currentWeek, 1, "James Lee", 55, "+25", "$15,200", "PL"],
+    [currentWeek, 2, "Rachel Green", 50, "+10", "$14,000", "CZ"],
+    [currentWeek, 3, "Carlos Silva", 46, "+7", "$12,800", "RO"]
   ];
-  sheet.getRange("A15:F17").setValues(killerCurrentData);
+  sheet.getRange("A15:G17").setValues(killerCurrentData);
 
   // ============================================
   // SECTION 4: KILLER BASE - OLD BASE - TOP 3
   // ============================================
   sheet.getRange("A19").setValue("💪 KILLER BASE - OLD BASE - TOP 3");
-  sheet.getRange("A19:F19").merge();
-  sheet.getRange("A19:F19").setBackground("#42A5F5").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A19:G19").merge();
+  sheet.getRange("A19:G19").setBackground("#42A5F5").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const killerOldHeaders = ["Week", "Rank", "Manager Name", "Sales", "Cash Generated", "Region"];
-  sheet.getRange("A20:F20").setValues([killerOldHeaders]);
-  sheet.getRange("A20:F20").setBackground("#E3F2FD").setFontWeight("bold");
+  const killerOldHeaders = ["Week", "Rank", "Manager Name", "Sales", "WoW", "Cash Generated", "Region"];
+  sheet.getRange("A20:G20").setValues([killerOldHeaders]);
+  sheet.getRange("A20:G20").setBackground("#E3F2FD").setFontWeight("bold");
 
   const killerOldData = [
-    [currentWeek, 1, "Omar Al-Farsi", 58, "$16,100", "ARAB"],
-    [currentWeek, 2, "Sophie Martin", 54, "$15,000", "FR"],
-    [currentWeek, 3, "Yuki Tanaka", 51, "$14,200", "RU"]
+    [currentWeek, 1, "Omar Al-Farsi", 58, "+18", "$16,100", "ARAB"],
+    [currentWeek, 2, "Sophie Martin", 54, "+14", "$15,000", "FR"],
+    [currentWeek, 3, "Yuki Tanaka", 51, "+6", "$14,200", "RU"]
   ];
-  sheet.getRange("A21:F23").setValues(killerOldData);
+  sheet.getRange("A21:G23").setValues(killerOldData);
 
   // ============================================
   // SECTION 5: TOTALS SUMMARY (for you to update manually)
@@ -192,33 +192,6 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A50:F52").setValues(highestPaymentsData);
 
   // ============================================
-  // SECTION 9: WEEK OVER WEEK CHANGES (EDITABLE)
-  // ============================================
-  sheet.getRange("A54").setValue("📈 WEEK OVER WEEK CHANGES - TOP 3 PER SECTION");
-  sheet.getRange("A54:D54").merge();
-  sheet.getRange("A54:D54").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
-
-  const wowHeaders = ["Week", "Manager Name", "Section", "WoW Change"];
-  sheet.getRange("A55:D55").setValues([wowHeaders]);
-  sheet.getRange("A55:D55").setBackground("#E1BEE7").setFontWeight("bold");
-
-  const wowData = [
-    [currentWeek, "@Ipek Oztufekci", "CP Current", "+15%"],
-    [currentWeek, "@Merve Odali", "CP Current", "+8%"],
-    [currentWeek, "@Valeria Lvova", "CP Current", "+5%"],
-    [currentWeek, "@Merve Odali", "CP Old", "+20%"],
-    [currentWeek, "@Matthew Adouko", "CP Old", "+12%"],
-    [currentWeek, "@Ipek Oztufekci", "CP Old", "-3%"],
-    [currentWeek, "@Marionela Albu", "KB Current", "+25%"],
-    [currentWeek, "@Abdallah", "KB Current", "+10%"],
-    [currentWeek, "@Nida", "KB Current", "+7%"],
-    [currentWeek, "@Abdallah", "KB Old", "+18%"],
-    [currentWeek, "@Valeria Lvova", "KB Old", "+14%"],
-    [currentWeek, "@Tugce Kalafat", "KB Old", "+6%"]
-  ];
-  sheet.getRange("A56:D67").setValues(wowData);
-
-  // ============================================
   // Formatting
   // ============================================
 
@@ -231,15 +204,14 @@ function createLeaderboardTemplateV2() {
   sheet.setColumnWidth(6, 130);  // Total Payments
 
   // Add borders to all sections (Top 3 structure)
-  sheet.getRange("A2:F5").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A8:F11").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A14:F17").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A20:F23").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A2:G5").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A8:G11").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A14:G17").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A20:G23").setBorder(true, true, true, true, true, true);
   sheet.getRange("A26:B34").setBorder(true, true, true, true, true, true);
   sheet.getRange("A37:F40").setBorder(true, true, true, true, true, true);
   sheet.getRange("A43:F46").setBorder(true, true, true, true, true, true);
   sheet.getRange("A49:F52").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A55:D67").setBorder(true, true, true, true, true, true);
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -254,32 +226,32 @@ function createLeaderboardTemplateV2() {
     ["✓ Section 6: KB Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 7: CP Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 8: Highest Payments This Week - TOP 3"],
-    ["✓ Section 9: Week over Week Changes (WoW) - TOP 3 per section (editable)"],
+    ["✓ NEW: WoW column in each leaderboard section (inline with sales)"],
     [""],
-    ["COLUMNS IN EACH SECTION:"],
+    ["COLUMNS IN EACH LEADERBOARD SECTION (Sections 1-4):"],
     ["• Week - Current week (2026-W04)"],
     ["• Rank - Position (1-3)"],
     ["• Manager Name - Full name (NO 'private channel' text!)"],
-    ["• Sales - Number of sales"],
+    ["• Sales - Number of sales this week"],
+    ["• WoW - Week over Week change (e.g., '+15', '-5', or empty)"],
     ["• Cash Generated - Revenue amount (e.g., $12,500)"],
     ["• Region - Country/region with flag emoji"],
     [""],
     ["HOW TO UPDATE WEEKLY:"],
     ["1. Update Week column to current week"],
-    ["2. Update Sales and Cash Generated for each manager"],
+    ["2. Update Sales, WoW, and Cash Generated for each manager"],
     ["3. Re-rank managers by Sales (sort descending)"],
     ["4. Update Rank column (1, 2, 3)"],
-    ["5. Update Regional Performance totals"],
-    ["6. Update WoW Changes section (A56:D67) with this week's changes"],
+    ["5. Update WoW column with week-over-week change (e.g., '+15', '-8')"],
+    ["6. Update Regional Performance totals"],
+    ["7. Update Highest Payments section"],
     [""],
-    ["WEEK OVER WEEK CHANGES (WoW):"],
-    ["• Shows performance changes from previous week"],
-    ["• Format: Manager Name | Section | WoW Change"],
-    ["• Sections: 'CP Current', 'CP Old', 'KB Current', 'KB Old'"],
-    ["• WoW Change examples: '+15%', '-5%', '+10 sales', 'No change'"],
-    ["• Can be EMPTY at start of month (data will be reset)"],
-    ["• Fully editable - enter any text you want"],
-    ["• Top 3 per section = 12 rows total"],
+    ["WEEK OVER WEEK (WoW) COLUMN:"],
+    ["• Shows performance change from previous week"],
+    ["• Format: '+15' (gained 15 sales) or '-5' (lost 5 sales)"],
+    ["• Can be EMPTY at start of month or if no comparison data"],
+    ["• Displayed inline: '45 sales (+15 WoW)' or '45 sales'"],
+    ["• Fully editable - just enter the number with + or - sign"],
     [""],
     ["IMPORTANT - DATA CLEANING:"],
     ["• DO NOT include 'private channel' text in Manager Name or Region"],
@@ -303,15 +275,14 @@ function createLeaderboardTemplateV2() {
     ["4. All 4 sections (Top 3 each) + Regional summary in ONE message!"],
     [""],
     ["SHEET RANGES (FOR REFERENCE):"],
-    ["• Churn Current Base: A3:F5 (3 rows)"],
-    ["• Churn Old Base: A9:F11 (3 rows)"],
-    ["• Killer Current Base: A15:F17 (3 rows)"],
-    ["• Killer Old Base: A21:F23 (3 rows)"],
+    ["• Churn Current Base: A3:G5 (3 rows, includes WoW column)"],
+    ["• Churn Old Base: A9:G11 (3 rows, includes WoW column)"],
+    ["• Killer Current Base: A15:G17 (3 rows, includes WoW column)"],
+    ["• Killer Old Base: A21:G23 (3 rows, includes WoW column)"],
     ["• Totals Summary: A27:B34 (8 metrics)"],
     ["• KB Paid Rate 14day: A38:F40 (3 regions)"],
     ["• CP Paid Rate 14day: A44:F46 (3 regions)"],
-    ["• Highest Payments: A50:F52 (3 managers)"],
-    ["• WoW Changes: A56:D67 (12 rows - 3 per section, editable)"]
+    ["• Highest Payments: A50:F52 (3 managers)"]
   ];
 
   instructionSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
