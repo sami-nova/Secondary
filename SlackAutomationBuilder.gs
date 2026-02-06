@@ -1439,7 +1439,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       }
 
       if (description) {
-        displayText += `\n\n_${description}_`;
+        displayText += `\n\n*_${description}_*`;
       }
 
       managerOfWeekDisplay = displayText;
@@ -1496,7 +1496,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
           displayText += `\n   • WoW: ${wowEmoji} *${topManager.wow}*`;
         }
 
-        displayText += `\n\n_Leading in ${topManager.section}_`;
+        displayText += `\n\n*_Leading in ${topManager.section}_*`;
 
         managerOfWeekDisplay = displayText;
       }
@@ -1635,285 +1635,305 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 3: KILLER BASE - CURRENT BASE - TOP 3
+    // SECTION 3: KILLER BASE - CURRENT BASE - TOP 3 (OPTIONAL)
     // ============================================
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: "*💪 KILLER BASE - CURRENT BASE - TOP 3*"
-      }
-    });
+    const hasKillerCurrentData = killerCurrentData.some(row => row[1] && row[2]);
 
-    let killerCurrentText = "";
-    killerCurrentData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
-      const rank = row[1];
-      const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-      const sales = row[3];
-      const wow = row[4] ? String(row[4]).trim() : "";
-      const cashRaw = row[5];
-      const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-      const region = cleanSheetData(row[6]);
+    if (hasKillerCurrentData) {
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*💪 KILLER BASE - CURRENT BASE - TOP 3*"
+        }
+      });
 
-      if (!rank || !managerName) return;
+      let killerCurrentText = "";
+      killerCurrentData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
+        const rank = row[1];
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+        const sales = row[3];
+        const wow = row[4] ? String(row[4]).trim() : "";
+        const cashRaw = row[5];
+        const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
+        const region = cleanSheetData(row[6]);
 
-      const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+        if (!rank || !managerName) return;
 
-      // Build sales text with optional WoW (color-coded)
-      let salesText = `${sales} sales`;
-      if (wow) {
-        // Parse WoW number for color-coding
-        const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
-        const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
-                        !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
-                        !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
-                        !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
-        salesText += ` (${wowEmoji} ${wow} WoW)`;
-      }
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      killerCurrentText += `${rankEmoji} *${managerName}*\n`;
-      killerCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
-      if (region) {
-        killerCurrentText += ` | ${regionEmoji} ${region}`;
-      }
-      killerCurrentText += `\n\n`;
-    });
+        // Build sales text with optional WoW (color-coded)
+        let salesText = `${sales} sales`;
+        if (wow) {
+          // Parse WoW number for color-coding
+          const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+          const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
+                          !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
+                          !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
+                          !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
+          salesText += ` (${wowEmoji} ${wow} WoW)`;
+        }
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: killerCurrentText || "_No data available_"
-      }
-    });
+        killerCurrentText += `${rankEmoji} *${managerName}*\n`;
+        killerCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
+        if (region) {
+          killerCurrentText += ` | ${regionEmoji} ${region}`;
+        }
+        killerCurrentText += `\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: killerCurrentText || "_No data available_"
+        }
+      });
+    }
 
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 4: KILLER BASE - OLD BASE - TOP 3
+    // SECTION 4: KILLER BASE - OLD BASE - TOP 3 (OPTIONAL)
     // ============================================
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: "*💪 KILLER BASE - OLD BASE - TOP 3*"
-      }
-    });
+    const hasKillerOldData = killerOldData.some(row => row[1] && row[2]);
 
-    let killerOldText = "";
-    killerOldData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
-      const rank = row[1];
-      const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-      const sales = row[3];
-      const wow = row[4] ? String(row[4]).trim() : "";
-      const cashRaw = row[5];
-      const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-      const region = cleanSheetData(row[6]);
+    if (hasKillerOldData) {
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*💪 KILLER BASE - OLD BASE - TOP 3*"
+        }
+      });
 
-      if (!rank || !managerName) return;
+      let killerOldText = "";
+      killerOldData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
+        const rank = row[1];
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+        const sales = row[3];
+        const wow = row[4] ? String(row[4]).trim() : "";
+        const cashRaw = row[5];
+        const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
+        const region = cleanSheetData(row[6]);
 
-      const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+        if (!rank || !managerName) return;
 
-      // Build sales text with optional WoW (color-coded)
-      let salesText = `${sales} sales`;
-      if (wow) {
-        // Parse WoW number for color-coding
-        const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
-        const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
-                        !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
-                        !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
-                        !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
-        salesText += ` (${wowEmoji} ${wow} WoW)`;
-      }
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-      killerOldText += `${rankEmoji} *${managerName}*\n`;
-      killerOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
-      if (region) {
-        killerOldText += ` | ${regionEmoji} ${region}`;
-      }
-      killerOldText += `\n\n`;
-    });
+        // Build sales text with optional WoW (color-coded)
+        let salesText = `${sales} sales`;
+        if (wow) {
+          // Parse WoW number for color-coding
+          const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+          const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
+                          !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
+                          !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
+                          !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
+          salesText += ` (${wowEmoji} ${wow} WoW)`;
+        }
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: killerOldText || "_No data available_"
-      }
-    });
+        killerOldText += `${rankEmoji} *${managerName}*\n`;
+        killerOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
+        if (region) {
+          killerOldText += ` | ${regionEmoji} ${region}`;
+        }
+        killerOldText += `\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: killerOldText || "_No data available_"
+        }
+      });
+    }
 
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 5: KB PAID RATE CONTACTED 14DAY - TOP 3
+    // SECTION 5: KB PAID RATE CONTACTED 14DAY - TOP 3 (OPTIONAL)
     // ============================================
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: "*💪 KB PAID RATE CONTACTED 14DAY - TOP 3*"
-      }
-    });
+    const hasKbPaidRateData = kbPaidRateData.some(row => row[1] && row[2]);
 
-    let kbPaidRateText = "";
-    kbPaidRateData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Region, Paid Rate %, Target %, Total Payments]
-      const rank = row[1];
-      const region = cleanSheetData(row[2]);
-      let paidRate = row[3];
-      let target = row[4];
-      const totalPayments = row[5];
-
-      if (!rank || !region) return;
-
-      // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
-      if (typeof paidRate === 'number' && paidRate < 1) {
-        paidRate = (paidRate * 100).toFixed(2) + '%';
-      } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
-        const num = parseFloat(paidRate);
-        if (!isNaN(num) && num < 1) {
-          paidRate = (num * 100).toFixed(2) + '%';
+    if (hasKbPaidRateData) {
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*💪 KB PAID RATE CONTACTED 14DAY - TOP 3*"
         }
-      }
+      });
 
-      if (typeof target === 'number' && target < 1) {
-        target = (target * 100).toFixed(2) + '%';
-      } else if (typeof target === 'string' && !target.includes('%')) {
-        const num = parseFloat(target);
-        if (!isNaN(num) && num < 1) {
-          target = (num * 100).toFixed(2) + '%';
+      let kbPaidRateText = "";
+      kbPaidRateData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Region, Paid Rate %, Target %, Total Payments]
+        const rank = row[1];
+        const region = cleanSheetData(row[2]);
+        let paidRate = row[3];
+        let target = row[4];
+        const totalPayments = row[5];
+
+        if (!rank || !region) return;
+
+        // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
+        if (typeof paidRate === 'number' && paidRate < 1) {
+          paidRate = (paidRate * 100).toFixed(2) + '%';
+        } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
+          const num = parseFloat(paidRate);
+          if (!isNaN(num) && num < 1) {
+            paidRate = (num * 100).toFixed(2) + '%';
+          }
         }
-      }
 
-      const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = getRegionSlackEmoji(region);
+        if (typeof target === 'number' && target < 1) {
+          target = (target * 100).toFixed(2) + '%';
+        } else if (typeof target === 'string' && !target.includes('%')) {
+          const num = parseFloat(target);
+          if (!isNaN(num) && num < 1) {
+            target = (num * 100).toFixed(2) + '%';
+          }
+        }
 
-      kbPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
-      kbPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
-    });
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = getRegionSlackEmoji(region);
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: kbPaidRateText || "_No data available_"
-      }
-    });
+        kbPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+        kbPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: kbPaidRateText || "_No data available_"
+        }
+      });
+    }
 
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 6: CP PAID RATE CONTACTED 14DAY - TOP 3
+    // SECTION 6: CP PAID RATE CONTACTED 14DAY - TOP 3 (OPTIONAL)
     // ============================================
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: "*🏆 CP PAID RATE CONTACTED 14DAY - TOP 3*"
-      }
-    });
+    const hasCpPaidRateData = cpPaidRateData.some(row => row[1] && row[2]);
 
-    let cpPaidRateText = "";
-    cpPaidRateData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Region, Paid Rate %, Target %, Total Payments]
-      const rank = row[1];
-      const region = cleanSheetData(row[2]);
-      let paidRate = row[3];
-      let target = row[4];
-      const totalPayments = row[5];
-
-      if (!rank || !region) return;
-
-      // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
-      if (typeof paidRate === 'number' && paidRate < 1) {
-        paidRate = (paidRate * 100).toFixed(2) + '%';
-      } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
-        const num = parseFloat(paidRate);
-        if (!isNaN(num) && num < 1) {
-          paidRate = (num * 100).toFixed(2) + '%';
+    if (hasCpPaidRateData) {
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*🏆 CP PAID RATE CONTACTED 14DAY - TOP 3*"
         }
-      }
+      });
 
-      if (typeof target === 'number' && target < 1) {
-        target = (target * 100).toFixed(2) + '%';
-      } else if (typeof target === 'string' && !target.includes('%')) {
-        const num = parseFloat(target);
-        if (!isNaN(num) && num < 1) {
-          target = (num * 100).toFixed(2) + '%';
+      let cpPaidRateText = "";
+      cpPaidRateData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Region, Paid Rate %, Target %, Total Payments]
+        const rank = row[1];
+        const region = cleanSheetData(row[2]);
+        let paidRate = row[3];
+        let target = row[4];
+        const totalPayments = row[5];
+
+        if (!rank || !region) return;
+
+        // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
+        if (typeof paidRate === 'number' && paidRate < 1) {
+          paidRate = (paidRate * 100).toFixed(2) + '%';
+        } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
+          const num = parseFloat(paidRate);
+          if (!isNaN(num) && num < 1) {
+            paidRate = (num * 100).toFixed(2) + '%';
+          }
         }
-      }
 
-      const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = getRegionSlackEmoji(region);
+        if (typeof target === 'number' && target < 1) {
+          target = (target * 100).toFixed(2) + '%';
+        } else if (typeof target === 'string' && !target.includes('%')) {
+          const num = parseFloat(target);
+          if (!isNaN(num) && num < 1) {
+            target = (num * 100).toFixed(2) + '%';
+          }
+        }
 
-      cpPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
-      cpPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
-    });
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = getRegionSlackEmoji(region);
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: cpPaidRateText || "_No data available_"
-      }
-    });
+        cpPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+        cpPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: cpPaidRateText || "_No data available_"
+        }
+      });
+    }
 
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 7: HIGHEST PAYMENTS THIS WEEK - TOP 3
+    // SECTION 7: HIGHEST PAYMENTS THIS WEEK - TOP 3 (OPTIONAL)
     // ============================================
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: "*💰 HIGHEST PAYMENTS THIS WEEK - TOP 3*"
-      }
-    });
+    const hasHighestPaymentsData = highestPaymentsData.some(row => row[1] && row[2]);
 
-    let highestPaymentsText = "";
-    highestPaymentsData.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Region, Payment ($), Slack User ID]
-      const rank = row[1];
-      let managerName = row[2];
-      const region = cleanSheetData(row[3]);
-      const payment = row[4];
-      const userId = cleanSheetData(row[5]);
+    if (hasHighestPaymentsData) {
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*💰 HIGHEST PAYMENTS THIS WEEK - TOP 3*"
+        }
+      });
 
-      if (!rank || !managerName) return;
+      let highestPaymentsText = "";
+      highestPaymentsData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Manager Name, Region, Payment ($), Slack User ID]
+        const rank = row[1];
+        let managerName = row[2];
+        const region = cleanSheetData(row[3]);
+        const payment = row[4];
+        const userId = cleanSheetData(row[5]);
 
-      // Apply manager mentions (supports both direct User ID and Manager Tags lookup)
-      if (userId && userId.startsWith('U') && userId.length >= 9) {
-        // If User ID is provided directly in the sheet, use it
-        managerName = `<@${userId}>`;
-      } else {
-        // Otherwise, use the applyManagerMentions function (looks up from Manager Tags sheet)
-        managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(managerName) : cleanSheetData(managerName);
-      }
+        if (!rank || !managerName) return;
 
-      // Format payment with commas
-      const formattedPayment = typeof payment === 'number'
-        ? payment.toLocaleString('en-US')
-        : payment;
+        // Apply manager mentions (supports both direct User ID and Manager Tags lookup)
+        if (userId && userId.startsWith('U') && userId.length >= 9) {
+          // If User ID is provided directly in the sheet, use it
+          managerName = `<@${userId}>`;
+        } else {
+          // Otherwise, use the applyManagerMentions function (looks up from Manager Tags sheet)
+          managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(managerName) : cleanSheetData(managerName);
+        }
 
-      const rankEmoji = getRankEmoji(rank);
-      const regionEmoji = getRegionSlackEmoji(region);
+        // Format payment with commas
+        const formattedPayment = typeof payment === 'number'
+          ? payment.toLocaleString('en-US')
+          : payment;
 
-      highestPaymentsText += `${rankEmoji} *${managerName}* ${regionEmoji}\n`;
-      highestPaymentsText += `   └ Payment: *$${formattedPayment}* | ${region}\n\n`;
-    });
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = getRegionSlackEmoji(region);
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: highestPaymentsText || "_No data available_"
-      }
-    });
+        highestPaymentsText += `${rankEmoji} *${managerName}* ${regionEmoji}\n`;
+        highestPaymentsText += `   └ Payment: *$${formattedPayment}* | ${region}\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: highestPaymentsText || "_No data available_"
+        }
+      });
+    }
 
     // Footer with stats from sheet (you can update these manually)
     // Note: totalsData[0] is Display Date, so actual totals start at index 1
