@@ -1,50 +1,18 @@
 /**
- * Key Metrics Weekly Update - Sheet Template Setup
+ * Key Metrics Weekly Update - Sheet Template Setup and Testing
  *
- * This file helps you set up the sheet structure for the Key Metrics Weekly Update
+ * QUICK START:
+ * ============
+ * 1. Run createKeyMetricsWeeklySheet() to create the template sheet
+ * 2. Edit the data in the "Key Metrics Weekly" sheet with your actual values
+ * 3. Run testKeyMetricsWeeklyUpdate() to preview the Slack message
+ * 4. Set up automation to send automatically (see below)
  *
- * CONFIGURATION GUIDE:
- * ====================
- *
- * The automation reads from a sheet named "Net Churn Weekly" (configurable)
- *
- * IMPORTANT: You need to adjust the cell ranges in KeyMetricsWeeklyBuilder.gs
- * to match your actual sheet structure!
- *
- * Current default ranges (CHANGE THESE to match your sheet):
- * -----------------------------------------------------------
- *
- * 1. KEY METRICS OVERVIEW (Section 1):
- *    - Net Churn Total (Today): C2
- *    - Net Churn Plan: D2
- *    - ARPU Secondary: C3
- *    - ARPU WoW: D3
- *    - Purchase %: C4
- *    - Total Revenue: C5
- *
- * 2. NET CHURN BY REGION (Section 2):
- *    - Data Range: A2:F15
- *    - Columns: A=Region, B=Last week, C=Today, D=Forecast, E=Plan, F=Status Icon (optional)
- *
- * 3. SALES PERFORMANCE BY REGION (Section 3):
- *    - Data Range: A20:J35
- *    - Columns: A=region_code, E=Purch%, F=fact_revenue, G=plan_revenue, I=Revenue%
- *
- * 4. PLAN VS FACT BY CATEGORY (Section 4):
- *    - Data Range: A40:J45
- *    - Columns: A=category, B=fact_purchase, C=plan_purchase, E=Purch%, F=fact_revenue, G=plan_revenue
- *
- * HOW TO CUSTOMIZE:
- * =================
- *
- * 1. Open KeyMetricsWeeklyBuilder.gs
- * 2. Find the functions:
- *    - readKeyMetricsOverview()
- *    - readNetChurnByRegion()
- *    - readSalesPerformanceByRegion()
- *    - readPlanFactByCategory()
- * 3. Update the cell ranges to match YOUR sheet structure
- * 4. Test using testKeyMetricsWeeklyUpdate()
+ * The template includes:
+ * - Key Metrics Overview (rows 3-6)
+ * - Net Churn by Region (rows 10-23)
+ * - Sales Performance by Region (rows 27-40)
+ * - Plan vs Fact by Category (rows 44-48)
  */
 
 /**
@@ -53,9 +21,9 @@
  */
 function testKeyMetricsWeeklyUpdate() {
   const automation = {
-    sheetName: "Net Churn Weekly", // Change this to your sheet name
-    channelId: "C01234ABCDE",      // Your Slack channel ID (optional for testing)
-    webhookUrl: ""                 // Leave empty for testing
+    sheetName: "Key Metrics Weekly", // Your sheet name
+    channelId: "C01234ABCDE",        // Your Slack channel ID (optional for testing)
+    webhookUrl: ""                   // Leave empty for testing
   };
 
   const message = buildKeyMetricsWeeklyUpdate(automation);
@@ -70,26 +38,74 @@ function testKeyMetricsWeeklyUpdate() {
       if (block.type === "section" && block.text && block.text.text) {
         Logger.log(block.text.text);
         Logger.log("");
+      } else if (block.type === "divider") {
+        Logger.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
       }
     });
   }
 
   Logger.log("✅ Test complete! Check the logs above to see your message preview.");
+  Logger.log("\nTo view logs: Click 'View' > 'Logs' in the Apps Script editor");
+
   return message;
 }
 
 /**
- * Function to verify your sheet structure
- * Run this to check if your ranges are correct
+ * Quick function to send a test message to Slack
+ * Update the webhookUrl before running
  */
-function verifySheetStructure() {
+function sendTestKeyMetricsToSlack() {
+  const automation = {
+    sheetName: "Key Metrics Weekly",
+    webhookUrl: "YOUR_WEBHOOK_URL_HERE" // ← UPDATE THIS
+  };
+
+  if (automation.webhookUrl === "YOUR_WEBHOOK_URL_HERE") {
+    Browser.msgBox(
+      'Webhook URL Required',
+      'Please update the webhookUrl in the sendTestKeyMetricsToSlack() function before running.',
+      Browser.Buttons.OK
+    );
+    return;
+  }
+
+  const message = buildKeyMetricsWeeklyUpdate(automation);
+
+  // Send to Slack
+  const options = {
+    'method': 'post',
+    'contentType': 'application/json',
+    'payload': JSON.stringify(message),
+    'muteHttpExceptions': true
+  };
+
+  const response = UrlFetchApp.fetch(automation.webhookUrl, options);
+
+  if (response.getResponseCode() === 200) {
+    Logger.log("✅ Message sent to Slack successfully!");
+    Browser.msgBox('Success!', 'Message sent to Slack successfully!', Browser.Buttons.OK);
+  } else {
+    Logger.log("❌ Error sending message: " + response.getContentText());
+    Browser.msgBox('Error', 'Failed to send message. Check the logs for details.', Browser.Buttons.OK);
+  }
+}
+
+/**
+ * Function to verify your sheet structure
+ * Run this to check if your data is being read correctly
+ */
+function verifyKeyMetricsSheetStructure() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("Net Churn Weekly"); // Change to your sheet name
+  const sheet = ss.getSheetByName("Key Metrics Weekly");
 
   if (!sheet) {
-    Logger.log("❌ ERROR: Sheet 'Net Churn Weekly' not found!");
-    Logger.log("Available sheets:");
-    ss.getSheets().forEach(s => Logger.log("  - " + s.getName()));
+    Logger.log("❌ ERROR: Sheet 'Key Metrics Weekly' not found!");
+    Logger.log("Run createKeyMetricsWeeklySheet() first to create the template.");
+    Browser.msgBox(
+      'Sheet Not Found',
+      'The "Key Metrics Weekly" sheet was not found.\n\nRun createKeyMetricsWeeklySheet() first to create the template.',
+      Browser.Buttons.OK
+    );
     return;
   }
 
@@ -97,60 +113,72 @@ function verifySheetStructure() {
   Logger.log("\n=== VERIFYING DATA RANGES ===\n");
 
   // Check Overview section
-  Logger.log("1. KEY METRICS OVERVIEW:");
-  Logger.log("   Net Churn Total (C2): " + sheet.getRange("C2").getValue());
-  Logger.log("   Net Churn Plan (D2): " + sheet.getRange("D2").getValue());
-  Logger.log("   ARPU Secondary (C3): " + sheet.getRange("C3").getValue());
-  Logger.log("   Purchase % (C4): " + sheet.getRange("C4").getValue());
-  Logger.log("   Total Revenue (C5): " + sheet.getRange("C5").getValue());
+  Logger.log("1. KEY METRICS OVERVIEW (A3:D6):");
+  const overviewData = sheet.getRange("A3:D6").getValues();
+  overviewData.forEach((row, i) => {
+    if (row[0]) {
+      Logger.log(`   ${row[0]}: ${row[1]} | Plan: ${row[2]} | Delta: ${row[3]}`);
+    }
+  });
 
   // Check Net Churn by Region
-  Logger.log("\n2. NET CHURN BY REGION (A2:F15):");
-  const netChurnData = sheet.getRange("A2:F15").getValues();
+  Logger.log("\n2. NET CHURN BY REGION (A10:F23):");
+  const netChurnData = sheet.getRange("A10:F23").getValues();
   let netChurnCount = 0;
   netChurnData.forEach((row, i) => {
-    if (row[0] && row[0] !== "Region") {
+    if (row[0]) {
       netChurnCount++;
-      if (i < 3) { // Show first 3 rows as sample
-        Logger.log(`   Row ${i + 2}: ${row[0]} | ${row[1]} | ${row[2]} | ${row[3]} | ${row[4]}`);
+      if (i < 5) { // Show first 5 rows as sample
+        Logger.log(`   ${row[0]}: Today ${row[2]} | Plan ${row[4]} | Status ${row[5]}`);
       }
     }
   });
   Logger.log(`   Total regions found: ${netChurnCount}`);
 
   // Check Sales Performance
-  Logger.log("\n3. SALES PERFORMANCE BY REGION (A20:J35):");
-  const salesData = sheet.getRange("A20:J35").getValues();
+  Logger.log("\n3. SALES PERFORMANCE BY REGION (A27:H40):");
+  const salesData = sheet.getRange("A27:H40").getValues();
   let salesCount = 0;
   salesData.forEach((row, i) => {
-    if (row[0] && row[0] !== "region_code" && row[0] !== "Total") {
+    if (row[0]) {
       salesCount++;
-      if (i < 3) { // Show first 3 rows as sample
-        Logger.log(`   Row ${i + 20}: ${row[0]} | Purch%: ${row[4]} | Revenue: ${row[5]}`);
+      if (i < 5) { // Show first 5 rows as sample
+        Logger.log(`   ${row[0]}: Purch% ${row[4]} | Revenue ${row[5]} | Rev% ${row[7]}`);
       }
     }
   });
   Logger.log(`   Total regions found: ${salesCount}`);
 
   // Check Plan vs Fact by Category
-  Logger.log("\n4. PLAN VS FACT BY CATEGORY (A40:J45):");
-  const categoryData = sheet.getRange("A40:J45").getValues();
+  Logger.log("\n4. PLAN VS FACT BY CATEGORY (A44:G48):");
+  const categoryData = sheet.getRange("A44:G48").getValues();
   let categoryCount = 0;
   categoryData.forEach((row, i) => {
-    if (row[0] && row[0] !== "category" && row[0] !== "Total") {
+    if (row[0]) {
       categoryCount++;
-      Logger.log(`   Row ${i + 40}: ${row[0]} | Fact: ${row[1]} | Plan: ${row[2]} | %: ${row[4]}`);
+      Logger.log(`   ${row[0]}: Fact ${row[1]} | Plan ${row[2]} | Purch% ${row[4]}`);
     }
   });
   Logger.log(`   Total categories found: ${categoryCount}`);
 
   Logger.log("\n✅ Verification complete!");
-  Logger.log("\nIf any ranges look incorrect, update them in KeyMetricsWeeklyBuilder.gs");
+  Logger.log("\nEverything looks good! Run testKeyMetricsWeeklyUpdate() to preview the Slack message.");
+
+  Browser.msgBox(
+    'Verification Complete',
+    `Sheet structure verified successfully!\n\n` +
+    `Found:\n` +
+    `• ${netChurnCount} regions in Net Churn section\n` +
+    `• ${salesCount} regions in Sales Performance section\n` +
+    `• ${categoryCount} categories\n\n` +
+    `Check the logs for detailed data. Next step: Run testKeyMetricsWeeklyUpdate()`,
+    Browser.Buttons.OK
+  );
 }
 
 /**
- * Quick setup function to add this automation to your Slack Automation Settings
- * (If you're using the centralized automation system from SlackAutomationBuilder.gs)
+ * Add this automation to Slack Automation Settings
+ * (If you're using the centralized automation system)
  */
 function addKeyMetricsToAutomationSettings() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -158,7 +186,11 @@ function addKeyMetricsToAutomationSettings() {
 
   if (!settingsSheet) {
     Logger.log("❌ 'Slack Automation Settings' sheet not found.");
-    Logger.log("You'll need to manually set up the automation trigger.");
+    Browser.msgBox(
+      'Settings Sheet Not Found',
+      'The "Slack Automation Settings" sheet was not found.\n\nYou can manually set up a trigger or webhook to call buildKeyMetricsWeeklyUpdate().',
+      Browser.Buttons.OK
+    );
     return;
   }
 
@@ -168,17 +200,25 @@ function addKeyMetricsToAutomationSettings() {
 
   // Add the automation
   settingsSheet.getRange(nextRow, 1, 1, 9).setValues([[
-    "Key Metrics Weekly",           // Automation Name
-    "Net Churn Weekly",              // Sheet Name
-    "buildKeyMetricsWeeklyUpdate",  // Builder Function
-    "YOUR_CHANNEL_ID",               // Channel ID
-    "YOUR_WEBHOOK_URL",              // Webhook URL
-    "TRUE",                          // Enabled
-    "Weekly",                        // Frequency
-    "Monday",                        // Day
-    "09:00"                          // Time
+    "Key Metrics Weekly",            // Automation Name
+    "Key Metrics Weekly",             // Sheet Name
+    "buildKeyMetricsWeeklyUpdate",   // Builder Function
+    "YOUR_CHANNEL_ID",                // Channel ID
+    "YOUR_WEBHOOK_URL",               // Webhook URL
+    "TRUE",                           // Enabled
+    "Weekly",                         // Frequency
+    "Monday",                         // Day
+    "09:00"                           // Time
   ]]);
 
   Logger.log("✅ Added 'Key Metrics Weekly' automation to settings!");
-  Logger.log("⚠️ Don't forget to update the Channel ID and Webhook URL!");
+  Browser.msgBox(
+    'Automation Added',
+    'The "Key Metrics Weekly" automation has been added to your Slack Automation Settings.\n\n' +
+    '⚠️ Don\'t forget to update:\n' +
+    '• Channel ID\n' +
+    '• Webhook URL\n\n' +
+    'Then enable the automation in your settings sheet.',
+    Browser.Buttons.OK
+  );
 }

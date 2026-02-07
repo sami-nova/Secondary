@@ -7,7 +7,10 @@
  * - Optional sections (hide if empty)
  * - Visual indicators (emojis, status icons)
  * - Monospaced tables for data alignment
+ * - Region flag emojis
  * - Manual editability in Google Sheets
+ *
+ * Works with the "Key Metrics Weekly" sheet created by KeyMetricsWeeklyTemplate.gs
  */
 
 /**
@@ -17,12 +20,12 @@
 function buildKeyMetricsWeeklyUpdate(automation) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName(automation.sheetName || "Net Churn Weekly");
+    const sheet = ss.getSheetByName(automation.sheetName || "Key Metrics Weekly");
 
     if (!sheet) {
-      Logger.log(`Sheet not found: ${automation.sheetName || "Net Churn Weekly"}`);
+      Logger.log(`Sheet not found: ${automation.sheetName || "Key Metrics Weekly"}`);
       return {
-        text: `❌ Error: Sheet "${automation.sheetName || "Net Churn Weekly"}" not found`
+        text: `❌ Error: Sheet "${automation.sheetName || "Key Metrics Weekly"}" not found`
       };
     }
 
@@ -48,7 +51,7 @@ function buildKeyMetricsWeeklyUpdate(automation) {
     // SECTION 1: KEY METRICS OVERVIEW
     // ============================================
     const overviewData = readKeyMetricsOverview(sheet);
-    if (overviewData && overviewData.hasData) {
+    if (overviewData && overviewData.length > 0) {
       blocks.push(...buildKeyMetricsOverviewSection(overviewData));
       blocks.push({ type: "divider" });
     }
@@ -92,49 +95,45 @@ function buildKeyMetricsWeeklyUpdate(automation) {
 }
 
 /**
- * Read Key Metrics Overview data (Net Churn Total, ARPU Secondary, Purchase %, Total Revenue)
- * Expected sheet structure: Row with key metrics summary
+ * Read Key Metrics Overview data
+ * Template range: A3:D6
  */
 function readKeyMetricsOverview(sheet) {
   try {
-    // Read from a dedicated "Overview" section in the sheet
-    // Format: Cell A1: "Key Metrics Overview" (header)
-    //         Row 2: Labels | Row 3: Values
-    // Adjust these cell ranges based on your actual sheet structure
+    const dataRange = sheet.getRange("A3:D6");
+    const data = dataRange.getValues();
 
-    const netChurnTotal = sheet.getRange("C2").getValue(); // Today's Net Churn Total
-    const netChurnPlan = sheet.getRange("D2").getValue();  // Plan
-    const netChurnDelta = calculateDelta(netChurnTotal, netChurnPlan);
+    const metrics = [];
 
-    const arpuSecondary = sheet.getRange("C3").getValue(); // ARPU Secondary (if you have it)
-    const arpuWoW = sheet.getRange("D3").getValue();       // WoW change (optional)
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const metric = cleanSheetData(row[0]);
+      const value = row[1];
+      const planTarget = row[2];
+      const deltaWoW = cleanSheetData(row[3]);
 
-    const purchasePercent = sheet.getRange("C4").getValue(); // Total Purchase %
-    const totalRevenue = sheet.getRange("C5").getValue();    // Total Revenue
+      // Skip empty rows
+      if (!metric) continue;
 
-    // Check if we have any data
-    const hasData = netChurnTotal || arpuSecondary || purchasePercent || totalRevenue;
+      metrics.push({
+        metric: metric,
+        value: value,
+        planTarget: planTarget,
+        deltaWoW: deltaWoW
+      });
+    }
 
-    return {
-      hasData: hasData,
-      netChurnTotal: netChurnTotal,
-      netChurnPlan: netChurnPlan,
-      netChurnDelta: netChurnDelta,
-      arpuSecondary: arpuSecondary,
-      arpuWoW: arpuWoW,
-      purchasePercent: purchasePercent,
-      totalRevenue: totalRevenue
-    };
+    return metrics;
   } catch (error) {
     Logger.log(`Error reading overview data: ${error.toString()}`);
-    return { hasData: false };
+    return [];
   }
 }
 
 /**
  * Build Key Metrics Overview section
  */
-function buildKeyMetricsOverviewSection(data) {
+function buildKeyMetricsOverviewSection(metrics) {
   const blocks = [];
 
   blocks.push({
@@ -147,31 +146,17 @@ function buildKeyMetricsOverviewSection(data) {
 
   let overviewText = "";
 
-  // Net Churn Total
-  if (data.netChurnTotal) {
-    const statusIcon = data.netChurnDelta < 0 ? "✅" : "❌";
-    const deltaText = data.netChurnDelta ? `${statusIcon} ${data.netChurnDelta}pp` : "";
-    overviewText += `• *Total Net Churn:* ${formatPercentage(data.netChurnTotal)}`;
-    if (data.netChurnPlan) {
-      overviewText += ` (Plan: ${formatPercentage(data.netChurnPlan)}) ${deltaText}`;
-    }
-    overviewText += "\n";
-  }
+  metrics.forEach(m => {
+    const formattedValue = formatMetricValue(m.value);
+    const formattedPlan = formatMetricValue(m.planTarget);
+    const deltaText = m.deltaWoW ? ` ${m.deltaWoW}` : "";
 
-  // ARPU Secondary
-  if (data.arpuSecondary) {
-    overviewText += `• *ARPU Secondary:* ${formatCurrency(data.arpuSecondary)}`;
-    if (data.arpuWoW) {
-      const wowIcon = data.arpuWoW >= 0 ? "↗️" : "↘️";
-      overviewText += ` | WoW: ${wowIcon} ${data.arpuWoW > 0 ? '+' : ''}${formatPercentage(data.arpuWoW)}`;
+    overviewText += `• *${m.metric}:* ${formattedValue}`;
+    if (formattedPlan) {
+      overviewText += ` (${formattedPlan})`;
     }
-    overviewText += "\n";
-  }
-
-  // Purchase % and Revenue
-  if (data.purchasePercent || data.totalRevenue) {
-    overviewText += `• *Total Purchase %:* ${formatPercentage(data.purchasePercent)} | *Total Revenue:* ${formatCurrency(data.totalRevenue)}`;
-  }
+    overviewText += deltaText + "\n";
+  });
 
   blocks.push({
     type: "section",
@@ -186,15 +171,11 @@ function buildKeyMetricsOverviewSection(data) {
 
 /**
  * Read Net Churn by Region data
- * Expected sheet structure: Table with Region, Last week, Today, Plan, Forecast columns
+ * Template range: A10:F23
  */
 function readNetChurnByRegion(sheet) {
   try {
-    // Adjust these ranges based on your actual sheet structure
-    // Expected: Starting at row 7 (or wherever your Net Churn table starts)
-    // Columns: A=Region, B=Last week, C=Today, D=Forecast, E=Plan
-
-    const dataRange = sheet.getRange("A2:F15"); // Adjust range as needed
+    const dataRange = sheet.getRange("A10:F23");
     const data = dataRange.getValues();
 
     const regions = [];
@@ -206,10 +187,10 @@ function readNetChurnByRegion(sheet) {
       const today = row[2];
       const forecast = row[3];
       const plan = row[4];
-      const statusIcon = row[5]; // Optional: you can add status icons in the sheet
+      const status = cleanSheetData(row[5]);
 
-      // Skip empty rows or header rows
-      if (!region || region === "Region") continue;
+      // Skip empty rows
+      if (!region) continue;
 
       regions.push({
         region: region,
@@ -217,7 +198,7 @@ function readNetChurnByRegion(sheet) {
         today: today,
         forecast: forecast,
         plan: plan,
-        statusIcon: statusIcon
+        status: status
       });
     }
 
@@ -244,26 +225,22 @@ function buildNetChurnByRegionSection(regions) {
 
   // Build monospaced table
   let tableText = "```\n";
-  tableText += "Region | Last week | Today | Plan   | Forecast\n";
-  tableText += "-------|-----------|-------|--------|----------\n";
+  tableText += "Region     | Last week | Today | Plan   | Forecast\n";
+  tableText += "-----------|-----------|-------|--------|----------\n";
 
   regions.forEach(r => {
-    const region = padRight(r.region, 6);
+    // Get region flag emoji
+    const regionEmoji = getKeyMetricsRegionEmoji(r.region);
+    const regionDisplay = regionEmoji ? `${regionEmoji} ${r.region}` : r.region;
+
+    const region = padRight(regionDisplay, 10);
     const lastWeek = padLeft(formatPercentage(r.lastWeek), 9);
     const today = padLeft(formatPercentage(r.today), 5);
     const plan = padLeft(formatPercentage(r.plan), 6);
     const forecast = padLeft(formatPercentage(r.forecast), 5);
 
-    // Determine status icon
-    let statusIcon = "";
-    if (r.statusIcon) {
-      statusIcon = ` ${r.statusIcon}`;
-    } else if (r.today && r.plan) {
-      // Auto-calculate: if today < plan, it's good (✅), otherwise bad (❌)
-      const todayNum = parseFloat(String(r.today).replace('%', ''));
-      const planNum = parseFloat(String(r.plan).replace('%', ''));
-      statusIcon = !isNaN(todayNum) && !isNaN(planNum) && todayNum < planNum ? " ✅" : " ❌";
-    }
+    // Use status from sheet if provided, otherwise calculate
+    let statusIcon = r.status ? ` ${r.status}` : "";
 
     tableText += `${region} | ${lastWeek} | ${today} | ${plan} | ${forecast}${statusIcon}\n`;
   });
@@ -283,15 +260,11 @@ function buildNetChurnByRegionSection(regions) {
 
 /**
  * Read Sales Performance by Region
- * Expected: Regional data with Purchase %, Revenue, Plan Revenue
+ * Template range: A27:H40
  */
 function readSalesPerformanceByRegion(sheet) {
   try {
-    // Adjust range based on your "Plan and Fact by regions" section
-    // Expected columns: region_code, fact_purchase, plan_purchase, forecast_purchase,
-    //                   Purch_Prediction, fact_revenue, plan_revenue, forecast_revenue, Revenue_Prediction
-
-    const dataRange = sheet.getRange("A20:J35"); // Adjust as needed
+    const dataRange = sheet.getRange("A27:H40");
     const data = dataRange.getValues();
 
     const regions = [];
@@ -299,16 +272,22 @@ function readSalesPerformanceByRegion(sheet) {
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       const region = cleanSheetData(row[0]);
-      const purchPercent = row[4]; // Purch_Prediction column
-      const factRevenue = row[5];  // fact_revenue
-      const planRevenue = row[6];  // plan_revenue
-      const revenuePercent = row[8]; // Revenue_Prediction
+      const factPurchase = row[1];
+      const planPurchase = row[2];
+      const forecastPurch = row[3];
+      const purchPercent = row[4];
+      const factRevenue = row[5];
+      const planRevenue = row[6];
+      const revenuePercent = row[7];
 
-      // Skip empty rows, headers, or totals
-      if (!region || region === "region_code" || region === "Total") continue;
+      // Skip empty rows
+      if (!region) continue;
 
       regions.push({
         region: region,
+        factPurchase: factPurchase,
+        planPurchase: planPurchase,
+        forecastPurch: forecastPurch,
         purchPercent: purchPercent,
         factRevenue: factRevenue,
         planRevenue: planRevenue,
@@ -339,14 +318,18 @@ function buildSalesPerformanceSection(regions) {
 
   // Build monospaced table
   let tableText = "```\n";
-  tableText += "Region | Purch%| Revenue    | Plan Rev   | Rev%   | Status\n";
-  tableText += "-------|-------|------------|------------|--------|-------\n";
+  tableText += "Region      | Purch%| Revenue   | Plan Rev  | Rev%   | Status\n";
+  tableText += "------------|-------|-----------|-----------|--------|-------\n";
 
   regions.forEach(r => {
-    const region = padRight(r.region, 6);
+    // Get region flag emoji
+    const regionEmoji = getKeyMetricsRegionEmoji(r.region);
+    const regionDisplay = regionEmoji ? `${regionEmoji} ${r.region}` : r.region;
+
+    const region = padRight(regionDisplay, 11);
     const purchPct = padLeft(formatPercentage(r.purchPercent), 5);
-    const revenue = padLeft(formatCurrency(r.factRevenue, true), 10);
-    const planRev = padLeft(formatCurrency(r.planRevenue, true), 10);
+    const revenue = padLeft(formatCurrency(r.factRevenue, true), 9);
+    const planRev = padLeft(formatCurrency(r.planRevenue, true), 9);
     const revPct = padLeft(formatPercentage(r.revenuePercent), 6);
 
     // Status icon based on revenue %
@@ -379,15 +362,11 @@ function buildSalesPerformanceSection(regions) {
 
 /**
  * Read Plan vs Fact by Category
- * Expected: Categories like "paid on time", "paid in advance", "churn prevention", "churn"
+ * Template range: A44:G48
  */
 function readPlanFactByCategory(sheet) {
   try {
-    // Adjust range based on your "Plan and Fact by category" section
-    // Expected columns: category, fact_purchase, plan_purchases, forecast_purchase,
-    //                   Purch_Plan_Exec, fact_revenue, plan_revenue, forecast_revenue, Revenue_Plan_Exec
-
-    const dataRange = sheet.getRange("A40:J45"); // Adjust as needed
+    const dataRange = sheet.getRange("A44:G48");
     const data = dataRange.getValues();
 
     const categories = [];
@@ -397,17 +376,19 @@ function readPlanFactByCategory(sheet) {
       const category = cleanSheetData(row[0]);
       const factPurchase = row[1];
       const planPurchase = row[2];
-      const purchPercent = row[4]; // Purch_Plan_Exec
+      const forecastPurch = row[3];
+      const purchPercent = row[4];
       const factRevenue = row[5];
       const planRevenue = row[6];
 
-      // Skip empty rows, headers, or totals
-      if (!category || category === "category" || category === "Total") continue;
+      // Skip empty rows or "Total" row (we'll show Total first)
+      if (!category) continue;
 
       categories.push({
         category: category,
         factPurchase: factPurchase,
         planPurchase: planPurchase,
+        forecastPurch: forecastPurch,
         purchPercent: purchPercent,
         factRevenue: factRevenue,
         planRevenue: planRevenue
@@ -480,6 +461,45 @@ function buildPlanFactByCategorySection(categories) {
 // ============================================
 
 /**
+ * Get region flag emoji for Key Metrics (similar to leaderboard)
+ */
+function getKeyMetricsRegionEmoji(region) {
+  if (!region) return "";
+
+  const regionUpper = String(region).toUpperCase().trim();
+
+  // Map regions to flag emojis
+  const regionMap = {
+    'TOTAL': '🌍',
+    'ARAB': '🇸🇦',
+    'AE': '🇦🇪',
+    'AR': '🇦🇪',
+    'SA': '🇸🇦',
+    'AE/AR/SA': '🇸🇦',
+    'TR': '🇹🇷',
+    'PL': '🇵🇱',
+    'IL': '🇮🇱',
+    'DE': '🇩🇪',
+    'NL': '🇳🇱',
+    'CH': '🇨🇭',
+    'AT': '🇦🇹',
+    'DE/NL/CH/AT': '🇩🇪',
+    'IT': '🇮🇹',
+    'RU': '🇷🇺',
+    'RO': '🇷🇴',
+    'ES': '🇪🇸',
+    'FR': '🇫🇷',
+    'CZ': '🇨🇿',
+    'SK': '🇸🇰',
+    'CZ/SK': '🇨🇿',
+    'JP': '🇯🇵',
+    'KR': '🇰🇷'
+  };
+
+  return regionMap[regionUpper] || "";
+}
+
+/**
  * Clean sheet data (remove extra whitespace, handle null/undefined)
  */
 function cleanSheetData(value) {
@@ -487,6 +507,33 @@ function cleanSheetData(value) {
     return '';
   }
   return String(value).trim();
+}
+
+/**
+ * Format metric value (handles currency, percentages, numbers)
+ */
+function formatMetricValue(value) {
+  if (value === '' || value === null || value === undefined) return '';
+
+  // If already a formatted string, return as-is
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  // If it's a number
+  if (typeof value === 'number') {
+    // Check if it looks like a percentage (< 1)
+    if (value < 1 && value > 0) {
+      return (value * 100).toFixed(2) + '%';
+    }
+    // Check if it looks like currency (large number)
+    if (value >= 1000) {
+      return formatCurrency(value);
+    }
+    return value.toFixed(2) + '%';
+  }
+
+  return String(value);
 }
 
 /**
@@ -518,6 +565,11 @@ function formatPercentage(value) {
  */
 function formatCurrency(value, short = false) {
   if (value === '' || value === null || value === undefined) return '';
+
+  // If already a formatted string with $, return as-is
+  if (typeof value === 'string' && value.includes('$')) {
+    return value;
+  }
 
   let num = typeof value === 'number' ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ''));
 
@@ -577,19 +629,4 @@ function capitalize(str) {
   return str.split(' ').map(word =>
     word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
   ).join(' ');
-}
-
-/**
- * Calculate delta between two percentage values
- */
-function calculateDelta(current, target) {
-  if (!current || !target) return null;
-
-  const currentNum = parseFloat(String(current).replace('%', ''));
-  const targetNum = parseFloat(String(target).replace('%', ''));
-
-  if (isNaN(currentNum) || isNaN(targetNum)) return null;
-
-  const delta = currentNum - targetNum;
-  return (delta > 0 ? '+' : '') + delta.toFixed(2);
 }
