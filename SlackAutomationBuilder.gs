@@ -434,6 +434,8 @@ function buildBeautifulReport(automation, allRows) {
       return buildLeaderboardFormat(messageHeader, headers, validRows, automation);
     case "leaderboard_combined":
       return buildCombinedLeaderboardFromSheet(automation);
+    case "key_metrics_weekly":
+      return buildKeyMetricsWeeklyUpdate(automation);
     case "inline":
     default:
       return buildInlineFormat(messageHeader, headers, validRows, automation);
