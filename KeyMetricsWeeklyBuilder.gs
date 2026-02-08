@@ -147,8 +147,21 @@ function buildKeyMetricsOverviewSection(metrics) {
   let overviewText = "";
 
   metrics.forEach(m => {
-    const formattedValue = formatMetricValue(m.value);
-    const formattedPlan = formatMetricValue(m.planTarget);
+    // Check if metric is ARPU-related (should be formatted as currency)
+    const isARPU = m.metric && m.metric.toUpperCase().includes('ARPU');
+
+    let formattedValue, formattedPlan;
+
+    if (isARPU) {
+      // Format ARPU as currency
+      formattedValue = formatCurrency(m.value);
+      formattedPlan = m.planTarget ? formatCurrency(m.planTarget) : '';
+    } else {
+      // Use default formatting for other metrics
+      formattedValue = formatMetricValue(m.value);
+      formattedPlan = formatMetricValue(m.planTarget);
+    }
+
     const deltaText = m.deltaWoW ? ` ${m.deltaWoW}` : "";
 
     overviewText += `• *${m.metric}:* ${formattedValue}`;
@@ -210,7 +223,7 @@ function readNetChurnByRegion(sheet) {
 }
 
 /**
- * Build Net Churn by Region section with monospaced table
+ * Build Net Churn by Region section (without code blocks, using Slack emoji codes)
  */
 function buildNetChurnByRegionSection(regions) {
   const blocks = [];
@@ -223,28 +236,26 @@ function buildNetChurnByRegionSection(regions) {
     }
   });
 
-  // Build monospaced table with code blocks for proper alignment
-  let tableText = "```\n";
-  tableText += "Region | Last week | Today | Plan   | Forecast\n";
-  tableText += "-------|-----------|-------|--------|----------\n";
+  // Build table WITHOUT code blocks so Slack emoji codes render
+  let tableText = "";
 
   regions.forEach(r => {
-    // Use region text name (emojis don't render in code blocks)
-    const regionName = cleanSheetData(r.region);
+    // Get region Slack emoji code (like :flag-tr:)
+    const regionEmoji = getRegionSlackEmoji(r.region);
 
-    const region = padRight(regionName, 6);
-    const lastWeek = padLeft(formatPercentage(r.lastWeek), 9);
-    const today = padLeft(formatPercentage(r.today), 5);
-    const plan = padLeft(formatPercentage(r.plan), 6);
-    const forecast = padLeft(formatPercentage(r.forecast), 8);
+    tableText += `${regionEmoji} *${r.region}*`;
+    tableText += ` | ${formatPercentage(r.lastWeek)}`;
+    tableText += ` | ${formatPercentage(r.today)}`;
+    tableText += ` | ${formatPercentage(r.plan)}`;
+    tableText += ` | ${formatPercentage(r.forecast)}`;
 
     // Use status from sheet if provided
-    let statusIcon = r.status ? ` ${r.status}` : "";
+    if (r.status) {
+      tableText += ` ${r.status}`;
+    }
 
-    tableText += `${region} | ${lastWeek} | ${today} | ${plan} | ${forecast}${statusIcon}\n`;
+    tableText += `\n`;
   });
-
-  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -296,7 +307,7 @@ function readSalesPerformanceByRegion(sheet) {
 }
 
 /**
- * Build Sales Performance by Region section
+ * Build Sales Performance by Region section (without code blocks, using Slack emoji codes)
  */
 function buildSalesPerformanceSection(regions) {
   const blocks = [];
@@ -309,25 +320,20 @@ function buildSalesPerformanceSection(regions) {
     }
   });
 
-  // Build monospaced table with code blocks for proper alignment
-  let tableText = "```\n";
-  tableText += "Region | Purch%| Revenue   | Plan Rev  | Rev%   \n";
-  tableText += "-------|-------|-----------|-----------|--------\n";
+  // Build table WITHOUT code blocks so Slack emoji codes render
+  let tableText = "";
 
   regions.forEach(r => {
-    // Use region text name (emojis don't render in code blocks)
-    const regionName = cleanSheetData(r.region);
+    // Get region Slack emoji code (like :flag-tr:)
+    const regionEmoji = getRegionSlackEmoji(r.region);
 
-    const region = padRight(regionName, 6);
-    const purchPct = padLeft(formatPercentage(r.purchPercent), 5);
-    const revenue = padLeft(formatCurrency(r.factRevenue, true), 9);
-    const planRev = padLeft(formatCurrency(r.planRevenue, true), 9);
-    const revPct = padLeft(formatPercentage(r.revenuePercent), 6);
-
-    tableText += `${region} | ${purchPct} | ${revenue} | ${planRev} | ${revPct}\n`;
+    tableText += `${regionEmoji} *${r.region}*`;
+    tableText += ` | ${formatPercentage(r.purchPercent)}`;
+    tableText += ` | ${formatCurrency(r.factRevenue, true)}`;
+    tableText += ` | ${formatCurrency(r.planRevenue, true)}`;
+    tableText += ` | ${formatPercentage(r.revenuePercent)}`;
+    tableText += `\n`;
   });
-
-  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -379,7 +385,7 @@ function readPlanFactByCategory(sheet) {
 }
 
 /**
- * Build Plan vs Fact by Category section
+ * Build Plan vs Fact by Category section (without code blocks)
  */
 function buildPlanFactByCategorySection(categories) {
   const blocks = [];
@@ -392,22 +398,17 @@ function buildPlanFactByCategorySection(categories) {
     }
   });
 
-  // Build monospaced table with code blocks for proper alignment
-  let tableText = "```\n";
-  tableText += "Category        | Fact  | Plan  | Purch%| Revenue   \n";
-  tableText += "----------------|-------|-------|-------|----------\n";
+  // Build table WITHOUT code blocks
+  let tableText = "";
 
   categories.forEach(c => {
-    const category = padRight(capitalize(c.category), 15);
-    const fact = padLeft(formatNumber(c.factPurchase), 5);
-    const plan = padLeft(formatNumber(c.planPurchase), 5);
-    const purchPct = padLeft(formatPercentage(c.purchPercent), 5);
-    const revenue = padLeft(formatCurrency(c.factRevenue, true), 9);
-
-    tableText += `${category} | ${fact} | ${plan} | ${purchPct} | ${revenue}\n`;
+    tableText += `*${capitalize(c.category)}*`;
+    tableText += ` | ${formatNumber(c.factPurchase)}`;
+    tableText += ` | ${formatNumber(c.planPurchase)}`;
+    tableText += ` | ${formatPercentage(c.purchPercent)}`;
+    tableText += ` | ${formatCurrency(c.factRevenue, true)}`;
+    tableText += `\n`;
   });
-
-  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -425,42 +426,45 @@ function buildPlanFactByCategorySection(categories) {
 // ============================================
 
 /**
- * Get region flag emoji for Key Metrics (similar to leaderboard)
+ * Get region Slack emoji code (e.g., :flag-tr:)
+ * Same as leaderboard implementation
  */
-function getKeyMetricsRegionEmoji(region) {
-  if (!region) return "";
+function getRegionSlackEmoji(region) {
+  if (!region) return '';
 
-  const regionUpper = String(region).toUpperCase().trim();
+  const regionStr = String(region).toUpperCase().trim();
 
-  // Map regions to flag emojis
   const regionMap = {
-    'TOTAL': '🌍',
-    'ARAB': '🇸🇦',
-    'AE': '🇦🇪',
-    'AR': '🇦🇪',
-    'SA': '🇸🇦',
-    'AE/AR/SA': '🇸🇦',
-    'TR': '🇹🇷',
-    'PL': '🇵🇱',
-    'IL': '🇮🇱',
-    'DE': '🇩🇪',
-    'NL': '🇳🇱',
-    'CH': '🇨🇭',
-    'AT': '🇦🇹',
-    'DE/NL/CH/AT': '🇩🇪',
-    'IT': '🇮🇹',
-    'RU': '🇷🇺',
-    'RO': '🇷🇴',
-    'ES': '🇪🇸',
-    'FR': '🇫🇷',
-    'CZ': '🇨🇿',
-    'SK': '🇸🇰',
-    'CZ/SK': '🇨🇿',
-    'JP': '🇯🇵',
-    'KR': '🇰🇷'
+    'TR': ':flag-tr:',
+    'ARAB': ':flag-sa:',
+    'RU': ':ru:',
+    'CZ': ':flag-cz:',
+    'RO': ':flag-ro:',
+    'ES': ':es:',
+    'FR': ':fr:',
+    'PL': ':flag-pl:',
+    'DE': ':de:',
+    'IL': ':flag-il:',
+    'IT': ':flag-it:',
+    'SA': ':flag-sa:',
+    'NA': ':us:',
+    'US': ':us:',
+    'UK': ':flag-gb:',
+    'JP': ':jp:',
+    'KR': ':kr:',
+    'CN': ':cn:',
+    'IN': ':flag-in:',
+    'BR': ':flag-br:',
+    'MX': ':flag-mx:',
+    'AU': ':flag-au:',
+    'CA': ':flag-ca:',
+    'EMEA': ':flag-eu:',
+    'APAC': ':earth_asia:',
+    'LATAM': ':earth_americas:',
+    'TOTAL': ':earth_americas:'
   };
 
-  return regionMap[regionUpper] || "";
+  return regionMap[regionStr] || '';
 }
 
 /**
