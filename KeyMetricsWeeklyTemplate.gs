@@ -109,52 +109,52 @@ function createKeyMetricsWeeklySheet() {
   // SECTION 3: SALES PERFORMANCE BY REGION
   // ============================================
   sheet.getRange("A25").setValue("💰 SALES PERFORMANCE BY REGION");
-  sheet.getRange("A25:H25").merge();
-  sheet.getRange("A25:H25").setBackground("#27AE60").setFontColor("white").setFontWeight("bold").setFontSize(12).setHorizontalAlignment("center");
+  sheet.getRange("A25:E25").merge();
+  sheet.getRange("A25:E25").setBackground("#27AE60").setFontColor("white").setFontWeight("bold").setFontSize(12).setHorizontalAlignment("center");
 
   currentRow = 26;
 
-  // Headers
-  const salesHeaders = ["Region", "Fact Purchase", "Plan Purchase", "Forecast Purch", "Purch %", "Fact Revenue", "Plan Revenue", "Revenue %"];
-  sheet.getRange("A26:H26").setValues([salesHeaders]);
-  sheet.getRange("A26:H26").setBackground("#D5F4E6").setFontWeight("bold").setHorizontalAlignment("center");
+  // Headers (simplified to match Slack output)
+  const salesHeaders = ["Region", "Purch %", "Fact Revenue", "Plan Revenue", "Revenue %"];
+  sheet.getRange("A26:E26").setValues([salesHeaders]);
+  sheet.getRange("A26:E26").setBackground("#D5F4E6").setFontWeight("bold").setHorizontalAlignment("center");
 
-  // Sample data
+  // Sample data (simplified to match Slack output)
   const salesData = [
-    ["Total", 10880, 54651, 51804, "94.8%", "$1,517,158", "$7,241,463", "100.0%"],
-    ["TR", 3095, 15234, 14766, "96.9%", "$379,455", "$1,576,520", "115.8%"],
-    ["PL", 1879, 9713, 8964, "92.3%", "$267,193", "$1,369,629", "93.3%"],
-    ["IL", 1407, 7353, 6721, "91.4%", "$225,091", "$1,119,731", "96.1%"],
-    ["AE/AR/SA", 517, 2798, 2469, "88.3%", "$73,425", "$369,796", "94.6%"],
-    ["FR", 727, 3548, 3465, "97.7%", "$92,165", "$441,511", "99.1%"],
-    ["IT", 644, 3231, 3073, "95.1%", "$92,126", "$456,860", "96.2%"],
-    ["RU", 685, 3375, 3249, "95.3%", "$74,819", "$371,788", "94.7%"],
-    ["DE/NL/CH/AT", 417, 2064, 1991, "96.4%", "$85,572", "$395,659", "103.2%"],
-    ["ES", 431, 2041, 2058, "100.8%", "$56,732", "$276,029", "98.1%"],
-    ["CZ/SK", 242, 1908, 1147, "87.7%", "$35,606", "$214,738", "78.7%"],
-    ["RO", 360, 1596, 1714, "107.4%", "$57,904", "$246,029", "112.6%"],
-    ["KR", 105, 474, 497, "104.8%", "$22,460", "$97,469", "108.6%"],
-    ["JP", 67, 447, 309, "69.2%", "$17,162", "$117,902", "65.9%"]
+    ["Total", "94.8%", "$1,517,158", "$7,241,463", "100.0%"],
+    ["TR", "96.9%", "$379,455", "$1,576,520", "115.8%"],
+    ["PL", "92.3%", "$267,193", "$1,369,629", "93.3%"],
+    ["IL", "91.4%", "$225,091", "$1,119,731", "96.1%"],
+    ["AE/AR/SA", "88.3%", "$73,425", "$369,796", "94.6%"],
+    ["FR", "97.7%", "$92,165", "$441,511", "99.1%"],
+    ["IT", "95.1%", "$92,126", "$456,860", "96.2%"],
+    ["RU", "95.3%", "$74,819", "$371,788", "94.7%"],
+    ["DE/NL/CH/AT", "96.4%", "$85,572", "$395,659", "103.2%"],
+    ["ES", "100.8%", "$56,732", "$276,029", "98.1%"],
+    ["CZ/SK", "87.7%", "$35,606", "$214,738", "78.7%"],
+    ["RO", "107.4%", "$57,904", "$246,029", "112.6%"],
+    ["KR", "104.8%", "$22,460", "$97,469", "108.6%"],
+    ["JP", "69.2%", "$17,162", "$117,902", "65.9%"]
   ];
-  sheet.getRange("A27:H40").setValues(salesData);
-  sheet.getRange("A27:H40").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A27:E40").setValues(salesData);
+  sheet.getRange("A27:E40").setBorder(true, true, true, true, true, true);
 
   // Highlight Total row
-  sheet.getRange("A27:H27").setBackground("#FFF9E6").setFontWeight("bold");
+  sheet.getRange("A27:E27").setBackground("#FFF9E6").setFontWeight("bold");
 
-  // Color-code Revenue % column based on performance
+  // Color-code Revenue % column (column E) based on performance
   for (let i = 28; i <= 40; i++) {
-    const revPercent = sheet.getRange(`H${i}`).getValue();
+    const revPercent = sheet.getRange(`E${i}`).getValue();
     const revNum = parseFloat(String(revPercent).replace('%', ''));
     if (!isNaN(revNum)) {
       if (revNum >= 100) {
-        sheet.getRange(`H${i}`).setBackground("#D5F4E6"); // Green
+        sheet.getRange(`E${i}`).setBackground("#D5F4E6"); // Green
       } else if (revNum >= 95) {
-        sheet.getRange(`H${i}`).setBackground("#FFF9E6"); // Yellow
+        sheet.getRange(`E${i}`).setBackground("#FFF9E6"); // Yellow
       } else if (revNum >= 85) {
-        sheet.getRange(`H${i}`).setBackground("#FFE5CC"); // Orange
+        sheet.getRange(`E${i}`).setBackground("#FFE5CC"); // Orange
       } else {
-        sheet.getRange(`H${i}`).setBackground("#FADBD8"); // Red
+        sheet.getRange(`E${i}`).setBackground("#FADBD8"); // Red
       }
     }
   }
@@ -165,43 +165,43 @@ function createKeyMetricsWeeklySheet() {
   // SECTION 4: PLAN VS FACT BY CATEGORY
   // ============================================
   sheet.getRange("A42").setValue("📦 PLAN VS FACT - BY CATEGORY");
-  sheet.getRange("A42:G42").merge();
-  sheet.getRange("A42:G42").setBackground("#8E44AD").setFontColor("white").setFontWeight("bold").setFontSize(12).setHorizontalAlignment("center");
+  sheet.getRange("A42:E42").merge();
+  sheet.getRange("A42:E42").setBackground("#8E44AD").setFontColor("white").setFontWeight("bold").setFontSize(12).setHorizontalAlignment("center");
 
   currentRow = 43;
 
-  // Headers
-  const categoryHeaders = ["Category", "Fact Purchase", "Plan Purchase", "Forecast Purch", "Purch %", "Fact Revenue", "Plan Revenue"];
-  sheet.getRange("A43:G43").setValues([categoryHeaders]);
-  sheet.getRange("A43:G43").setBackground("#E8DAEF").setFontWeight("bold").setHorizontalAlignment("center");
+  // Headers (simplified to match Slack output)
+  const categoryHeaders = ["Category", "Fact", "Plan", "Purch %", "Revenue"];
+  sheet.getRange("A43:E43").setValues([categoryHeaders]);
+  sheet.getRange("A43:E43").setBackground("#E8DAEF").setFontWeight("bold").setHorizontalAlignment("center");
 
-  // Sample data
+  // Sample data (simplified to match Slack output)
   const categoryData = [
-    ["Total", 10880, 54651, 51804, "94.8%", "$1,517,158", "$7,241,463"],
-    ["paid on time", 9166, 46430, 43416, "93.5%", "$1,095,178", "$5,280,881"],
-    ["paid in advance", 642, 3725, 2968, "79.7%", "$185,819", "$1,066,372"],
-    ["churn prevention", 536, 2404, 2699, "112.3%", "$92,426", "$432,946"],
-    ["churn", 536, 2092, 2722, "130.1%", "$143,735", "$461,264"]
+    ["Total", 10880, 54651, "94.8%", "$1,517,158"],
+    ["paid on time", 9166, 46430, "93.5%", "$1,095,178"],
+    ["paid in advance", 642, 3725, "79.7%", "$185,819"],
+    ["churn prevention", 536, 2404, "112.3%", "$92,426"],
+    ["churn", 536, 2092, "130.1%", "$143,735"]
   ];
-  sheet.getRange("A44:G48").setValues(categoryData);
-  sheet.getRange("A44:G48").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A44:E48").setValues(categoryData);
+  sheet.getRange("A44:E48").setBorder(true, true, true, true, true, true);
 
   // Highlight Total row
-  sheet.getRange("A44:G44").setBackground("#FFF9E6").setFontWeight("bold");
+  sheet.getRange("A44:E44").setBackground("#FFF9E6").setFontWeight("bold");
 
-  // Color-code Purch % column based on performance
+  // Color-code Purch % column (column D) based on performance
   for (let i = 45; i <= 48; i++) {
-    const purchPercent = sheet.getRange(`E${i}`).getValue();
+    const purchPercent = sheet.getRange(`D${i}`).getValue();
     const purchNum = parseFloat(String(purchPercent).replace('%', ''));
     if (!isNaN(purchNum)) {
       if (purchNum >= 100) {
-        sheet.getRange(`E${i}`).setBackground("#D5F4E6"); // Green
+        sheet.getRange(`D${i}`).setBackground("#D5F4E6"); // Green
       } else if (purchNum >= 90) {
-        sheet.getRange(`E${i}`).setBackground("#FFF9E6"); // Yellow
+        sheet.getRange(`D${i}`).setBackground("#FFF9E6"); // Yellow
       } else if (purchNum >= 80) {
-        sheet.getRange(`E${i}`).setBackground("#FFE5CC"); // Orange
+        sheet.getRange(`D${i}`).setBackground("#FFE5CC"); // Orange
       } else {
-        sheet.getRange(`E${i}`).setBackground("#FADBD8"); // Red
+        sheet.getRange(`D${i}`).setBackground("#FADBD8"); // Red
       }
     }
   }

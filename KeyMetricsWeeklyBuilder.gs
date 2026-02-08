@@ -229,11 +229,10 @@ function buildNetChurnByRegionSection(regions) {
   tableText += "-------|-----------|-------|--------|----------\n";
 
   regions.forEach(r => {
-    // Get region flag emoji ONLY (no text)
-    const regionEmoji = getKeyMetricsRegionEmoji(r.region);
-    const regionDisplay = regionEmoji || r.region;
+    // Use region text name (emojis don't render in code blocks)
+    const regionName = cleanSheetData(r.region);
 
-    const region = padRight(regionDisplay, 6);
+    const region = padRight(regionName, 6);
     const lastWeek = padLeft(formatPercentage(r.lastWeek), 9);
     const today = padLeft(formatPercentage(r.today), 5);
     const plan = padLeft(formatPercentage(r.plan), 6);
@@ -260,11 +259,11 @@ function buildNetChurnByRegionSection(regions) {
 
 /**
  * Read Sales Performance by Region
- * Template range: A27:H40
+ * Template range: A27:E40 (simplified to match Slack output)
  */
 function readSalesPerformanceByRegion(sheet) {
   try {
-    const dataRange = sheet.getRange("A27:H40");
+    const dataRange = sheet.getRange("A27:E40");
     const data = dataRange.getValues();
 
     const regions = [];
@@ -272,22 +271,16 @@ function readSalesPerformanceByRegion(sheet) {
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       const region = cleanSheetData(row[0]);
-      const factPurchase = row[1];
-      const planPurchase = row[2];
-      const forecastPurch = row[3];
-      const purchPercent = row[4];
-      const factRevenue = row[5];
-      const planRevenue = row[6];
-      const revenuePercent = row[7];
+      const purchPercent = row[1];
+      const factRevenue = row[2];
+      const planRevenue = row[3];
+      const revenuePercent = row[4];
 
       // Skip empty rows
       if (!region) continue;
 
       regions.push({
         region: region,
-        factPurchase: factPurchase,
-        planPurchase: planPurchase,
-        forecastPurch: forecastPurch,
         purchPercent: purchPercent,
         factRevenue: factRevenue,
         planRevenue: planRevenue,
@@ -322,11 +315,10 @@ function buildSalesPerformanceSection(regions) {
   tableText += "-------|-------|-----------|-----------|--------\n";
 
   regions.forEach(r => {
-    // Get region flag emoji ONLY (no text)
-    const regionEmoji = getKeyMetricsRegionEmoji(r.region);
-    const regionDisplay = regionEmoji || r.region;
+    // Use region text name (emojis don't render in code blocks)
+    const regionName = cleanSheetData(r.region);
 
-    const region = padRight(regionDisplay, 6);
+    const region = padRight(regionName, 6);
     const purchPct = padLeft(formatPercentage(r.purchPercent), 5);
     const revenue = padLeft(formatCurrency(r.factRevenue, true), 9);
     const planRev = padLeft(formatCurrency(r.planRevenue, true), 9);
@@ -350,11 +342,11 @@ function buildSalesPerformanceSection(regions) {
 
 /**
  * Read Plan vs Fact by Category
- * Template range: A44:G48
+ * Template range: A44:E48 (simplified to match Slack output)
  */
 function readPlanFactByCategory(sheet) {
   try {
-    const dataRange = sheet.getRange("A44:G48");
+    const dataRange = sheet.getRange("A44:E48");
     const data = dataRange.getValues();
 
     const categories = [];
@@ -364,22 +356,18 @@ function readPlanFactByCategory(sheet) {
       const category = cleanSheetData(row[0]);
       const factPurchase = row[1];
       const planPurchase = row[2];
-      const forecastPurch = row[3];
-      const purchPercent = row[4];
-      const factRevenue = row[5];
-      const planRevenue = row[6];
+      const purchPercent = row[3];
+      const factRevenue = row[4];
 
-      // Skip empty rows or "Total" row (we'll show Total first)
+      // Skip empty rows
       if (!category) continue;
 
       categories.push({
         category: category,
         factPurchase: factPurchase,
         planPurchase: planPurchase,
-        forecastPurch: forecastPurch,
         purchPercent: purchPercent,
-        factRevenue: factRevenue,
-        planRevenue: planRevenue
+        factRevenue: factRevenue
       });
     }
 
