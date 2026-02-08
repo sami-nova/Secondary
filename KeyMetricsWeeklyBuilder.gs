@@ -210,7 +210,7 @@ function readNetChurnByRegion(sheet) {
 }
 
 /**
- * Build Net Churn by Region section with table (no code blocks for emoji support)
+ * Build Net Churn by Region section with monospaced table
  */
 function buildNetChurnByRegionSection(regions) {
   const blocks = [];
@@ -223,26 +223,29 @@ function buildNetChurnByRegionSection(regions) {
     }
   });
 
-  // Build table without code blocks so emojis render properly
-  let tableText = "*Region       | Last week | Today | Plan   | Forecast*\n";
-  tableText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  // Build monospaced table with code blocks for proper alignment
+  let tableText = "```\n";
+  tableText += "Region | Last week | Today | Plan   | Forecast\n";
+  tableText += "-------|-----------|-------|--------|----------\n";
 
   regions.forEach(r => {
-    // Get region flag emoji
+    // Get region flag emoji ONLY (no text)
     const regionEmoji = getKeyMetricsRegionEmoji(r.region);
-    const regionDisplay = regionEmoji ? `${regionEmoji} ${r.region}` : r.region;
+    const regionDisplay = regionEmoji || r.region;
 
-    const region = padRight(regionDisplay, 12);
+    const region = padRight(regionDisplay, 6);
     const lastWeek = padLeft(formatPercentage(r.lastWeek), 9);
     const today = padLeft(formatPercentage(r.today), 5);
     const plan = padLeft(formatPercentage(r.plan), 6);
     const forecast = padLeft(formatPercentage(r.forecast), 8);
 
-    // Use status from sheet if provided, otherwise calculate
+    // Use status from sheet if provided
     let statusIcon = r.status ? ` ${r.status}` : "";
 
     tableText += `${region} | ${lastWeek} | ${today} | ${plan} | ${forecast}${statusIcon}\n`;
   });
+
+  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -313,21 +316,26 @@ function buildSalesPerformanceSection(regions) {
     }
   });
 
-  // Build table without code blocks so emojis render properly
-  let tableText = "*Region       | Purch% | Rev%*\n";
-  tableText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  // Build monospaced table with code blocks for proper alignment
+  let tableText = "```\n";
+  tableText += "Region | Purch%| Revenue   | Plan Rev  | Rev%   \n";
+  tableText += "-------|-------|-----------|-----------|--------\n";
 
   regions.forEach(r => {
-    // Get region flag emoji
+    // Get region flag emoji ONLY (no text)
     const regionEmoji = getKeyMetricsRegionEmoji(r.region);
-    const regionDisplay = regionEmoji ? `${regionEmoji} ${r.region}` : r.region;
+    const regionDisplay = regionEmoji || r.region;
 
-    const region = padRight(regionDisplay, 12);
-    const purchPct = padLeft(formatPercentage(r.purchPercent), 6);
+    const region = padRight(regionDisplay, 6);
+    const purchPct = padLeft(formatPercentage(r.purchPercent), 5);
+    const revenue = padLeft(formatCurrency(r.factRevenue, true), 9);
+    const planRev = padLeft(formatCurrency(r.planRevenue, true), 9);
     const revPct = padLeft(formatPercentage(r.revenuePercent), 6);
 
-    tableText += `${region} | ${purchPct} | ${revPct}\n`;
+    tableText += `${region} | ${purchPct} | ${revenue} | ${planRev} | ${revPct}\n`;
   });
+
+  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -396,19 +404,22 @@ function buildPlanFactByCategorySection(categories) {
     }
   });
 
-  // Build table without code blocks so emojis render properly
-  let tableText = "*Category          | Fact    | Plan    | Purch%  | Revenue*\n";
-  tableText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  // Build monospaced table with code blocks for proper alignment
+  let tableText = "```\n";
+  tableText += "Category        | Fact  | Plan  | Purch%| Revenue   \n";
+  tableText += "----------------|-------|-------|-------|----------\n";
 
   categories.forEach(c => {
-    const category = padRight(capitalize(c.category), 18);
-    const fact = padLeft(formatNumber(c.factPurchase), 7);
-    const plan = padLeft(formatNumber(c.planPurchase), 7);
-    const purchPct = padLeft(formatPercentage(c.purchPercent), 7);
+    const category = padRight(capitalize(c.category), 15);
+    const fact = padLeft(formatNumber(c.factPurchase), 5);
+    const plan = padLeft(formatNumber(c.planPurchase), 5);
+    const purchPct = padLeft(formatPercentage(c.purchPercent), 5);
     const revenue = padLeft(formatCurrency(c.factRevenue, true), 9);
 
     tableText += `${category} | ${fact} | ${plan} | ${purchPct} | ${revenue}\n`;
   });
+
+  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -512,12 +523,16 @@ function formatPercentage(value) {
     return value;
   }
 
-  // If it's a decimal (0.5 = 50%)
+  // If it's a number
   if (typeof value === 'number') {
     let num;
-    if (value < 1 && value > 0) {
+
+    // If value is between 0 and 1 (decimal format), multiply by 100
+    // This handles: 0.948 → 94.8%, 1.0 → 100%, 0.01 → 1%
+    if (value > 0 && value <= 1) {
       num = value * 100;
     } else {
+      // Value is already a percentage: 94.8, 100, 115.8
       num = value;
     }
 
