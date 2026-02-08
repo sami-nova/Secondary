@@ -35,7 +35,7 @@ function buildKeyMetricsWeeklyUpdate(automation) {
     // ============================================
     // HEADER
     // ============================================
-    const generatedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'M/dd/yyyy, hh:mm:ss a');
+    const generatedDate = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'M/dd/yyyy');
 
     blocks.push({
       type: "section",
@@ -210,7 +210,7 @@ function readNetChurnByRegion(sheet) {
 }
 
 /**
- * Build Net Churn by Region section with monospaced table
+ * Build Net Churn by Region section with table (no code blocks for emoji support)
  */
 function buildNetChurnByRegionSection(regions) {
   const blocks = [];
@@ -223,29 +223,26 @@ function buildNetChurnByRegionSection(regions) {
     }
   });
 
-  // Build monospaced table
-  let tableText = "```\n";
-  tableText += "Region     | Last week | Today | Plan   | Forecast\n";
-  tableText += "-----------|-----------|-------|--------|----------\n";
+  // Build table without code blocks so emojis render properly
+  let tableText = "*Region       | Last week | Today | Plan   | Forecast*\n";
+  tableText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 
   regions.forEach(r => {
     // Get region flag emoji
     const regionEmoji = getKeyMetricsRegionEmoji(r.region);
     const regionDisplay = regionEmoji ? `${regionEmoji} ${r.region}` : r.region;
 
-    const region = padRight(regionDisplay, 10);
+    const region = padRight(regionDisplay, 12);
     const lastWeek = padLeft(formatPercentage(r.lastWeek), 9);
     const today = padLeft(formatPercentage(r.today), 5);
     const plan = padLeft(formatPercentage(r.plan), 6);
-    const forecast = padLeft(formatPercentage(r.forecast), 5);
+    const forecast = padLeft(formatPercentage(r.forecast), 8);
 
     // Use status from sheet if provided, otherwise calculate
     let statusIcon = r.status ? ` ${r.status}` : "";
 
     tableText += `${region} | ${lastWeek} | ${today} | ${plan} | ${forecast}${statusIcon}\n`;
   });
-
-  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -316,38 +313,21 @@ function buildSalesPerformanceSection(regions) {
     }
   });
 
-  // Build monospaced table
-  let tableText = "```\n";
-  tableText += "Region      | Purch%| Revenue   | Plan Rev  | Rev%   | Status\n";
-  tableText += "------------|-------|-----------|-----------|--------|-------\n";
+  // Build table without code blocks so emojis render properly
+  let tableText = "*Region       | Purch% | Rev%*\n";
+  tableText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 
   regions.forEach(r => {
     // Get region flag emoji
     const regionEmoji = getKeyMetricsRegionEmoji(r.region);
     const regionDisplay = regionEmoji ? `${regionEmoji} ${r.region}` : r.region;
 
-    const region = padRight(regionDisplay, 11);
-    const purchPct = padLeft(formatPercentage(r.purchPercent), 5);
-    const revenue = padLeft(formatCurrency(r.factRevenue, true), 9);
-    const planRev = padLeft(formatCurrency(r.planRevenue, true), 9);
+    const region = padRight(regionDisplay, 12);
+    const purchPct = padLeft(formatPercentage(r.purchPercent), 6);
     const revPct = padLeft(formatPercentage(r.revenuePercent), 6);
 
-    // Status icon based on revenue %
-    let status = "";
-    if (r.revenuePercent) {
-      const revNum = parseFloat(String(r.revenuePercent).replace('%', ''));
-      if (!isNaN(revNum)) {
-        if (revNum >= 100) status = "🔥";
-        else if (revNum >= 95) status = "✅";
-        else if (revNum >= 85) status = "⚠️";
-        else status = "❌";
-      }
-    }
-
-    tableText += `${region} | ${purchPct} | ${revenue} | ${planRev} | ${revPct} | ${status}\n`;
+    tableText += `${region} | ${purchPct} | ${revPct}\n`;
   });
-
-  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -416,34 +396,19 @@ function buildPlanFactByCategorySection(categories) {
     }
   });
 
-  // Build monospaced table
-  let tableText = "```\n";
-  tableText += "Category        | Fact  | Plan  | Purch%| Revenue    | Status\n";
-  tableText += "----------------|-------|-------|-------|------------|-------\n";
+  // Build table without code blocks so emojis render properly
+  let tableText = "*Category          | Fact    | Plan    | Purch%  | Revenue*\n";
+  tableText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 
   categories.forEach(c => {
-    const category = padRight(capitalize(c.category), 15);
-    const fact = padLeft(formatNumber(c.factPurchase), 5);
-    const plan = padLeft(formatNumber(c.planPurchase), 5);
-    const purchPct = padLeft(formatPercentage(c.purchPercent), 5);
-    const revenue = padLeft(formatCurrency(c.factRevenue, true), 10);
+    const category = padRight(capitalize(c.category), 18);
+    const fact = padLeft(formatNumber(c.factPurchase), 7);
+    const plan = padLeft(formatNumber(c.planPurchase), 7);
+    const purchPct = padLeft(formatPercentage(c.purchPercent), 7);
+    const revenue = padLeft(formatCurrency(c.factRevenue, true), 9);
 
-    // Status icon based on purchase %
-    let status = "";
-    if (c.purchPercent) {
-      const pctNum = parseFloat(String(c.purchPercent).replace('%', ''));
-      if (!isNaN(pctNum)) {
-        if (pctNum >= 100) status = "🔥";
-        else if (pctNum >= 90) status = "✅";
-        else if (pctNum >= 80) status = "⚠️";
-        else status = "❌";
-      }
-    }
-
-    tableText += `${category} | ${fact} | ${plan} | ${purchPct} | ${revenue} | ${status}\n`;
+    tableText += `${category} | ${fact} | ${plan} | ${purchPct} | ${revenue}\n`;
   });
-
-  tableText += "```";
 
   blocks.push({
     type: "section",
@@ -549,10 +514,18 @@ function formatPercentage(value) {
 
   // If it's a decimal (0.5 = 50%)
   if (typeof value === 'number') {
+    let num;
     if (value < 1 && value > 0) {
-      return (value * 100).toFixed(2) + '%';
+      num = value * 100;
+    } else {
+      num = value;
     }
-    return value.toFixed(2) + '%';
+
+    // Remove .00 if it's a whole number
+    if (num % 1 === 0) {
+      return Math.round(num) + '%';
+    }
+    return num.toFixed(2) + '%';
   }
 
   return String(value);
