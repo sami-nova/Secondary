@@ -223,7 +223,7 @@ function readNetChurnByRegion(sheet) {
 }
 
 /**
- * Build Net Churn by Region section (grouped by geography for compact display)
+ * Build Net Churn by Region section (grouped by geography with tree format)
  */
 function buildNetChurnByRegionSection(regions) {
   const blocks = [];
@@ -268,28 +268,39 @@ function buildNetChurnByRegionSection(regions) {
 
     if (groupRegions.length === 0) return;
 
-    let groupText = "";
+    // Add group header for non-Total groups
     if (groupName !== 'Total') {
-      groupText = `*${groupName}*\n`;
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*${groupName}*`
+        }
+      });
     }
 
+    // Add each region in the group with tree format
     groupRegions.forEach(r => {
       const regionEmoji = getRegionSlackEmoji(r.region);
       const status = r.status || '';
 
-      if (hasLastWeekData && r.lastWeek) {
-        groupText += `${regionEmoji} *${r.region}*: ${formatPercentage(r.lastWeek)} → ${formatPercentage(r.today)} | Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)} ${status}\n`;
-      } else {
-        groupText += `${regionEmoji} *${r.region}*: ${formatPercentage(r.today)} | Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)} ${status}\n`;
-      }
-    });
+      let regionText = `${regionEmoji} *${r.region}*\n`;
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: groupText.trim()
+      if (hasLastWeekData && r.lastWeek) {
+        regionText += `├ Last Week: ${formatPercentage(r.lastWeek)} → Today: *${formatPercentage(r.today)}*\n`;
+      } else {
+        regionText += `├ Today: *${formatPercentage(r.today)}*\n`;
       }
+
+      regionText += `└ Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)} ${status}`;
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: regionText
+        }
+      });
     });
   });
 
@@ -335,7 +346,7 @@ function readSalesPerformanceByRegion(sheet) {
 }
 
 /**
- * Build Sales Performance by Region section (grouped by geography, compact)
+ * Build Sales Performance by Region section (grouped by geography with tree format)
  */
 function buildSalesPerformanceSection(regions) {
   const blocks = [];
@@ -344,7 +355,7 @@ function buildSalesPerformanceSection(regions) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*💰 SALES PERFORMANCE BY REGION*\n_Purchase % | Revenue | Achievement_"
+      text: "*💰 SALES PERFORMANCE BY REGION*\n_Purchase % | Rev Prediction_"
     }
   });
 
@@ -368,22 +379,31 @@ function buildSalesPerformanceSection(regions) {
 
     if (groupRegions.length === 0) return;
 
-    let groupText = "";
+    // Add group header for non-Total groups
     if (groupName !== 'Total') {
-      groupText = `*${groupName}*\n`;
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*${groupName}*`
+        }
+      });
     }
 
+    // Add each region in the group with tree format
     groupRegions.forEach(r => {
       const regionEmoji = getRegionSlackEmoji(r.region);
-      groupText += `${regionEmoji} *${r.region}*: ${formatPercentage(r.purchPercent)} | ${formatCurrency(r.factRevenue, true)} | Achievement: ${formatPercentage(r.revenuePercent)}\n`;
-    });
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: groupText.trim()
-      }
+      let regionText = `${regionEmoji} *${r.region}*\n`;
+      regionText += `└ Purchase %: *${formatPercentage(r.purchPercent)}* | Rev Prediction: *${formatPercentage(r.revenuePercent)}*`;
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: regionText
+        }
+      });
     });
   });
 
@@ -429,7 +449,7 @@ function readPlanFactByCategory(sheet) {
 }
 
 /**
- * Build Plan vs Fact by Category section (compact, single block)
+ * Build Plan vs Fact by Category section (percentages only with clear labels)
  */
 function buildPlanFactByCategorySection(categories) {
   const blocks = [];
@@ -438,22 +458,34 @@ function buildPlanFactByCategorySection(categories) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*📦 PLAN VS FACT - BY CATEGORY*\n_Fact vs Plan | Achievement | Revenue_"
+      text: "*📦 PLAN VS FACT - BY CATEGORY*\n_Fact vs Plan | Purchases % | Revenue_"
     }
   });
 
-  // Build all categories in one compact block
-  let categoryText = "";
+  // Calculate total revenue for percentage calculation
+  const totalCategory = categories.find(c => c.category && c.category.toLowerCase().includes('total'));
+  const totalRevenue = totalCategory ? parseFloat(totalCategory.factRevenue) : 0;
+
+  // Build categories with tree format
   categories.forEach(c => {
-    categoryText += `*${capitalize(c.category)}*: ${formatNumber(c.factPurchase)} vs ${formatNumber(c.planPurchase)} (${formatPercentage(c.purchPercent)}) | ${formatCurrency(c.factRevenue, true)}\n`;
-  });
+    let categoryText = `*${capitalize(c.category)}*\n`;
 
-  blocks.push({
-    type: "section",
-    text: {
-      type: "mrkdwn",
-      text: categoryText.trim()
+    // Calculate revenue percentage of total
+    let revenuePercent = '';
+    if (totalRevenue > 0 && !c.category.toLowerCase().includes('total')) {
+      const revPct = (parseFloat(c.factRevenue) / totalRevenue * 100).toFixed(1);
+      revenuePercent = ` | Revenue %: ${revPct}%`;
     }
+
+    categoryText += `└ Purchases %: *${formatPercentage(c.purchPercent)}*${revenuePercent}`;
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: categoryText
+      }
+    });
   });
 
   return blocks;
