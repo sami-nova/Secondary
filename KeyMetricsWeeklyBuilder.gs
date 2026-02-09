@@ -166,7 +166,7 @@ function buildKeyMetricsOverviewSection(metrics) {
 
     overviewText += `• *${m.metric}:* ${formattedValue}`;
     if (formattedPlan) {
-      overviewText += ` (${formattedPlan})`;
+      overviewText += ` (Plan: ${formattedPlan})`;
     }
     overviewText += deltaText + "\n";
   });
@@ -228,11 +228,23 @@ function readNetChurnByRegion(sheet) {
 function buildNetChurnByRegionSection(regions) {
   const blocks = [];
 
+  // Check if any region has "Last Week" data
+  const hasLastWeekData = regions.some(r => r.lastWeek !== '' && r.lastWeek !== null && r.lastWeek !== undefined);
+
+  // Build header based on available data
+  let headerText = "*📍 NET CHURN BY REGION*\n_";
+  if (hasLastWeekData) {
+    headerText += "Last Week → Today | Plan | Forecast";
+  } else {
+    headerText += "Today | Plan | Forecast";
+  }
+  headerText += "_";
+
   blocks.push({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*📍 NET CHURN BY REGION*\n_Last Week → Today | Plan | Forecast_"
+      text: headerText
     }
   });
 
@@ -243,7 +255,13 @@ function buildNetChurnByRegionSection(regions) {
 
     // Create a clean display per region
     let regionText = `${regionEmoji} *${r.region}*\n`;
-    regionText += `├ Last Week: ${formatPercentage(r.lastWeek)} → Today: *${formatPercentage(r.today)}*\n`;
+
+    if (hasLastWeekData && r.lastWeek) {
+      regionText += `├ Last Week: ${formatPercentage(r.lastWeek)} → Today: *${formatPercentage(r.today)}*\n`;
+    } else {
+      regionText += `├ Today: *${formatPercentage(r.today)}*\n`;
+    }
+
     regionText += `└ Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)}`;
 
     // Add status if provided

@@ -70,9 +70,14 @@ function buildKeyMetricsExecutiveDashboard(automation) {
       overviewData.forEach(m => {
         const isARPU = m.metric && m.metric.toUpperCase().includes('ARPU');
         const formattedValue = isARPU ? formatCurrency(m.value) : formatMetricValue(m.value);
+        const formattedPlan = m.planTarget ? (isARPU ? formatCurrency(m.planTarget) : formatMetricValue(m.planTarget)) : '';
         const deltaText = m.deltaWoW ? ` ${m.deltaWoW}` : "";
 
-        takeawaysText += `• ${m.metric}: *${formattedValue}*${deltaText}\n`;
+        takeawaysText += `• ${m.metric}: *${formattedValue}*`;
+        if (formattedPlan) {
+          takeawaysText += ` (Plan: ${formattedPlan})`;
+        }
+        takeawaysText += deltaText + "\n";
       });
 
       blocks.push({
