@@ -268,15 +268,10 @@ function buildNetChurnByRegionSection(regions) {
 
     if (groupRegions.length === 0) return;
 
-    // Add group header for non-Total groups
+    // Build text for all regions in this group
+    let groupText = "";
     if (groupName !== 'Total') {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*${groupName}*`
-        }
-      });
+      groupText = `*${groupName}*\n\n`;
     }
 
     // Add each region in the group with tree format
@@ -284,23 +279,24 @@ function buildNetChurnByRegionSection(regions) {
       const regionEmoji = getRegionSlackEmoji(r.region);
       const status = r.status || '';
 
-      let regionText = `${regionEmoji} *${r.region}*\n`;
+      groupText += `${regionEmoji} *${r.region}*\n`;
 
       if (hasLastWeekData && r.lastWeek) {
-        regionText += `├ Last Week: ${formatPercentage(r.lastWeek)} → Today: *${formatPercentage(r.today)}*\n`;
+        groupText += `├ Last Week: ${formatPercentage(r.lastWeek)} → Today: *${formatPercentage(r.today)}*\n`;
       } else {
-        regionText += `├ Today: *${formatPercentage(r.today)}*\n`;
+        groupText += `├ Today: *${formatPercentage(r.today)}*\n`;
       }
 
-      regionText += `└ Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)} ${status}`;
+      groupText += `└ Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)} ${status}\n\n`;
+    });
 
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: regionText
-        }
-      });
+    // Add all regions in this group as a single block
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: groupText.trim()
+      }
     });
   });
 
@@ -379,31 +375,27 @@ function buildSalesPerformanceSection(regions) {
 
     if (groupRegions.length === 0) return;
 
-    // Add group header for non-Total groups
+    // Build text for all regions in this group
+    let groupText = "";
     if (groupName !== 'Total') {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*${groupName}*`
-        }
-      });
+      groupText = `*${groupName}*\n\n`;
     }
 
     // Add each region in the group with tree format
     groupRegions.forEach(r => {
       const regionEmoji = getRegionSlackEmoji(r.region);
 
-      let regionText = `${regionEmoji} *${r.region}*\n`;
-      regionText += `└ Purchase %: *${formatPercentage(r.purchPercent)}* | Rev Prediction: *${formatPercentage(r.revenuePercent)}*`;
+      groupText += `${regionEmoji} *${r.region}*\n`;
+      groupText += `└ Purchase %: *${formatPercentage(r.purchPercent)}* | Rev Prediction: *${formatPercentage(r.revenuePercent)}*\n\n`;
+    });
 
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: regionText
-        }
-      });
+    // Add all regions in this group as a single block
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: groupText.trim()
+      }
     });
   });
 
@@ -466,9 +458,10 @@ function buildPlanFactByCategorySection(categories) {
   const totalCategory = categories.find(c => c.category && c.category.toLowerCase().includes('total'));
   const totalRevenue = totalCategory ? parseFloat(totalCategory.factRevenue) : 0;
 
-  // Build categories with tree format
+  // Build all categories in one block with tree format
+  let categoryText = "";
   categories.forEach(c => {
-    let categoryText = `*${capitalize(c.category)}*\n`;
+    categoryText += `*${capitalize(c.category)}*\n`;
 
     // Calculate revenue percentage of total
     let revenuePercent = '';
@@ -477,15 +470,15 @@ function buildPlanFactByCategorySection(categories) {
       revenuePercent = ` | Revenue %: ${revPct}%`;
     }
 
-    categoryText += `└ Purchases %: *${formatPercentage(c.purchPercent)}*${revenuePercent}`;
+    categoryText += `└ Purchases %: *${formatPercentage(c.purchPercent)}*${revenuePercent}\n\n`;
+  });
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: categoryText
-      }
-    });
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: categoryText.trim()
+    }
   });
 
   return blocks;
