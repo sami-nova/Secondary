@@ -223,7 +223,7 @@ function readNetChurnByRegion(sheet) {
 }
 
 /**
- * Build Net Churn by Region section (using visual formatting without code blocks)
+ * Build Net Churn by Region section (grouped by geography for compact display)
  */
 function buildNetChurnByRegionSection(regions) {
   const blocks = [];
@@ -248,32 +248,47 @@ function buildNetChurnByRegionSection(regions) {
     }
   });
 
-  // Use visual formatting with newlines and clear structure
-  regions.forEach(r => {
-    // Get region Slack emoji code (like :flag-tr:)
-    const regionEmoji = getRegionSlackEmoji(r.region);
+  // Group regions by geography
+  const regionGroups = {
+    'Total': [],
+    'Middle East': ['ARAB', 'TR', 'IL'],
+    'Europe': ['PL', 'DE', 'IT', 'RO', 'ES', 'FR', 'CZ'],
+    'Russia/CIS': ['RU'],
+    'Asia': ['JP', 'KR']
+  };
 
-    // Create a clean display per region
-    let regionText = `${regionEmoji} *${r.region}*\n`;
+  // Process each geographic group
+  Object.keys(regionGroups).forEach(groupName => {
+    const groupRegions = regions.filter(r => {
+      if (groupName === 'Total') {
+        return r.region.toUpperCase() === 'TOTAL';
+      }
+      return regionGroups[groupName].includes(r.region.toUpperCase());
+    });
 
-    if (hasLastWeekData && r.lastWeek) {
-      regionText += `├ Last Week: ${formatPercentage(r.lastWeek)} → Today: *${formatPercentage(r.today)}*\n`;
-    } else {
-      regionText += `├ Today: *${formatPercentage(r.today)}*\n`;
+    if (groupRegions.length === 0) return;
+
+    let groupText = "";
+    if (groupName !== 'Total') {
+      groupText = `*${groupName}*\n`;
     }
 
-    regionText += `└ Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)}`;
+    groupRegions.forEach(r => {
+      const regionEmoji = getRegionSlackEmoji(r.region);
+      const status = r.status || '';
 
-    // Add status if provided
-    if (r.status) {
-      regionText += ` ${r.status}`;
-    }
+      if (hasLastWeekData && r.lastWeek) {
+        groupText += `${regionEmoji} *${r.region}*: ${formatPercentage(r.lastWeek)} → ${formatPercentage(r.today)} | Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)} ${status}\n`;
+      } else {
+        groupText += `${regionEmoji} *${r.region}*: ${formatPercentage(r.today)} | Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)} ${status}\n`;
+      }
+    });
 
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: regionText
+        text: groupText.trim()
       }
     });
   });
@@ -320,7 +335,7 @@ function readSalesPerformanceByRegion(sheet) {
 }
 
 /**
- * Build Sales Performance by Region section (using visual formatting)
+ * Build Sales Performance by Region section (grouped by geography, compact)
  */
 function buildSalesPerformanceSection(regions) {
   const blocks = [];
@@ -329,25 +344,45 @@ function buildSalesPerformanceSection(regions) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*💰 SALES PERFORMANCE BY REGION*\n_Purchase % | Revenue | Plan | Achievement_"
+      text: "*💰 SALES PERFORMANCE BY REGION*\n_Purchase % | Revenue | Achievement_"
     }
   });
 
-  // Use visual formatting with clear structure
-  regions.forEach(r => {
-    // Get region Slack emoji code (like :flag-tr:)
-    const regionEmoji = getRegionSlackEmoji(r.region);
+  // Group regions by geography
+  const regionGroups = {
+    'Total': [],
+    'Middle East': ['ARAB', 'TR', 'IL'],
+    'Europe': ['PL', 'DE', 'IT', 'RO', 'ES', 'FR', 'CZ'],
+    'Russia/CIS': ['RU'],
+    'Asia': ['JP', 'KR']
+  };
 
-    // Create a clean display per region
-    let regionText = `${regionEmoji} *${r.region}*\n`;
-    regionText += `├ Purchase: *${formatPercentage(r.purchPercent)}* | Revenue: ${formatCurrency(r.factRevenue, true)}\n`;
-    regionText += `└ Plan: ${formatCurrency(r.planRevenue, true)} | Achievement: *${formatPercentage(r.revenuePercent)}*`;
+  // Process each geographic group
+  Object.keys(regionGroups).forEach(groupName => {
+    const groupRegions = regions.filter(r => {
+      if (groupName === 'Total') {
+        return r.region.toUpperCase() === 'TOTAL';
+      }
+      return regionGroups[groupName].includes(r.region.toUpperCase());
+    });
+
+    if (groupRegions.length === 0) return;
+
+    let groupText = "";
+    if (groupName !== 'Total') {
+      groupText = `*${groupName}*\n`;
+    }
+
+    groupRegions.forEach(r => {
+      const regionEmoji = getRegionSlackEmoji(r.region);
+      groupText += `${regionEmoji} *${r.region}*: ${formatPercentage(r.purchPercent)} | ${formatCurrency(r.factRevenue, true)} | Achievement: ${formatPercentage(r.revenuePercent)}\n`;
+    });
 
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: regionText
+        text: groupText.trim()
       }
     });
   });
@@ -394,7 +429,7 @@ function readPlanFactByCategory(sheet) {
 }
 
 /**
- * Build Plan vs Fact by Category section (using visual formatting)
+ * Build Plan vs Fact by Category section (compact, single block)
  */
 function buildPlanFactByCategorySection(categories) {
   const blocks = [];
@@ -407,19 +442,18 @@ function buildPlanFactByCategorySection(categories) {
     }
   });
 
-  // Use visual formatting with clear structure
+  // Build all categories in one compact block
+  let categoryText = "";
   categories.forEach(c => {
-    let categoryText = `*${capitalize(c.category)}*\n`;
-    categoryText += `├ Purchases: ${formatNumber(c.factPurchase)} vs ${formatNumber(c.planPurchase)} (${formatPercentage(c.purchPercent)})\n`;
-    categoryText += `└ Revenue: *${formatCurrency(c.factRevenue, true)}*`;
+    categoryText += `*${capitalize(c.category)}*: ${formatNumber(c.factPurchase)} vs ${formatNumber(c.planPurchase)} (${formatPercentage(c.purchPercent)}) | ${formatCurrency(c.factRevenue, true)}\n`;
+  });
 
-    blocks.push({
-      type: "section",
-      text: {
-        type: "mrkdwn",
-        text: categoryText
-      }
-    });
+  blocks.push({
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: categoryText.trim()
+    }
   });
 
   return blocks;
