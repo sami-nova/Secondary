@@ -419,17 +419,17 @@ function readPlanFactByCategory(sheet) {
       const factPurchase = row[1];
       const planPurchase = row[2];
       const purchPercent = row[3];
-      const factRevenue = row[4];
+      const revenuePercent = row[4]; // This is Revenue % column from sheet
 
-      // Skip empty rows
-      if (!category) continue;
+      // Skip empty rows and Total row
+      if (!category || category.toLowerCase().includes('total')) continue;
 
       categories.push({
         category: category,
         factPurchase: factPurchase,
         planPurchase: planPurchase,
         purchPercent: purchPercent,
-        factRevenue: factRevenue
+        revenuePercent: revenuePercent
       });
     }
 
@@ -450,27 +450,15 @@ function buildPlanFactByCategorySection(categories) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*📦 PLAN VS FACT - BY CATEGORY*\n_Fact vs Plan | Purchases % | Revenue_"
+      text: "*📦 PLAN VS FACT - BY CATEGORY*\n_Fact vs Plan | Purchases % | Revenue %_"
     }
   });
-
-  // Calculate total revenue for percentage calculation
-  const totalCategory = categories.find(c => c.category && c.category.toLowerCase().includes('total'));
-  const totalRevenue = totalCategory ? parseFloat(totalCategory.factRevenue) : 0;
 
   // Build all categories in one block with tree format
   let categoryText = "";
   categories.forEach(c => {
     categoryText += `*${capitalize(c.category)}*\n`;
-
-    // Calculate revenue percentage of total
-    let revenuePercent = '';
-    if (totalRevenue > 0 && !c.category.toLowerCase().includes('total')) {
-      const revPct = (parseFloat(c.factRevenue) / totalRevenue * 100).toFixed(1);
-      revenuePercent = ` | Revenue %: ${revPct}%`;
-    }
-
-    categoryText += `└ Purchases %: *${formatPercentage(c.purchPercent)}*${revenuePercent}\n\n`;
+    categoryText += `└ Purchases %: *${formatPercentage(c.purchPercent)}* | Revenue %: *${formatPercentage(c.revenuePercent)}*\n\n`;
   });
 
   blocks.push({
