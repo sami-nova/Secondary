@@ -223,7 +223,7 @@ function readNetChurnByRegion(sheet) {
 }
 
 /**
- * Build Net Churn by Region section (without code blocks, using Slack emoji codes)
+ * Build Net Churn by Region section (using visual formatting without code blocks)
  */
 function buildNetChurnByRegionSection(regions) {
   const blocks = [];
@@ -232,37 +232,32 @@ function buildNetChurnByRegionSection(regions) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*📍 NET CHURN BY REGION*"
+      text: "*📍 NET CHURN BY REGION*\n_Last Week → Today | Plan | Forecast_"
     }
   });
 
-  // Build table WITHOUT code blocks so Slack emoji codes render
-  let tableText = "";
-
+  // Use visual formatting with newlines and clear structure
   regions.forEach(r => {
     // Get region Slack emoji code (like :flag-tr:)
     const regionEmoji = getRegionSlackEmoji(r.region);
 
-    tableText += `${regionEmoji} *${r.region}*`;
-    tableText += ` | ${formatPercentage(r.lastWeek)}`;
-    tableText += ` | ${formatPercentage(r.today)}`;
-    tableText += ` | ${formatPercentage(r.plan)}`;
-    tableText += ` | ${formatPercentage(r.forecast)}`;
+    // Create a clean display per region
+    let regionText = `${regionEmoji} *${r.region}*\n`;
+    regionText += `├ Last Week: ${formatPercentage(r.lastWeek)} → Today: *${formatPercentage(r.today)}*\n`;
+    regionText += `└ Plan: ${formatPercentage(r.plan)} | Forecast: ${formatPercentage(r.forecast)}`;
 
-    // Use status from sheet if provided
+    // Add status if provided
     if (r.status) {
-      tableText += ` ${r.status}`;
+      regionText += ` ${r.status}`;
     }
 
-    tableText += `\n`;
-  });
-
-  blocks.push({
-    type: "section",
-    text: {
-      type: "mrkdwn",
-      text: tableText
-    }
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: regionText
+      }
+    });
   });
 
   return blocks;
@@ -307,7 +302,7 @@ function readSalesPerformanceByRegion(sheet) {
 }
 
 /**
- * Build Sales Performance by Region section (without code blocks, using Slack emoji codes)
+ * Build Sales Performance by Region section (using visual formatting)
  */
 function buildSalesPerformanceSection(regions) {
   const blocks = [];
@@ -316,31 +311,27 @@ function buildSalesPerformanceSection(regions) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*💰 SALES PERFORMANCE BY REGION*"
+      text: "*💰 SALES PERFORMANCE BY REGION*\n_Purchase % | Revenue | Plan | Achievement_"
     }
   });
 
-  // Build table WITHOUT code blocks so Slack emoji codes render
-  let tableText = "";
-
+  // Use visual formatting with clear structure
   regions.forEach(r => {
     // Get region Slack emoji code (like :flag-tr:)
     const regionEmoji = getRegionSlackEmoji(r.region);
 
-    tableText += `${regionEmoji} *${r.region}*`;
-    tableText += ` | ${formatPercentage(r.purchPercent)}`;
-    tableText += ` | ${formatCurrency(r.factRevenue, true)}`;
-    tableText += ` | ${formatCurrency(r.planRevenue, true)}`;
-    tableText += ` | ${formatPercentage(r.revenuePercent)}`;
-    tableText += `\n`;
-  });
+    // Create a clean display per region
+    let regionText = `${regionEmoji} *${r.region}*\n`;
+    regionText += `├ Purchase: *${formatPercentage(r.purchPercent)}* | Revenue: ${formatCurrency(r.factRevenue, true)}\n`;
+    regionText += `└ Plan: ${formatCurrency(r.planRevenue, true)} | Achievement: *${formatPercentage(r.revenuePercent)}*`;
 
-  blocks.push({
-    type: "section",
-    text: {
-      type: "mrkdwn",
-      text: tableText
-    }
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: regionText
+      }
+    });
   });
 
   return blocks;
@@ -385,7 +376,7 @@ function readPlanFactByCategory(sheet) {
 }
 
 /**
- * Build Plan vs Fact by Category section (without code blocks)
+ * Build Plan vs Fact by Category section (using visual formatting)
  */
 function buildPlanFactByCategorySection(categories) {
   const blocks = [];
@@ -394,28 +385,23 @@ function buildPlanFactByCategorySection(categories) {
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*📦 PLAN VS FACT - BY CATEGORY*"
+      text: "*📦 PLAN VS FACT - BY CATEGORY*\n_Fact vs Plan | Achievement | Revenue_"
     }
   });
 
-  // Build table WITHOUT code blocks
-  let tableText = "";
-
+  // Use visual formatting with clear structure
   categories.forEach(c => {
-    tableText += `*${capitalize(c.category)}*`;
-    tableText += ` | ${formatNumber(c.factPurchase)}`;
-    tableText += ` | ${formatNumber(c.planPurchase)}`;
-    tableText += ` | ${formatPercentage(c.purchPercent)}`;
-    tableText += ` | ${formatCurrency(c.factRevenue, true)}`;
-    tableText += `\n`;
-  });
+    let categoryText = `*${capitalize(c.category)}*\n`;
+    categoryText += `├ Purchases: ${formatNumber(c.factPurchase)} vs ${formatNumber(c.planPurchase)} (${formatPercentage(c.purchPercent)})\n`;
+    categoryText += `└ Revenue: *${formatCurrency(c.factRevenue, true)}*`;
 
-  blocks.push({
-    type: "section",
-    text: {
-      type: "mrkdwn",
-      text: tableText
-    }
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: categoryText
+      }
+    });
   });
 
   return blocks;

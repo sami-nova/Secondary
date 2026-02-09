@@ -421,14 +421,19 @@
                     </el-option>
                     <el-option label="Key Metrics Weekly" value="key_metrics_weekly">
                       <span style="float: left">📊 Key Metrics Weekly</span>
-                      <span class="format-option-desc">Executive metrics report ⭐ NEW</span>
+                      <span class="format-option-desc">Detailed metrics with all data</span>
+                    </el-option>
+                    <el-option label="Executive Dashboard" value="key_metrics_executive">
+                      <span style="float: left">📈 Executive Dashboard</span>
+                      <span class="format-option-desc">Actionable insights & performance tiers ⭐ NEW</span>
                     </el-option>
                   </el-select>
                   <div class="template-help">
                     Choose how your message will be formatted in Slack.
                     <strong>Inline Text</strong> is recommended for most use cases.
                     <strong>Combined Leaderboard</strong> is best for weekly rankings (shows all 3 sections in one message).
-                    <strong>Key Metrics Weekly</strong> is best for executive Net Churn & Sales reports.
+                    <strong>Key Metrics Weekly</strong> shows detailed regional metrics with all data points.
+                    <strong>Executive Dashboard</strong> groups regions by performance tiers for quick decision-making.
                   </div>
                 </el-form-item>
 
@@ -2270,6 +2275,7 @@
             leaderboard: "Leaderboard",
             leaderboard_combined: "🏆 Combined Leaderboard",
             key_metrics_weekly: "📊 Key Metrics Weekly",
+            key_metrics_executive: "📈 Executive Dashboard",
             // Legacy formats (for backward compatibility)
             simple: "Simple Text (Legacy)",
           };
