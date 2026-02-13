@@ -38,18 +38,18 @@ function createLeaderboardTemplateV2() {
   const currentWeek = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
 
   // ============================================
-  // SECTION 0: TEAM PERFORMANCE SUMMARY (Churn Prevention Plan vs Fact)
+  // SECTION 0: SECONDARY SALES PLAN
   // ============================================
-  sheet.getRange("A1").setValue("📊 TEAM PERFORMANCE - CHURN PREVENTION");
+  sheet.getRange("A1").setValue("📊 SECONDARY SALES PLAN");
   sheet.getRange("A1:C1").merge();
   sheet.getRange("A1:C1").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const teamPerfHeaders = ["Metric", "Purchase %", "Revenue %"];
+  const teamPerfHeaders = ["Metric", "Purchase Plan Execution", "Revenue Plan Execution"];
   sheet.getRange("A2:C2").setValues([teamPerfHeaders]);
   sheet.getRange("A2:C2").setBackground("#E1BEE7").setFontWeight("bold");
 
   const teamPerfData = [
-    ["Plan Execution", "110.9%", "102.6%"]
+    ["Plan Execution %", 1.109, 1.026]
   ];
   sheet.getRange("A3:C3").setValues(teamPerfData);
   sheet.getRange("A2:C3").setBorder(true, true, true, true, true, true);
@@ -284,8 +284,8 @@ function createLeaderboardTemplateV2() {
   const instructions = [
     ["📊 WEEKLY LEADERBOARD - INSTRUCTIONS (TOP 5 STRUCTURE WITH RISING STARS)"],
     [""],
-    ["NEW STRUCTURE - WITH TEAM PERFORMANCE, REGIONAL CHAMPIONS & RISING STARS:"],
-    ["✓ Section 0: Team Performance Summary - CP Plan Execution (EDITABLE)"],
+    ["NEW STRUCTURE - WITH SECONDARY SALES PLAN, REGIONAL CHAMPIONS & RISING STARS:"],
+    ["✓ Section 0: Secondary Sales Plan (EDITABLE)"],
     ["✓ Section 0.5: Regional Champions - CP & KB top regions (EDITABLE)"],
     ["✓ Section 1-2: Churn Prevention (Current Base & Old Base) - TOP 5 EACH (Ranks 1-3 + Rising Stars 4-5)"],
     ["✓ Section 3-4: Killer Base (Current Base & Old Base) - TOP 5 EACH (Ranks 1-3 + Rising Stars 4-5)"],
@@ -297,10 +297,10 @@ function createLeaderboardTemplateV2() {
     ["✓ NEW: WoW column in each leaderboard section (inline with sales)"],
     ["✓ NEW: Rising Stars (#4 and #5) shown as honorable mentions"],
     [""],
-    ["SECTION 0: TEAM PERFORMANCE SUMMARY (A3:C3) - EDITABLE:"],
-    ["• Purchase % - Churn Prevention Purchase Plan Execution (e.g., 110.9%)"],
-    ["• Revenue % - Churn Prevention Revenue Plan Execution (e.g., 102.6%)"],
-    ["• Update these percentages weekly to show team's overall CP performance"],
+    ["SECTION 0: SECONDARY SALES PLAN (A3:C3) - EDITABLE:"],
+    ["• Purchase Plan Execution - Enter as decimal (e.g., 1.109 for 110.9%)"],
+    ["• Revenue Plan Execution - Enter as decimal (e.g., 1.026 for 102.6%)"],
+    ["• Values are automatically converted to percentages in Slack message"],
     [""],
     ["SECTION 0.5: REGIONAL CHAMPIONS (A7:C8) - EDITABLE:"],
     ["• Row 1: Churn Prevention champion region"],
@@ -318,7 +318,7 @@ function createLeaderboardTemplateV2() {
     ["• Region - Country/region with flag emoji"],
     [""],
     ["HOW TO UPDATE WEEKLY:"],
-    ["1. Update Team Performance Summary (A3:C3) with CP plan execution percentages"],
+    ["1. Update Secondary Sales Plan (A3:C3) with plan execution as decimals (e.g., 1.109, 1.026)"],
     ["2. Update Regional Champions (A7:C8) with top CP and KB regions"],
     ["3. Update Week column to current week in all leaderboard sections"],
     ["4. Update Sales, WoW, and Cash Generated for each manager"],
@@ -368,10 +368,10 @@ function createLeaderboardTemplateV2() {
     ["1. Use 'Combined Leaderboard' format"],
     ["2. Point to 'Weekly Leaderboard' sheet"],
     ["3. Schedule: Weekly, Monday 9:00 AM"],
-    ["4. All sections + Team Performance + Regional Champions in ONE message!"],
+    ["4. All sections + Secondary Sales Plan + Regional Champions in ONE message!"],
     [""],
     ["SHEET RANGES (FOR REFERENCE):"],
-    ["• Team Performance: A3:C3 (1 row, editable)"],
+    ["• Secondary Sales Plan: A3:C3 (1 row, editable)"],
     ["• Regional Champions: A7:C8 (2 rows, editable)"],
     ["• Churn Current Base: A12:G16 (5 rows, includes WoW column, ranks 1-5)"],
     ["• Churn Old Base: A20:G24 (5 rows, includes WoW column, ranks 1-5)"],
@@ -391,16 +391,16 @@ function createLeaderboardTemplateV2() {
   SpreadsheetApp.getUi().alert(
     '✅ NEW Template Created!',
     'The "Weekly Leaderboard" sheet has been created with the new structure:\n\n' +
-    '✓ Team Performance Summary (CP Plan Execution)\n' +
+    '✓ Secondary Sales Plan (Purchase & Revenue Plan Execution)\n' +
     '✓ Regional Champions (CP & KB top regions)\n' +
     '✓ Churn Prevention: Current Base + Old Base - TOP 5 each\n' +
     '✓ Killer Base: Current Base + Old Base - TOP 5 each\n' +
-    '✓ Rising Stars: Ranks 4-5 shown as honorable mentions\n' +
+    '✓ Rising Stars: Ranks 4-5 shown separately\n' +
     '✓ Cash Generated column and WoW tracking\n' +
     '✓ Regional Performance with detailed breakdown\n\n' +
     'Next steps:\n' +
     '1. Review the sample data\n' +
-    '2. Update Team Performance (A3:C3) and Regional Champions (A7:C8)\n' +
+    '2. Update Secondary Sales Plan (A3:C3) and Regional Champions (A7:C8)\n' +
     '3. Update with your actual leaderboard data (5 managers per section)\n' +
     '4. Use the automation - it will automatically split Top 3 and Rising Stars!',
     SpreadsheetApp.getUi().ButtonSet.OK

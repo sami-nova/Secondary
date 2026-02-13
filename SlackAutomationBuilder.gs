@@ -1408,18 +1408,37 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // TEAM PERFORMANCE SUMMARY - Churn Prevention Plan vs Fact
+    // SECONDARY SALES PLAN (was Team Performance)
     // ============================================
     const teamPerfRow = teamPerfData[0];
     if (teamPerfRow && teamPerfRow[1] && teamPerfRow[2]) {
-      const purchPct = teamPerfRow[1];
-      const revPct = teamPerfRow[2];
+      let purchPct = teamPerfRow[1];
+      let revPct = teamPerfRow[2];
+
+      // Convert to percentage if stored as decimal (1.109 -> 110.9%)
+      if (typeof purchPct === 'number' && purchPct > 0 && purchPct < 10) {
+        purchPct = (purchPct * 100).toFixed(1) + '%';
+      } else if (typeof purchPct === 'string' && !purchPct.includes('%')) {
+        const num = parseFloat(purchPct);
+        if (!isNaN(num) && num > 0 && num < 10) {
+          purchPct = (num * 100).toFixed(1) + '%';
+        }
+      }
+
+      if (typeof revPct === 'number' && revPct > 0 && revPct < 10) {
+        revPct = (revPct * 100).toFixed(1) + '%';
+      } else if (typeof revPct === 'string' && !revPct.includes('%')) {
+        const num = parseFloat(revPct);
+        if (!isNaN(num) && num > 0 && num < 10) {
+          revPct = (num * 100).toFixed(1) + '%';
+        }
+      }
 
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `*📊 TEAM PERFORMANCE - CHURN PREVENTION*\n\n• Purchase Plan Execution: *${purchPct}*\n• Revenue Plan Execution: *${revPct}*`
+          text: `*📊 SECONDARY SALES PLAN*\n\n• Purchase Plan Execution: *${purchPct}*\n• Revenue Plan Execution: *${revPct}*`
         }
       });
 
@@ -1629,7 +1648,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     // Add Rising Stars if available
     if (churnCurrentRising.length > 0) {
-      let risingStarsText = "_⭐ Rising Stars (Honorable Mentions)_\n\n";
+      let risingStarsText = "_⭐ Rising Stars_\n\n";
       churnCurrentRising.forEach((row) => {
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -1736,7 +1755,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       // Add Rising Stars if available
       if (churnOldRising.length > 0) {
-        let risingStarsText = "_⭐ Rising Stars (Honorable Mentions)_\n\n";
+        let risingStarsText = "_⭐ Rising Stars_\n\n";
         churnOldRising.forEach((row) => {
           const rank = row[1];
           const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -1843,7 +1862,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       // Add Rising Stars if available
       if (killerCurrentRising.length > 0) {
-        let risingStarsText = "_⭐ Rising Stars (Honorable Mentions)_\n\n";
+        let risingStarsText = "_⭐ Rising Stars_\n\n";
         killerCurrentRising.forEach((row) => {
           const rank = row[1];
           const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -1950,7 +1969,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       // Add Rising Stars if available
       if (killerOldRising.length > 0) {
-        let risingStarsText = "_⭐ Rising Stars (Honorable Mentions)_\n\n";
+        let risingStarsText = "_⭐ Rising Stars_\n\n";
         killerOldRising.forEach((row) => {
           const rank = row[1];
           const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
