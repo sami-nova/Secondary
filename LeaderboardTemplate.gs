@@ -49,15 +49,52 @@ function createLeaderboardTemplate() {
   const currentWeek = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-'W'ww");
 
   // ============================================
-  // SECTION 1: Churn Prevention Top 5
+  // SECTION 0: TEAM PERFORMANCE SUMMARY (Churn Prevention Plan vs Fact)
   // ============================================
-  sheet.getRange("A1").setValue("🏆 CHURN PREVENTION LEADERBOARD - TOP 5");
-  sheet.getRange("A1:F1").merge();
-  sheet.getRange("A1:F1").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A1").setValue("📊 TEAM PERFORMANCE - CHURN PREVENTION");
+  sheet.getRange("A1:C1").merge();
+  sheet.getRange("A1:C1").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const teamPerfHeaders = ["Metric", "Purchase %", "Revenue %"];
+  sheet.getRange("A2:C2").setValues([teamPerfHeaders]);
+  sheet.getRange("A2:C2").setBackground("#E1BEE7").setFontWeight("bold");
+
+  // Sample data for Team Performance
+  const teamPerfData = [
+    ["Plan Execution", "110.9%", "102.6%"]
+  ];
+  sheet.getRange("A3:C3").setValues(teamPerfData);
+  sheet.getRange("A2:C3").setBorder(true, true, true, true, true, true);
+
+  // ============================================
+  // SECTION 1: REGIONAL CHAMPIONS
+  // ============================================
+  sheet.getRange("A5").setValue("🌍 REGIONAL CHAMPIONS");
+  sheet.getRange("A5:C5").merge();
+  sheet.getRange("A5:C5").setBackground("#FF5722").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const champHeaders = ["Category", "Region", "Performance"];
+  sheet.getRange("A6:C6").setValues([champHeaders]);
+  sheet.getRange("A6:C6").setBackground("#FFCCBC").setFontWeight("bold");
+
+  // Sample data for Regional Champions
+  const champData = [
+    ["Churn Prevention", "TR", "47 sales | $18,234"],
+    ["Killer Base", "PL", "52 sales | $21,456"]
+  ];
+  sheet.getRange("A7:C8").setValues(champData);
+  sheet.getRange("A6:C8").setBorder(true, true, true, true, true, true);
+
+  // ============================================
+  // SECTION 2: Churn Prevention Top 5
+  // ============================================
+  sheet.getRange("A10").setValue("🏆 CHURN PREVENTION LEADERBOARD - TOP 5");
+  sheet.getRange("A10:F10").merge();
+  sheet.getRange("A10:F10").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const churnHeaders = ["Week", "Rank", "Manager Name", "Wins", "Change vs Last Week", "Region"];
-  sheet.getRange("A2:F2").setValues([churnHeaders]);
-  sheet.getRange("A2:F2").setBackground("#E8F5E9").setFontWeight("bold");
+  sheet.getRange("A11:F11").setValues([churnHeaders]);
+  sheet.getRange("A11:F11").setBackground("#E8F5E9").setFontWeight("bold");
 
   // Sample data for Churn Prevention
   const churnSampleData = [
@@ -67,18 +104,18 @@ function createLeaderboardTemplate() {
     [currentWeek, 4, "Emily Davis", 35, "+12", "LATAM"],
     [currentWeek, 5, "David Wilson", 33, "+3", "NA"]
   ];
-  sheet.getRange("A3:F7").setValues(churnSampleData);
+  sheet.getRange("A12:F16").setValues(churnSampleData);
 
   // ============================================
-  // SECTION 2: Killer Base Top 5
+  // SECTION 3: Killer Base Top 5
   // ============================================
-  sheet.getRange("A9").setValue("💪 KILLER BASE LEADERBOARD - TOP 5");
-  sheet.getRange("A9:F9").merge();
-  sheet.getRange("A9:F9").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A18").setValue("💪 KILLER BASE LEADERBOARD - TOP 5");
+  sheet.getRange("A18:F18").merge();
+  sheet.getRange("A18:F18").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const killerHeaders = ["Week", "Rank", "Manager Name", "Wins", "Change vs Last Week", "Region"];
-  sheet.getRange("A10:F10").setValues([killerHeaders]);
-  sheet.getRange("A10:F10").setBackground("#E3F2FD").setFontWeight("bold");
+  sheet.getRange("A19:F19").setValues([killerHeaders]);
+  sheet.getRange("A19:F19").setBackground("#E3F2FD").setFontWeight("bold");
 
   // Sample data for Killer Base
   const killerSampleData = [
@@ -88,18 +125,18 @@ function createLeaderboardTemplate() {
     [currentWeek, 4, "James Lee", 41, "-1", "APAC"],
     [currentWeek, 5, "Rachel Green", 39, "+9", "EMEA"]
   ];
-  sheet.getRange("A11:F15").setValues(killerSampleData);
+  sheet.getRange("A20:F24").setValues(killerSampleData);
 
   // ============================================
-  // SECTION 3: Regional Performance
+  // SECTION 4: Regional Performance
   // ============================================
-  sheet.getRange("A17").setValue("🌍 REGIONAL PERFORMANCE SUMMARY");
-  sheet.getRange("A17:F17").merge();
-  sheet.getRange("A17:F17").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A26").setValue("🌍 REGIONAL PERFORMANCE SUMMARY");
+  sheet.getRange("A26:F26").merge();
+  sheet.getRange("A26:F26").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const regionHeaders = ["Week", "Region", "Total Wins", "Churn Wins", "Killer Wins", "Top Manager"];
-  sheet.getRange("A18:F18").setValues([regionHeaders]);
-  sheet.getRange("A18:F18").setBackground("#FFF3E0").setFontWeight("bold");
+  sheet.getRange("A27:F27").setValues([regionHeaders]);
+  sheet.getRange("A27:F27").setBackground("#FFF3E0").setFontWeight("bold");
 
   // Sample regional data
   const regionSampleData = [
@@ -108,7 +145,7 @@ function createLeaderboardTemplate() {
     [currentWeek, "APAC", 128, 62, 66, "Mike Chen"],
     [currentWeek, "LATAM", 112, 54, 58, "Anna Martinez"]
   ];
-  sheet.getRange("A19:F22").setValues(regionSampleData);
+  sheet.getRange("A28:F31").setValues(regionSampleData);
 
   // ============================================
   // Formatting and Instructions
@@ -123,9 +160,9 @@ function createLeaderboardTemplate() {
   sheet.setColumnWidth(6, 100); // Region
 
   // Add borders
-  sheet.getRange("A2:F7").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A10:F15").setBorder(true, true, true, true, true, true);
-  sheet.getRange("A18:F22").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A11:F16").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A19:F24").setBorder(true, true, true, true, true, true);
+  sheet.getRange("A27:F31").setBorder(true, true, true, true, true, true);
 
   // Add instructions sheet
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -472,17 +509,21 @@ function sendCombinedLeaderboard(channel) {
     }
 
     // Get all data sections
-    const churnHeaders = sheet.getRange("A2:F2").getValues()[0];
-    const churnData = sheet.getRange("A3:F7").getValues();
+    const teamPerfData = sheet.getRange("A3:C3").getValues()[0];
+    const regionalChampions = sheet.getRange("A7:C8").getValues();
 
-    const killerHeaders = sheet.getRange("A10:F10").getValues()[0];
-    const killerData = sheet.getRange("A11:F15").getValues();
+    const churnHeaders = sheet.getRange("A11:F11").getValues()[0];
+    const churnData = sheet.getRange("A12:F16").getValues();
 
-    const regionalHeaders = sheet.getRange("A18:F18").getValues()[0];
-    const regionalData = sheet.getRange("A19:F22").getValues();
+    const killerHeaders = sheet.getRange("A19:F19").getValues()[0];
+    const killerData = sheet.getRange("A20:F24").getValues();
+
+    const regionalHeaders = sheet.getRange("A27:F27").getValues()[0];
+    const regionalData = sheet.getRange("A28:F31").getValues();
 
     // Build combined message
     const payload = buildCombinedLeaderboardMessage(
+      teamPerfData, regionalChampions,
       churnHeaders, churnData,
       killerHeaders, killerData,
       regionalHeaders, regionalData
@@ -522,9 +563,9 @@ function sendCombinedLeaderboard(channel) {
 
 /**
  * BUILD COMBINED LEADERBOARD MESSAGE
- * Creates one message with all 3 leaderboard sections
+ * Creates one message with all leaderboard sections including new Team Performance and Regional Champions
  */
-function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders, killerData, regionalHeaders, regionalData) {
+function buildCombinedLeaderboardMessage(teamPerfData, regionalChampions, churnHeaders, churnData, killerHeaders, killerData, regionalHeaders, regionalData) {
   const blocks = [];
 
   // Get current week from data
@@ -543,13 +584,76 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
   blocks.push({ type: "divider" });
 
   // ============================================
-  // SECTION 1: CHURN PREVENTION LEADERBOARD
+  // SECTION 0: TEAM PERFORMANCE SUMMARY
+  // ============================================
+  if (teamPerfData && teamPerfData.length > 0) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*📊 TEAM PERFORMANCE - CHURN PREVENTION*"
+      }
+    });
+
+    const metric = teamPerfData[0] || "Plan Execution";
+    const purchasePercent = teamPerfData[1] || "";
+    const revenuePercent = teamPerfData[2] || "";
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${metric}*\n└ Purchase %: *${purchasePercent}* | Revenue %: *${revenuePercent}*`
+      }
+    });
+
+    blocks.push({ type: "divider" });
+  }
+
+  // ============================================
+  // SECTION 1: REGIONAL CHAMPIONS
+  // ============================================
+  if (regionalChampions && regionalChampions.length > 0) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "*🌍 REGIONAL CHAMPIONS*"
+      }
+    });
+
+    let champText = "";
+    regionalChampions.forEach(row => {
+      const category = row[0] || "";
+      const region = row[1] || "";
+      const performance = row[2] || "";
+      const regionEmoji = getRegionSlackEmoji(region);
+
+      if (category && region) {
+        const icon = category.includes("Churn") ? "🏆" : "💪";
+        champText += `${icon} *${category}*: ${regionEmoji} ${region} - ${performance}\n`;
+      }
+    });
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: champText || "_No champions data_"
+      }
+    });
+
+    blocks.push({ type: "divider" });
+  }
+
+  // ============================================
+  // SECTION 2: CHURN PREVENTION LEADERBOARD
   // ============================================
   blocks.push({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*🏆 CHURN PREVENTION - TOP 5*"
+      text: "*🏆 CHURN PREVENTION - TOP 3*"
     }
   });
 
@@ -567,12 +671,15 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
     const changeIndicator = getChangeIndicator(change);
     const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-    churnText += `${rankEmoji} *#${rank} ${managerName}*\n`;
-    churnText += `   └ ${wins} sales ${changeIndicator}`;
-    if (region) {
-      churnText += ` | ${regionEmoji} ${region}`;
+    // Show top 3
+    if (rank <= 3) {
+      churnText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      churnText += `   └ ${wins} sales ${changeIndicator}`;
+      if (region) {
+        churnText += ` | ${regionEmoji} ${region}`;
+      }
+      churnText += `\n\n`;
     }
-    churnText += `\n\n`;
   });
 
   blocks.push({
@@ -583,16 +690,48 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
     }
   });
 
+  // Rising Stars section for #4 and #5
+  let risingStarsText = "*⭐ Rising Stars*\n";
+  let hasRisingStars = false;
+  churnData.forEach((row, idx) => {
+    if (!row[1]) return;
+
+    const rank = row[1];
+    if (rank === 4 || rank === 5) {
+      const managerName = row[2] || `Manager ${idx + 1}`;
+      const wins = row[3] || 0;
+      const region = row[5] || "";
+      const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+      risingStarsText += `• *${managerName}*: ${wins} sales`;
+      if (region) {
+        risingStarsText += ` | ${regionEmoji} ${region}`;
+      }
+      risingStarsText += `\n`;
+      hasRisingStars = true;
+    }
+  });
+
+  if (hasRisingStars) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: risingStarsText
+      }
+    });
+  }
+
   blocks.push({ type: "divider" });
 
   // ============================================
-  // SECTION 2: KILLER BASE LEADERBOARD
+  // SECTION 3: KILLER BASE LEADERBOARD
   // ============================================
   blocks.push({
     type: "section",
     text: {
       type: "mrkdwn",
-      text: "*💪 KILLER BASE - TOP 5*"
+      text: "*💪 KILLER BASE - TOP 3*"
     }
   });
 
@@ -610,12 +749,15 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
     const changeIndicator = getChangeIndicator(change);
     const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
-    killerText += `${rankEmoji} *#${rank} ${managerName}*\n`;
-    killerText += `   └ ${wins} sales ${changeIndicator}`;
-    if (region) {
-      killerText += ` | ${regionEmoji} ${region}`;
+    // Show top 3
+    if (rank <= 3) {
+      killerText += `${rankEmoji} *#${rank} ${managerName}*\n`;
+      killerText += `   └ ${wins} sales ${changeIndicator}`;
+      if (region) {
+        killerText += ` | ${regionEmoji} ${region}`;
+      }
+      killerText += `\n\n`;
     }
-    killerText += `\n\n`;
   });
 
   blocks.push({
@@ -626,10 +768,42 @@ function buildCombinedLeaderboardMessage(churnHeaders, churnData, killerHeaders,
     }
   });
 
+  // Rising Stars section for #4 and #5
+  let killerRisingStarsText = "*⭐ Rising Stars*\n";
+  let hasKillerRisingStars = false;
+  killerData.forEach((row, idx) => {
+    if (!row[1]) return;
+
+    const rank = row[1];
+    if (rank === 4 || rank === 5) {
+      const managerName = row[2] || `Manager ${idx + 1}`;
+      const wins = row[3] || 0;
+      const region = row[5] || "";
+      const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+      killerRisingStarsText += `• *${managerName}*: ${wins} sales`;
+      if (region) {
+        killerRisingStarsText += ` | ${regionEmoji} ${region}`;
+      }
+      killerRisingStarsText += `\n`;
+      hasKillerRisingStars = true;
+    }
+  });
+
+  if (hasKillerRisingStars) {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: killerRisingStarsText
+      }
+    });
+  }
+
   blocks.push({ type: "divider" });
 
   // ============================================
-  // SECTION 3: REGIONAL PERFORMANCE
+  // SECTION 4: REGIONAL PERFORMANCE
   // ============================================
   blocks.push({
     type: "section",
