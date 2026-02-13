@@ -1377,16 +1377,18 @@ function buildCombinedLeaderboardFromSheet(automation) {
       return { text: "Weekly Leaderboard sheet not found. Please create it first." };
     }
 
-    // Get all data sections from the sheet (TOP 3 STRUCTURE)
-    const churnCurrentData = sheet.getRange("A3:G5").getValues();
-    const churnOldData = sheet.getRange("A9:G11").getValues();
-    const killerCurrentData = sheet.getRange("A15:G17").getValues();
-    const killerOldData = sheet.getRange("A21:G23").getValues();
-    const totalsData = sheet.getRange("A27:B34").getValues();
-    const managerOfWeekData = sheet.getRange("A38:E38").getValues();
-    const kbPaidRateData = sheet.getRange("A42:F44").getValues();
-    const cpPaidRateData = sheet.getRange("A48:F50").getValues();
-    const highestPaymentsData = sheet.getRange("A54:F56").getValues();
+    // Get all data sections from the sheet (TOP 5 STRUCTURE - with Rising Stars)
+    const teamPerfData = sheet.getRange("A3:C3").getValues();  // NEW: Team Performance Summary
+    const regionalChampData = sheet.getRange("A7:C8").getValues();  // NEW: Regional Champions
+    const churnCurrentData = sheet.getRange("A12:G16").getValues();  // 5 rows (1-3 main, 4-5 rising stars)
+    const churnOldData = sheet.getRange("A20:G24").getValues();  // 5 rows
+    const killerCurrentData = sheet.getRange("A28:G32").getValues();  // 5 rows
+    const killerOldData = sheet.getRange("A36:G40").getValues();  // 5 rows
+    const totalsData = sheet.getRange("A44:B51").getValues();
+    const managerOfWeekData = sheet.getRange("A55:E55").getValues();
+    const kbPaidRateData = sheet.getRange("A59:F61").getValues();
+    const cpPaidRateData = sheet.getRange("A65:F67").getValues();
+    const highestPaymentsData = sheet.getRange("A71:F73").getValues();
 
     const blocks = [];
 
@@ -1404,6 +1406,53 @@ function buildCombinedLeaderboardFromSheet(automation) {
     });
 
     blocks.push({ type: "divider" });
+
+    // ============================================
+    // TEAM PERFORMANCE SUMMARY - Churn Prevention Plan vs Fact
+    // ============================================
+    const teamPerfRow = teamPerfData[0];
+    if (teamPerfRow && teamPerfRow[1] && teamPerfRow[2]) {
+      const purchPct = teamPerfRow[1];
+      const revPct = teamPerfRow[2];
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `*📊 TEAM PERFORMANCE - CHURN PREVENTION*\n\n• Purchase Plan Execution: *${purchPct}*\n• Revenue Plan Execution: *${revPct}*`
+        }
+      });
+
+      blocks.push({ type: "divider" });
+    }
+
+    // ============================================
+    // REGIONAL CHAMPIONS - CP and KB
+    // ============================================
+    if (regionalChampData && regionalChampData.length === 2) {
+      const cpChamp = regionalChampData[0];  // [Category, Region, Performance]
+      const kbChamp = regionalChampData[1];
+
+      if (cpChamp[1] && kbChamp[1]) {
+        const cpRegion = cleanSheetData(cpChamp[1]);
+        const cpPerf = cpChamp[2];
+        const cpEmoji = getRegionSlackEmoji(cpRegion);
+
+        const kbRegion = cleanSheetData(kbChamp[1]);
+        const kbPerf = kbChamp[2];
+        const kbEmoji = getRegionSlackEmoji(kbRegion);
+
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*🌍 REGIONAL CHAMPIONS*\n\n🏆 *Churn Prevention*: ${cpEmoji} ${cpRegion}\n   └ ${cpPerf}\n\n💪 *Killer Base*: ${kbEmoji} ${kbRegion}\n   └ ${kbPerf}`
+          }
+        });
+
+        blocks.push({ type: "divider" });
+      }
+    }
 
     // ============================================
     // MANAGER OF THE WEEK - Read from sheet (editable) or auto-calculate
@@ -1520,7 +1569,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     }
 
     // ============================================
-    // SECTION 1: CHURN PREVENTION - CURRENT BASE - TOP 3
+    // SECTION 1: CHURN PREVENTION - CURRENT BASE - TOP 3 + RISING STARS
     // ============================================
     blocks.push({
       type: "section",
@@ -1530,8 +1579,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
       }
     });
 
+    // Split into main (ranks 1-3) and rising stars (ranks 4-5)
+    const churnCurrentMain = churnCurrentData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
+    const churnCurrentRising = churnCurrentData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
+
     let churnCurrentText = "";
-    churnCurrentData.forEach((row, idx) => {
+    churnCurrentMain.forEach((row, idx) => {
       // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
       const rank = row[1];
       const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -1574,10 +1627,52 @@ function buildCombinedLeaderboardFromSheet(automation) {
       }
     });
 
+    // Add Rising Stars if available
+    if (churnCurrentRising.length > 0) {
+      let risingStarsText = "_⭐ Rising Stars (Honorable Mentions)_\n\n";
+      churnCurrentRising.forEach((row) => {
+        const rank = row[1];
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+        const sales = row[3];
+        const wow = row[4] ? String(row[4]).trim() : "";
+        const cashRaw = row[5];
+        const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
+        const region = cleanSheetData(row[6]);
+
+        if (!rank || !managerName) return;
+
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+        let salesText = `${sales} sales`;
+        if (wow) {
+          const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+          const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
+                          !isNaN(wowNum) && wowNum >= 10 ? '📈' :
+                          !isNaN(wowNum) && wowNum >= 1 ? '➕' :
+                          !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
+          salesText += ` (${wowEmoji} ${wow} WoW)`;
+        }
+
+        risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
+        if (region) {
+          risingStarsText += ` | ${regionEmoji} ${region}`;
+        }
+        risingStarsText += `\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: risingStarsText
+        }
+      });
+    }
+
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 2: CHURN PREVENTION - OLD BASE - TOP 3 (OPTIONAL)
+    // SECTION 2: CHURN PREVENTION - OLD BASE - TOP 3 + RISING STARS (OPTIONAL)
     // ============================================
     // Check if there's any data before displaying this section
     const hasChurnOldData = churnOldData.some(row => row[1] && row[2]); // Check if has rank and manager name
@@ -1591,8 +1686,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
         }
       });
 
+      // Split into main (ranks 1-3) and rising stars (ranks 4-5)
+      const churnOldMain = churnOldData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
+      const churnOldRising = churnOldData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
+
       let churnOldText = "";
-      churnOldData.forEach((row, idx) => {
+      churnOldMain.forEach((row, idx) => {
         // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -1634,12 +1733,54 @@ function buildCombinedLeaderboardFromSheet(automation) {
           text: churnOldText || "_No data available_"
         }
       });
+
+      // Add Rising Stars if available
+      if (churnOldRising.length > 0) {
+        let risingStarsText = "_⭐ Rising Stars (Honorable Mentions)_\n\n";
+        churnOldRising.forEach((row) => {
+          const rank = row[1];
+          const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+          const sales = row[3];
+          const wow = row[4] ? String(row[4]).trim() : "";
+          const cashRaw = row[5];
+          const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
+          const region = cleanSheetData(row[6]);
+
+          if (!rank || !managerName) return;
+
+          const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+          let salesText = `${sales} sales`;
+          if (wow) {
+            const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+            const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
+                            !isNaN(wowNum) && wowNum >= 10 ? '📈' :
+                            !isNaN(wowNum) && wowNum >= 1 ? '➕' :
+                            !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
+            salesText += ` (${wowEmoji} ${wow} WoW)`;
+          }
+
+          risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
+          if (region) {
+            risingStarsText += ` | ${regionEmoji} ${region}`;
+          }
+          risingStarsText += `\n`;
+        });
+
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: risingStarsText
+          }
+        });
+      }
     }
 
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 3: KILLER BASE - CURRENT BASE - TOP 3 (OPTIONAL)
+    // SECTION 3: KILLER BASE - CURRENT BASE - TOP 3 + RISING STARS (OPTIONAL)
     // ============================================
     const hasKillerCurrentData = killerCurrentData.some(row => row[1] && row[2]);
 
@@ -1652,8 +1793,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
         }
       });
 
+      // Split into main (ranks 1-3) and rising stars (ranks 4-5)
+      const killerCurrentMain = killerCurrentData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
+      const killerCurrentRising = killerCurrentData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
+
       let killerCurrentText = "";
-      killerCurrentData.forEach((row, idx) => {
+      killerCurrentMain.forEach((row, idx) => {
         // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -1695,12 +1840,54 @@ function buildCombinedLeaderboardFromSheet(automation) {
           text: killerCurrentText || "_No data available_"
         }
       });
+
+      // Add Rising Stars if available
+      if (killerCurrentRising.length > 0) {
+        let risingStarsText = "_⭐ Rising Stars (Honorable Mentions)_\n\n";
+        killerCurrentRising.forEach((row) => {
+          const rank = row[1];
+          const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+          const sales = row[3];
+          const wow = row[4] ? String(row[4]).trim() : "";
+          const cashRaw = row[5];
+          const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
+          const region = cleanSheetData(row[6]);
+
+          if (!rank || !managerName) return;
+
+          const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+          let salesText = `${sales} sales`;
+          if (wow) {
+            const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+            const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
+                            !isNaN(wowNum) && wowNum >= 10 ? '📈' :
+                            !isNaN(wowNum) && wowNum >= 1 ? '➕' :
+                            !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
+            salesText += ` (${wowEmoji} ${wow} WoW)`;
+          }
+
+          risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
+          if (region) {
+            risingStarsText += ` | ${regionEmoji} ${region}`;
+          }
+          risingStarsText += `\n`;
+        });
+
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: risingStarsText
+          }
+        });
+      }
     }
 
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 4: KILLER BASE - OLD BASE - TOP 3 (OPTIONAL)
+    // SECTION 4: KILLER BASE - OLD BASE - TOP 3 + RISING STARS (OPTIONAL)
     // ============================================
     const hasKillerOldData = killerOldData.some(row => row[1] && row[2]);
 
@@ -1713,8 +1900,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
         }
       });
 
+      // Split into main (ranks 1-3) and rising stars (ranks 4-5)
+      const killerOldMain = killerOldData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
+      const killerOldRising = killerOldData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
+
       let killerOldText = "";
-      killerOldData.forEach((row, idx) => {
+      killerOldMain.forEach((row, idx) => {
         // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -1756,6 +1947,48 @@ function buildCombinedLeaderboardFromSheet(automation) {
           text: killerOldText || "_No data available_"
         }
       });
+
+      // Add Rising Stars if available
+      if (killerOldRising.length > 0) {
+        let risingStarsText = "_⭐ Rising Stars (Honorable Mentions)_\n\n";
+        killerOldRising.forEach((row) => {
+          const rank = row[1];
+          const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+          const sales = row[3];
+          const wow = row[4] ? String(row[4]).trim() : "";
+          const cashRaw = row[5];
+          const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
+          const region = cleanSheetData(row[6]);
+
+          if (!rank || !managerName) return;
+
+          const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+          let salesText = `${sales} sales`;
+          if (wow) {
+            const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
+            const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
+                            !isNaN(wowNum) && wowNum >= 10 ? '📈' :
+                            !isNaN(wowNum) && wowNum >= 1 ? '➕' :
+                            !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
+            salesText += ` (${wowEmoji} ${wow} WoW)`;
+          }
+
+          risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
+          if (region) {
+            risingStarsText += ` | ${regionEmoji} ${region}`;
+          }
+          risingStarsText += `\n`;
+        });
+
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: risingStarsText
+          }
+        });
+      }
     }
 
     blocks.push({ type: "divider" });
