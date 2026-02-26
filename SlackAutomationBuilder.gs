@@ -1389,6 +1389,9 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const kbPaidRateData = sheet.getRange("A59:F61").getValues();
     const cpPaidRateData = sheet.getRange("A65:F67").getValues();
     const highestPaymentsData = sheet.getRange("A71:F73").getValues();
+    const cpUpsellData = sheet.getRange("A77:E79").getValues();    // CP Upsell Top 3 (optional)
+    const kbUpsellData = sheet.getRange("A83:E85").getValues();    // KB Upsell Top 3 (optional)
+    const biggestArpuData = sheet.getRange("A89:F91").getValues(); // Biggest ARPU Sale (optional)
 
     const blocks = [];
 
@@ -2187,6 +2190,156 @@ function buildCombinedLeaderboardFromSheet(automation) {
         text: {
           type: "mrkdwn",
           text: highestPaymentsText || "_No data available_"
+        }
+      });
+    }
+
+    // ============================================
+    // SECTION 8a: CP UPSELL - TOP 3 MANAGERS (OPTIONAL)
+    // ============================================
+    const hasCpUpsellData = cpUpsellData.some(row => row[1] && row[2]);
+
+    if (hasCpUpsellData) {
+      blocks.push({ type: "divider" });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*🏆 CP UPSELL - TOP 3 MANAGERS*"
+        }
+      });
+
+      let cpUpsellText = "";
+      cpUpsellData.forEach((row) => {
+        const rank = row[1];
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+        const upsells = row[3];
+        const region = cleanSheetData(row[4]);
+
+        if (!rank || !managerName) return;
+
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+        cpUpsellText += `${rankEmoji} *${managerName}*\n`;
+        cpUpsellText += `   └ ${upsells} upsells`;
+        if (region) {
+          cpUpsellText += ` | ${regionEmoji} ${region}`;
+        }
+        cpUpsellText += `\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: cpUpsellText || "_No data available_"
+        }
+      });
+    }
+
+    // ============================================
+    // SECTION 8b: KB UPSELL - TOP 3 MANAGERS (OPTIONAL)
+    // ============================================
+    const hasKbUpsellData = kbUpsellData.some(row => row[1] && row[2]);
+
+    if (hasKbUpsellData) {
+      blocks.push({ type: "divider" });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*💪 KB UPSELL - TOP 3 MANAGERS*"
+        }
+      });
+
+      let kbUpsellText = "";
+      kbUpsellData.forEach((row) => {
+        const rank = row[1];
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+        const upsells = row[3];
+        const region = cleanSheetData(row[4]);
+
+        if (!rank || !managerName) return;
+
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+        kbUpsellText += `${rankEmoji} *${managerName}*\n`;
+        kbUpsellText += `   └ ${upsells} upsells`;
+        if (region) {
+          kbUpsellText += ` | ${regionEmoji} ${region}`;
+        }
+        kbUpsellText += `\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: kbUpsellText || "_No data available_"
+        }
+      });
+    }
+
+    // ============================================
+    // SECTION 8c: BIGGEST ARPU SALE OF THE WEEK (OPTIONAL)
+    // ============================================
+    const hasBiggestArpuData = biggestArpuData.some(row => row[1] && row[2]);
+
+    if (hasBiggestArpuData) {
+      blocks.push({ type: "divider" });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*📈 BIGGEST ARPU SALE OF THE WEEK*"
+        }
+      });
+
+      let biggestArpuText = "";
+      let arpuEntryIndex = 1;
+      biggestArpuData.forEach((row) => {
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[1]) : cleanSheetData(row[1]);
+        const client = cleanSheetData(row[2]);
+        const prevArpu = row[3];
+        const newArpu = row[4];
+        const region = cleanSheetData(row[5]);
+
+        if (!managerName || !client) return;
+
+        const rankEmoji = getRankEmoji(arpuEntryIndex);
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+        const prevFormatted = typeof prevArpu === 'number' ? `$${prevArpu.toLocaleString('en-US')}` : prevArpu;
+        const newFormatted = typeof newArpu === 'number' ? `$${newArpu.toLocaleString('en-US')}` : newArpu;
+
+        // Calculate and show ARPU uplift
+        let upliftText = "";
+        if (typeof prevArpu === 'number' && typeof newArpu === 'number') {
+          const uplift = newArpu - prevArpu;
+          upliftText = uplift >= 0
+            ? ` | 📈 +$${uplift.toLocaleString('en-US')} uplift`
+            : ` | 📉 -$${Math.abs(uplift).toLocaleString('en-US')} uplift`;
+        }
+
+        biggestArpuText += `${rankEmoji} *${managerName}*\n`;
+        biggestArpuText += `   └ Client: *${client}* | Prev ARPU: ${prevFormatted} → New ARPU: *${newFormatted}*${upliftText}`;
+        if (region) {
+          biggestArpuText += ` | ${regionEmoji} ${region}`;
+        }
+        biggestArpuText += `\n\n`;
+        arpuEntryIndex++;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: biggestArpuText || "_No data available_"
         }
       });
     }

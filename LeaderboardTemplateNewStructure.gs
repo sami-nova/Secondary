@@ -256,6 +256,60 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A71:F73").setValues(highestPaymentsData);
 
   // ============================================
+  // SECTION 9: CP UPSELL - TOP 3 MANAGERS
+  // ============================================
+  sheet.getRange("A75").setValue("🏆 CP UPSELL - TOP 3 MANAGERS");
+  sheet.getRange("A75:E75").merge();
+  sheet.getRange("A75:E75").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const cpUpsellHeaders = ["Week", "Rank", "Manager Name", "Upsells", "Region"];
+  sheet.getRange("A76:E76").setValues([cpUpsellHeaders]);
+  sheet.getRange("A76:E76").setBackground("#E8F5E9").setFontWeight("bold");
+
+  const cpUpsellData = [
+    [currentWeek, 1, "John Smith", 8, "TR"],
+    [currentWeek, 2, "Sarah Johnson", 6, "FR"],
+    [currentWeek, 3, "Mike Chen", 5, "DE"]
+  ];
+  sheet.getRange("A77:E79").setValues(cpUpsellData);
+
+  // ============================================
+  // SECTION 10: KB UPSELL - TOP 3 MANAGERS
+  // ============================================
+  sheet.getRange("A81").setValue("💪 KB UPSELL - TOP 3 MANAGERS");
+  sheet.getRange("A81:E81").merge();
+  sheet.getRange("A81:E81").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const kbUpsellHeaders = ["Week", "Rank", "Manager Name", "Upsells", "Region"];
+  sheet.getRange("A82:E82").setValues([kbUpsellHeaders]);
+  sheet.getRange("A82:E82").setBackground("#E3F2FD").setFontWeight("bold");
+
+  const kbUpsellData = [
+    [currentWeek, 1, "James Lee", 10, "PL"],
+    [currentWeek, 2, "Rachel Green", 7, "CZ"],
+    [currentWeek, 3, "Carlos Silva", 5, "RO"]
+  ];
+  sheet.getRange("A83:E85").setValues(kbUpsellData);
+
+  // ============================================
+  // SECTION 11: BIGGEST ARPU SALE OF THE WEEK
+  // ============================================
+  sheet.getRange("A87").setValue("📈 BIGGEST ARPU SALE OF THE WEEK");
+  sheet.getRange("A87:F87").merge();
+  sheet.getRange("A87:F87").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const biggestArpuHeaders = ["Week", "Manager Name", "Client", "Previous ARPU ($)", "New ARPU ($)", "Region"];
+  sheet.getRange("A88:F88").setValues([biggestArpuHeaders]);
+  sheet.getRange("A88:F88").setBackground("#E1BEE7").setFontWeight("bold");
+
+  const biggestArpuSampleData = [
+    [currentWeek, "Omar Al-Farsi", "Client A", 15, 75, "ARAB"],
+    [currentWeek, "Sophie Martin", "Client B", 20, 60, "FR"],
+    ["", "", "", "", "", ""]
+  ];
+  sheet.getRange("A89:F91").setValues(biggestArpuSampleData);
+
+  // ============================================
   // Formatting
   // ============================================
 
@@ -277,6 +331,9 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A58:F61").setBorder(true, true, true, true, true, true);  // KB Paid Rate
   sheet.getRange("A64:F67").setBorder(true, true, true, true, true, true);  // CP Paid Rate
   sheet.getRange("A70:F73").setBorder(true, true, true, true, true, true);  // Highest Payments
+  sheet.getRange("A76:E79").setBorder(true, true, true, true, true, true);  // CP Upsell Top 3
+  sheet.getRange("A82:E85").setBorder(true, true, true, true, true, true);  // KB Upsell Top 3
+  sheet.getRange("A88:F91").setBorder(true, true, true, true, true, true);  // Biggest ARPU Sale
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -294,6 +351,9 @@ function createLeaderboardTemplateV2() {
     ["✓ Section 6: KB Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 7: CP Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 8: Highest Payments This Week - TOP 3"],
+    ["✓ Section 9: CP Upsell - TOP 3 MANAGERS (OPTIONAL - leave empty to skip)"],
+    ["✓ Section 10: KB Upsell - TOP 3 MANAGERS (OPTIONAL - leave empty to skip)"],
+    ["✓ Section 11: Biggest ARPU Sale of the Week (OPTIONAL - leave empty to skip)"],
     ["✓ NEW: WoW column in each leaderboard section (inline with sales)"],
     ["✓ NEW: Rising Stars (#4 and #5) shown as honorable mentions"],
     [""],
@@ -381,7 +441,23 @@ function createLeaderboardTemplateV2() {
     ["• Manager of the Week: A55:E55 (1 row, editable)"],
     ["• KB Paid Rate 14day: A59:F61 (3 regions)"],
     ["• CP Paid Rate 14day: A65:F67 (3 regions)"],
-    ["• Highest Payments: A71:F73 (3 managers)"]
+    ["• Highest Payments: A71:F73 (3 managers)"],
+    ["• CP Upsell Top 3: A77:E79 (3 managers, OPTIONAL)"],
+    ["• KB Upsell Top 3: A83:E85 (3 managers, OPTIONAL)"],
+    ["• Biggest ARPU Sale: A89:F91 (up to 3 entries, OPTIONAL)"],
+    [""],
+    ["CP UPSELL / KB UPSELL SECTIONS (Sections 9 & 10) - OPTIONAL:"],
+    ["• Columns: Week | Rank | Manager Name | Upsells | Region"],
+    ["• Rank managers by number of upsells this week (descending)"],
+    ["• Leave all 3 rows empty to skip section in Slack message"],
+    ["• Manager mentions work the same as other sections"],
+    [""],
+    ["BIGGEST ARPU SALE OF THE WEEK (Section 11) - OPTIONAL:"],
+    ["• Columns: Week | Manager Name | Client | Previous ARPU ($) | New ARPU ($) | Region"],
+    ["• Enter the client's previous ARPU and new ARPU after upsell"],
+    ["• ARPU uplift is automatically calculated (New ARPU - Previous ARPU)"],
+    ["• Leave rows empty to skip section in Slack message"],
+    ["• Example: Manager 'Omar Al-Farsi' upgraded Client A from $15 → $75 ARPU"]
   ];
 
   instructionSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
@@ -397,7 +473,10 @@ function createLeaderboardTemplateV2() {
     '✓ Killer Base: Current Base + Old Base - TOP 5 each\n' +
     '✓ Rising Stars: Ranks 4-5 shown separately\n' +
     '✓ Cash Generated column and WoW tracking\n' +
-    '✓ Regional Performance with detailed breakdown\n\n' +
+    '✓ Regional Performance with detailed breakdown\n' +
+    '✓ CP Upsell Top 3 (optional - leave empty to skip)\n' +
+    '✓ KB Upsell Top 3 (optional - leave empty to skip)\n' +
+    '✓ Biggest ARPU Sale of the Week (optional - leave empty to skip)\n\n' +
     'Next steps:\n' +
     '1. Review the sample data\n' +
     '2. Update Secondary Sales Plan (A3:C3) and Regional Champions (A7:C8)\n' +
