@@ -1377,16 +1377,16 @@ function buildCombinedLeaderboardFromSheet(automation) {
       return { text: "Weekly Leaderboard sheet not found. Please create it first." };
     }
 
-    // Get all data sections from the sheet (TOP 5 STRUCTURE - with Rising Stars)
+    // Get all data sections from the sheet (TOP 5 STRUCTURE - with Rising Stars + ARPU & Upsell Share)
     const teamPerfData = sheet.getRange("A3:C3").getValues();  // NEW: Team Performance Summary
     const regionalChampData = sheet.getRange("A7:C8").getValues();  // NEW: Regional Champions
     const upsellMetricsData = sheet.getRange("A12:E14").getValues();  // NEW: Upsell Metrics Summary
-    const churnCurrentData = sheet.getRange("A18:G22").getValues();  // 5 rows (1-3 main, 4-5 rising stars)
-    const churnOldData = sheet.getRange("A26:G30").getValues();  // 5 rows
-    const killerCurrentData = sheet.getRange("A34:G38").getValues();  // 5 rows
-    const killerOldData = sheet.getRange("A42:G46").getValues();  // 5 rows
+    const churnCurrentData = sheet.getRange("A18:I22").getValues();  // 5 rows (1-3 main, 4-5 rising stars) + ARPU & Upsell Share
+    const churnOldData = sheet.getRange("A26:I30").getValues();  // 5 rows + ARPU & Upsell Share
+    const killerCurrentData = sheet.getRange("A34:I38").getValues();  // 5 rows + ARPU & Upsell Share
+    const killerOldData = sheet.getRange("A42:I46").getValues();  // 5 rows + ARPU & Upsell Share
     const totalsData = sheet.getRange("A50:B57").getValues();
-    const managerOfWeekData = sheet.getRange("A61:E61").getValues();
+    const managerOfWeekData = sheet.getRange("A61:G61").getValues();  // Now includes ARPU & Upsell Share
     const kbPaidRateData = sheet.getRange("A65:F67").getValues();
     const cpPaidRateData = sheet.getRange("A71:F73").getValues();
     const highestPaymentsData = sheet.getRange("A77:F79").getValues();
@@ -1512,8 +1512,40 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
         // Upsell Share Row
         if (upsellShareRow[1] || upsellShareRow[2] || upsellShareRow[3]) {
+          // Format as percentages if they're decimals (e.g., 0.155 -> 15.5%)
+          let cpShare = upsellShareRow[1];
+          let kbShare = upsellShareRow[2];
+          let overallShare = upsellShareRow[3];
+
+          if (typeof cpShare === 'number' && cpShare < 1) {
+            cpShare = (cpShare * 100).toFixed(1) + '%';
+          } else if (!String(cpShare).includes('%')) {
+            const num = parseFloat(String(cpShare));
+            if (!isNaN(num) && num < 1) {
+              cpShare = (num * 100).toFixed(1) + '%';
+            }
+          }
+
+          if (typeof kbShare === 'number' && kbShare < 1) {
+            kbShare = (kbShare * 100).toFixed(1) + '%';
+          } else if (!String(kbShare).includes('%')) {
+            const num = parseFloat(String(kbShare));
+            if (!isNaN(num) && num < 1) {
+              kbShare = (num * 100).toFixed(1) + '%';
+            }
+          }
+
+          if (typeof overallShare === 'number' && overallShare < 1) {
+            overallShare = (overallShare * 100).toFixed(2) + '%';
+          } else if (!String(overallShare).includes('%')) {
+            const num = parseFloat(String(overallShare));
+            if (!isNaN(num) && num < 1) {
+              overallShare = (num * 100).toFixed(2) + '%';
+            }
+          }
+
           metricsText += `*Upsell Share:*\n`;
-          metricsText += `   • CP: *${upsellShareRow[1]}* | KB: *${upsellShareRow[2]}* | Overall: *${upsellShareRow[3]}*\n`;
+          metricsText += `   • CP: *${cpShare}* | KB: *${kbShare}* | Overall: *${overallShare}*\n`;
           if (upsellShareRow[4]) {
             const topUpsellManager = typeof applyManagerMentions === 'function'
               ? applyManagerMentions(upsellShareRow[4])
@@ -1547,7 +1579,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     // ============================================
     // MANAGER OF THE WEEK - Read from sheet (editable) or auto-calculate
     // ============================================
-    // Row format: [Manager Name, Sales, Cash Generated, WoW, Description]
+    // Row format: [Manager Name, Sales, Cash Generated, WoW, ARPU, Upsell Share, Description]
     const manualManager = managerOfWeekData[0];
     const hasManualData = manualManager && manualManager[0] && String(manualManager[0]).trim() !== "";
 
@@ -1559,7 +1591,9 @@ function buildCombinedLeaderboardFromSheet(automation) {
       const sales = manualManager[1];
       const cashRaw = manualManager[2];
       const wow = manualManager[3] ? String(manualManager[3]).trim() : "";
-      const description = manualManager[4] ? String(manualManager[4]).trim() : "";
+      const arpu = manualManager[4] ? manualManager[4] : "";
+      const upsellShare = manualManager[5] ? manualManager[5] : "";
+      const description = manualManager[6] ? String(manualManager[6]).trim() : "";
 
       const displayName = typeof applyManagerMentions === 'function'
         ? applyManagerMentions(managerName)
@@ -1581,6 +1615,14 @@ function buildCombinedLeaderboardFromSheet(automation) {
         displayText += `\n   • WoW: ${wowEmoji} *${wow}*`;
       }
 
+      if (arpu) {
+        displayText += `\n   • ARPU: *${arpu}*`;
+      }
+
+      if (upsellShare) {
+        displayText += `\n   • Upsell Share: *${upsellShare}*`;
+      }
+
       if (description) {
         displayText += `\n\n*_${description}_*`;
       }
@@ -1600,6 +1642,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
             const sales = row[3];
             const wow = row[4] ? String(row[4]).trim() : "";
             const cashRaw = row[5];
+            const arpu = row[6] ? row[6] : "";
+            const upsellShare = row[7] ? row[7] : "";
             const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
             const section = sectionNames[sectionIdx];
 
@@ -1609,6 +1653,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
                 sales: sales,
                 wow: wow,
                 cash: cashGenerated,
+                arpu: arpu,
+                upsellShare: upsellShare,
                 section: section
               });
             }
@@ -1637,6 +1683,14 @@ function buildCombinedLeaderboardFromSheet(automation) {
                           !isNaN(wowNum) && wowNum >= 1 ? '➕' :
                           !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
           displayText += `\n   • WoW: ${wowEmoji} *${topManager.wow}*`;
+        }
+
+        if (topManager.arpu) {
+          displayText += `\n   • ARPU: *${topManager.arpu}*`;
+        }
+
+        if (topManager.upsellShare) {
+          displayText += `\n   • Upsell Share: *${topManager.upsellShare}*`;
         }
 
         displayText += `\n\n*_Leading in ${topManager.section}_*`;
@@ -1675,14 +1729,16 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     let churnCurrentText = "";
     churnCurrentMain.forEach((row, idx) => {
-      // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
+      // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
       const rank = row[1];
       const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
       const sales = row[3];
       const wow = row[4] ? String(row[4]).trim() : "";
       const cashRaw = row[5];
+      const arpu = row[6] ? row[6] : "";
+      const upsellShare = row[7] ? row[7] : "";
       const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-      const region = cleanSheetData(row[6]);
+      const region = cleanSheetData(row[8]);
 
       if (!rank || !managerName) return;
 
@@ -1703,6 +1759,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       churnCurrentText += `${rankEmoji} *${managerName}*\n`;
       churnCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
+      if (arpu) {
+        churnCurrentText += ` | ARPU: ${arpu}`;
+      }
+      if (upsellShare) {
+        churnCurrentText += ` | Upsell: ${upsellShare}`;
+      }
       if (region) {
         churnCurrentText += ` | ${regionEmoji} ${region}`;
       }
@@ -1726,8 +1788,10 @@ function buildCombinedLeaderboardFromSheet(automation) {
         const sales = row[3];
         const wow = row[4] ? String(row[4]).trim() : "";
         const cashRaw = row[5];
+        const arpu = row[6] ? row[6] : "";
+        const upsellShare = row[7] ? row[7] : "";
         const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-        const region = cleanSheetData(row[6]);
+        const region = cleanSheetData(row[8]);
 
         if (!rank || !managerName) return;
 
@@ -1744,6 +1808,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
         }
 
         risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
+        if (arpu) {
+          risingStarsText += ` | ARPU: ${arpu}`;
+        }
+        if (upsellShare) {
+          risingStarsText += ` | Upsell: ${upsellShare}`;
+        }
         if (region) {
           risingStarsText += ` | ${regionEmoji} ${region}`;
         }
@@ -1782,14 +1852,16 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       let churnOldText = "";
       churnOldMain.forEach((row, idx) => {
-        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
+        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
         const sales = row[3];
         const wow = row[4] ? String(row[4]).trim() : "";
         const cashRaw = row[5];
+        const arpu = row[6] ? row[6] : "";
+        const upsellShare = row[7] ? row[7] : "";
         const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-        const region = cleanSheetData(row[6]);
+        const region = cleanSheetData(row[8]);
 
         if (!rank || !managerName) return;
 
@@ -1810,6 +1882,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
         churnOldText += `${rankEmoji} *${managerName}*\n`;
         churnOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
+        if (arpu) {
+          churnOldText += ` | ARPU: ${arpu}`;
+        }
+        if (upsellShare) {
+          churnOldText += ` | Upsell: ${upsellShare}`;
+        }
         if (region) {
           churnOldText += ` | ${regionEmoji} ${region}`;
         }
@@ -1833,8 +1911,10 @@ function buildCombinedLeaderboardFromSheet(automation) {
           const sales = row[3];
           const wow = row[4] ? String(row[4]).trim() : "";
           const cashRaw = row[5];
+          const arpu = row[6] ? row[6] : "";
+          const upsellShare = row[7] ? row[7] : "";
           const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-          const region = cleanSheetData(row[6]);
+          const region = cleanSheetData(row[8]);
 
           if (!rank || !managerName) return;
 
@@ -1851,6 +1931,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
           }
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
+          if (arpu) {
+            risingStarsText += ` | ARPU: ${arpu}`;
+          }
+          if (upsellShare) {
+            risingStarsText += ` | Upsell: ${upsellShare}`;
+          }
           if (region) {
             risingStarsText += ` | ${regionEmoji} ${region}`;
           }
@@ -1889,14 +1975,16 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       let killerCurrentText = "";
       killerCurrentMain.forEach((row, idx) => {
-        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
+        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
         const sales = row[3];
         const wow = row[4] ? String(row[4]).trim() : "";
         const cashRaw = row[5];
+        const arpu = row[6] ? row[6] : "";
+        const upsellShare = row[7] ? row[7] : "";
         const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-        const region = cleanSheetData(row[6]);
+        const region = cleanSheetData(row[8]);
 
         if (!rank || !managerName) return;
 
@@ -1917,6 +2005,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
         killerCurrentText += `${rankEmoji} *${managerName}*\n`;
         killerCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
+        if (arpu) {
+          killerCurrentText += ` | ARPU: ${arpu}`;
+        }
+        if (upsellShare) {
+          killerCurrentText += ` | Upsell: ${upsellShare}`;
+        }
         if (region) {
           killerCurrentText += ` | ${regionEmoji} ${region}`;
         }
@@ -1940,8 +2034,10 @@ function buildCombinedLeaderboardFromSheet(automation) {
           const sales = row[3];
           const wow = row[4] ? String(row[4]).trim() : "";
           const cashRaw = row[5];
+          const arpu = row[6] ? row[6] : "";
+          const upsellShare = row[7] ? row[7] : "";
           const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-          const region = cleanSheetData(row[6]);
+          const region = cleanSheetData(row[8]);
 
           if (!rank || !managerName) return;
 
@@ -1958,6 +2054,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
           }
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
+          if (arpu) {
+            risingStarsText += ` | ARPU: ${arpu}`;
+          }
+          if (upsellShare) {
+            risingStarsText += ` | Upsell: ${upsellShare}`;
+          }
           if (region) {
             risingStarsText += ` | ${regionEmoji} ${region}`;
           }
@@ -1996,14 +2098,16 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       let killerOldText = "";
       killerOldMain.forEach((row, idx) => {
-        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, Region]
+        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
         const sales = row[3];
         const wow = row[4] ? String(row[4]).trim() : "";
         const cashRaw = row[5];
+        const arpu = row[6] ? row[6] : "";
+        const upsellShare = row[7] ? row[7] : "";
         const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-        const region = cleanSheetData(row[6]);
+        const region = cleanSheetData(row[8]);
 
         if (!rank || !managerName) return;
 
@@ -2024,6 +2128,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
         killerOldText += `${rankEmoji} *${managerName}*\n`;
         killerOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
+        if (arpu) {
+          killerOldText += ` | ARPU: ${arpu}`;
+        }
+        if (upsellShare) {
+          killerOldText += ` | Upsell: ${upsellShare}`;
+        }
         if (region) {
           killerOldText += ` | ${regionEmoji} ${region}`;
         }
@@ -2047,8 +2157,10 @@ function buildCombinedLeaderboardFromSheet(automation) {
           const sales = row[3];
           const wow = row[4] ? String(row[4]).trim() : "";
           const cashRaw = row[5];
+          const arpu = row[6] ? row[6] : "";
+          const upsellShare = row[7] ? row[7] : "";
           const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-          const region = cleanSheetData(row[6]);
+          const region = cleanSheetData(row[8]);
 
           if (!rank || !managerName) return;
 
@@ -2065,6 +2177,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
           }
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
+          if (arpu) {
+            risingStarsText += ` | ARPU: ${arpu}`;
+          }
+          if (upsellShare) {
+            risingStarsText += ` | Upsell: ${upsellShare}`;
+          }
           if (region) {
             risingStarsText += ` | ${regionEmoji} ${region}`;
           }
