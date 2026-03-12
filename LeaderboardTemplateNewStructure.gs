@@ -73,15 +73,34 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A6:C8").setBorder(true, true, true, true, true, true);
 
   // ============================================
+  // SECTION 0.75: UPSELL METRICS SUMMARY
+  // ============================================
+  sheet.getRange("A10").setValue("📊 UPSELL METRICS SUMMARY");
+  sheet.getRange("A10:E10").merge();
+  sheet.getRange("A10:E10").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const upsellSummaryHeaders = ["Metric", "CP", "KB", "Overall", "Top Manager"];
+  sheet.getRange("A11:E11").setValues([upsellSummaryHeaders]);
+  sheet.getRange("A11:E11").setBackground("#E1BEE7").setFontWeight("bold");
+
+  const upsellSummaryData = [
+    ["Overall ARPU", "$45.20", "$52.30", "$48.75", "@Merve Odali"],
+    ["Upsell Share", "15.5%", "18.2%", "16.85%", "@Selen Orcan"],
+    ["N# of Sales (Total)", "125", "151", "276", "@Merve Odali - 45"]
+  ];
+  sheet.getRange("A12:E14").setValues(upsellSummaryData);
+  sheet.getRange("A11:E14").setBorder(true, true, true, true, true, true);
+
+  // ============================================
   // SECTION 1: CHURN PREVENTION - CURRENT BASE - TOP 5 (Ranks 1-3 + Rising Stars 4-5)
   // ============================================
-  sheet.getRange("A10").setValue("🏆 CHURN PREVENTION - CURRENT BASE - TOP 5");
-  sheet.getRange("A10:G10").merge();
-  sheet.getRange("A10:G10").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A16").setValue("🏆 CHURN PREVENTION - CURRENT BASE - TOP 5");
+  sheet.getRange("A16:G16").merge();
+  sheet.getRange("A16:G16").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const churnCurrentHeaders = ["Week", "Rank", "Manager Name", "Sales", "WoW", "Cash Generated", "Region"];
-  sheet.getRange("A11:G11").setValues([churnCurrentHeaders]);
-  sheet.getRange("A11:G11").setBackground("#E8F5E9").setFontWeight("bold");
+  sheet.getRange("A17:G17").setValues([churnCurrentHeaders]);
+  sheet.getRange("A17:G17").setBackground("#E8F5E9").setFontWeight("bold");
 
   const churnCurrentData = [
     [currentWeek, 1, "John Smith", 45, "+15", "$12,500", "TR"],
@@ -90,18 +109,18 @@ function createLeaderboardTemplateV2() {
     [currentWeek, 4, "Emily Davis", 35, "+12", "$9,500", "PL"],
     [currentWeek, 5, "David Wilson", 33, "+3", "$9,100", "IL"]
   ];
-  sheet.getRange("A12:G16").setValues(churnCurrentData);
+  sheet.getRange("A18:G22").setValues(churnCurrentData);
 
   // ============================================
   // SECTION 2: CHURN PREVENTION - OLD BASE - TOP 5 (Ranks 1-3 + Rising Stars 4-5)
   // ============================================
-  sheet.getRange("A18").setValue("🏆 CHURN PREVENTION - OLD BASE - TOP 5");
-  sheet.getRange("A18:G18").merge();
-  sheet.getRange("A18:G18").setBackground("#66BB6A").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A24").setValue("🏆 CHURN PREVENTION - OLD BASE - TOP 5");
+  sheet.getRange("A24:G24").merge();
+  sheet.getRange("A24:G24").setBackground("#66BB6A").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const churnOldHeaders = ["Week", "Rank", "Manager Name", "Sales", "WoW", "Cash Generated", "Region"];
-  sheet.getRange("A19:G19").setValues([churnOldHeaders]);
-  sheet.getRange("A19:G19").setBackground("#E8F5E9").setFontWeight("bold");
+  sheet.getRange("A25:G25").setValues([churnOldHeaders]);
+  sheet.getRange("A25:G25").setBackground("#E8F5E9").setFontWeight("bold");
 
   const churnOldData = [
     [currentWeek, 1, "Maria Garcia", 52, "+20", "$14,500", "ES"],
@@ -110,18 +129,18 @@ function createLeaderboardTemplateV2() {
     [currentWeek, 4, "Tom Rodriguez", 41, "+7", "$11,500", "RO"],
     [currentWeek, 5, "Nina Petrova", 39, "+5", "$10,800", "RU"]
   ];
-  sheet.getRange("A20:G24").setValues(churnOldData);
+  sheet.getRange("A26:G30").setValues(churnOldData);
 
   // ============================================
   // SECTION 3: KILLER BASE - CURRENT BASE - TOP 5 (Ranks 1-3 + Rising Stars 4-5)
   // ============================================
-  sheet.getRange("A26").setValue("💪 KILLER BASE - CURRENT BASE - TOP 5");
-  sheet.getRange("A26:G26").merge();
-  sheet.getRange("A26:G26").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A32").setValue("💪 KILLER BASE - CURRENT BASE - TOP 5");
+  sheet.getRange("A32:G32").merge();
+  sheet.getRange("A32:G32").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const killerCurrentHeaders = ["Week", "Rank", "Manager Name", "Sales", "WoW", "Cash Generated", "Region"];
-  sheet.getRange("A27:G27").setValues([killerCurrentHeaders]);
-  sheet.getRange("A27:G27").setBackground("#E3F2FD").setFontWeight("bold");
+  sheet.getRange("A33:G33").setValues([killerCurrentHeaders]);
+  sheet.getRange("A33:G33").setBackground("#E3F2FD").setFontWeight("bold");
 
   const killerCurrentData = [
     [currentWeek, 1, "James Lee", 55, "+25", "$15,200", "PL"],
@@ -130,18 +149,18 @@ function createLeaderboardTemplateV2() {
     [currentWeek, 4, "Anna Kowalski", 43, "+14", "$12,200", "PL"],
     [currentWeek, 5, "Marco Rossi", 40, "+6", "$11,600", "IT"]
   ];
-  sheet.getRange("A28:G32").setValues(killerCurrentData);
+  sheet.getRange("A34:G38").setValues(killerCurrentData);
 
   // ============================================
   // SECTION 4: KILLER BASE - OLD BASE - TOP 5 (Ranks 1-3 + Rising Stars 4-5)
   // ============================================
-  sheet.getRange("A34").setValue("💪 KILLER BASE - OLD BASE - TOP 5");
-  sheet.getRange("A34:G34").merge();
-  sheet.getRange("A34:G34").setBackground("#42A5F5").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A40").setValue("💪 KILLER BASE - OLD BASE - TOP 5");
+  sheet.getRange("A40:G40").merge();
+  sheet.getRange("A40:G40").setBackground("#42A5F5").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const killerOldHeaders = ["Week", "Rank", "Manager Name", "Sales", "WoW", "Cash Generated", "Region"];
-  sheet.getRange("A35:G35").setValues([killerOldHeaders]);
-  sheet.getRange("A35:G35").setBackground("#E3F2FD").setFontWeight("bold");
+  sheet.getRange("A41:G41").setValues([killerOldHeaders]);
+  sheet.getRange("A41:G41").setBackground("#E3F2FD").setFontWeight("bold");
 
   const killerOldData = [
     [currentWeek, 1, "Omar Al-Farsi", 58, "+18", "$16,100", "ARAB"],
@@ -150,18 +169,18 @@ function createLeaderboardTemplateV2() {
     [currentWeek, 4, "Klaus Schmidt", 48, "+11", "$13,500", "DE"],
     [currentWeek, 5, "Lucia Fernandez", 45, "+8", "$12,900", "ES"]
   ];
-  sheet.getRange("A36:G40").setValues(killerOldData);
+  sheet.getRange("A42:G46").setValues(killerOldData);
 
   // ============================================
   // SECTION 5: TOTALS SUMMARY (for you to update manually)
   // ============================================
-  sheet.getRange("A42").setValue("📊 TOTALS SUMMARY");
-  sheet.getRange("A42:B42").merge();
-  sheet.getRange("A42:B42").setBackground("#FFA726").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A48").setValue("📊 TOTALS SUMMARY");
+  sheet.getRange("A48:B48").merge();
+  sheet.getRange("A48:B48").setBackground("#FFA726").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const totalsHeaders = ["Metric", "Value"];
-  sheet.getRange("A43:B43").setValues([totalsHeaders]);
-  sheet.getRange("A43:B43").setBackground("#FFE0B2").setFontWeight("bold");
+  sheet.getRange("A49:B49").setValues([totalsHeaders]);
+  sheet.getRange("A49:B49").setBackground("#FFE0B2").setFontWeight("bold");
 
   const totalsData = [
     ["Display Date (e.g., Jan 26th)", "Jan 26th"],
@@ -173,141 +192,141 @@ function createLeaderboardTemplateV2() {
     ["Killer Current Base", 151],
     ["Killer Old Base", 128]
   ];
-  sheet.getRange("A44:B51").setValues(totalsData);
+  sheet.getRange("A50:B57").setValues(totalsData);
 
   // Add borders to totals section
-  sheet.getRange("A42:B51").setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("A48:B57").setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
 
   Logger.log("✓ Totals summary section added");
 
   // ============================================
   // SECTION 5.5: MANAGER OF THE WEEK (EDITABLE)
   // ============================================
-  sheet.getRange("A53").setValue("⭐ MANAGER OF THE WEEK");
-  sheet.getRange("A53:E53").merge();
-  sheet.getRange("A53:E53").setBackground("#FFD700").setFontColor("black").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A59").setValue("⭐ MANAGER OF THE WEEK");
+  sheet.getRange("A59:E59").merge();
+  sheet.getRange("A59:E59").setBackground("#FFD700").setFontColor("black").setFontWeight("bold").setFontSize(12);
 
   const managerOfWeekHeaders = ["Manager Name", "Sales", "Cash Generated", "WoW", "Description"];
-  sheet.getRange("A54:E54").setValues([managerOfWeekHeaders]);
-  sheet.getRange("A54:E54").setBackground("#FFF9C4").setFontWeight("bold");
+  sheet.getRange("A60:E60").setValues([managerOfWeekHeaders]);
+  sheet.getRange("A60:E60").setBackground("#FFF9C4").setFontWeight("bold");
 
   const managerOfWeekData = [
     ["Omar Al-Farsi", 58, "$16,100", "+18", "Leading in KB Old"]
   ];
-  sheet.getRange("A55:E55").setValues(managerOfWeekData);
+  sheet.getRange("A61:E61").setValues(managerOfWeekData);
 
   // Add borders
-  sheet.getRange("A53:E55").setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
+  sheet.getRange("A59:E61").setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
 
   Logger.log("✓ Manager of the Week section added");
 
   // ============================================
   // SECTION 6: KB PAID RATE CONTACTED 14DAY - TOP 3
   // ============================================
-  sheet.getRange("A57").setValue("💪 KB PAID RATE CONTACTED 14DAY - TOP 3");
-  sheet.getRange("A57:F57").merge();
-  sheet.getRange("A57:F57").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A63").setValue("💪 KB PAID RATE CONTACTED 14DAY - TOP 3");
+  sheet.getRange("A63:F63").merge();
+  sheet.getRange("A63:F63").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const kbPaidRateHeaders = ["Week", "Rank", "Region", "Paid Rate %", "Target %", "Total Payments"];
-  sheet.getRange("A58:F58").setValues([kbPaidRateHeaders]);
-  sheet.getRange("A58:F58").setBackground("#E3F2FD").setFontWeight("bold");
+  sheet.getRange("A64:F64").setValues([kbPaidRateHeaders]);
+  sheet.getRange("A64:F64").setBackground("#E3F2FD").setFontWeight("bold");
 
   const kbPaidRateData = [
     [currentWeek, 1, "IT", "40%", "20%", "$14"],
     [currentWeek, 2, "PL", "33.33%", "20%", "$22"],
     [currentWeek, 3, "RO", "22.15%", "11%", "$33"]
   ];
-  sheet.getRange("A59:F61").setValues(kbPaidRateData);
+  sheet.getRange("A65:F67").setValues(kbPaidRateData);
 
   // ============================================
   // SECTION 7: CP PAID RATE CONTACTED 14DAY - TOP 3
   // ============================================
-  sheet.getRange("A63").setValue("🏆 CP PAID RATE CONTACTED 14DAY - TOP 3");
-  sheet.getRange("A63:F63").merge();
-  sheet.getRange("A63:F63").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A69").setValue("🏆 CP PAID RATE CONTACTED 14DAY - TOP 3");
+  sheet.getRange("A69:F69").merge();
+  sheet.getRange("A69:F69").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const cpPaidRateHeaders = ["Week", "Rank", "Region", "Paid Rate %", "Target %", "Total Payments"];
-  sheet.getRange("A64:F64").setValues([cpPaidRateHeaders]);
-  sheet.getRange("A64:F64").setBackground("#E8F5E9").setFontWeight("bold");
+  sheet.getRange("A70:F70").setValues([cpPaidRateHeaders]);
+  sheet.getRange("A70:F70").setBackground("#E8F5E9").setFontWeight("bold");
 
   const cpPaidRateData = [
     [currentWeek, 1, "TR", "35%", "25%", "$120"],
     [currentWeek, 2, "FR", "28%", "20%", "$95"],
     [currentWeek, 3, "DE", "22%", "20%", "$78"]
   ];
-  sheet.getRange("A65:F67").setValues(cpPaidRateData);
+  sheet.getRange("A71:F73").setValues(cpPaidRateData);
 
   // ============================================
   // SECTION 8: HIGHEST PAYMENTS THIS WEEK - TOP 3
   // ============================================
-  sheet.getRange("A69").setValue("💰 HIGHEST PAYMENTS THIS WEEK - TOP 3");
-  sheet.getRange("A69:F69").merge();
-  sheet.getRange("A69:F69").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A75").setValue("💰 HIGHEST PAYMENTS THIS WEEK - TOP 3");
+  sheet.getRange("A75:F75").merge();
+  sheet.getRange("A75:F75").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const highestPaymentsHeaders = ["Week", "Rank", "Manager Name", "Region", "Payment ($)", "Slack User ID"];
-  sheet.getRange("A70:F70").setValues([highestPaymentsHeaders]);
-  sheet.getRange("A70:F70").setBackground("#FFE0B2").setFontWeight("bold");
+  sheet.getRange("A76:F76").setValues([highestPaymentsHeaders]);
+  sheet.getRange("A76:F76").setBackground("#FFE0B2").setFontWeight("bold");
 
   const highestPaymentsData = [
     [currentWeek, 1, "@Sami", "TR", 16100, "U02905GQ32R"],
     [currentWeek, 2, "Maria Garcia", "ES", 14500, ""],
     [currentWeek, 3, "Omar Al-Farsi", "ARAB", 13200, ""]
   ];
-  sheet.getRange("A71:F73").setValues(highestPaymentsData);
+  sheet.getRange("A77:F79").setValues(highestPaymentsData);
 
   // ============================================
   // SECTION 9: CP UPSELL - TOP 3 MANAGERS
   // ============================================
-  sheet.getRange("A75").setValue("🏆 CP UPSELL - TOP 3 MANAGERS");
-  sheet.getRange("A75:E75").merge();
-  sheet.getRange("A75:E75").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A81").setValue("🏆 CP UPSELL - TOP 3 MANAGERS");
+  sheet.getRange("A81:G81").merge();
+  sheet.getRange("A81:G81").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const cpUpsellHeaders = ["Week", "Rank", "Manager Name", "Upsells", "Region"];
-  sheet.getRange("A76:E76").setValues([cpUpsellHeaders]);
-  sheet.getRange("A76:E76").setBackground("#E8F5E9").setFontWeight("bold");
+  const cpUpsellHeaders = ["Week", "Rank", "Manager Name", "N# of Sales", "ARPU", "Upsell Share", "Region"];
+  sheet.getRange("A82:G82").setValues([cpUpsellHeaders]);
+  sheet.getRange("A82:G82").setBackground("#E8F5E9").setFontWeight("bold");
 
   const cpUpsellData = [
-    [currentWeek, 1, "John Smith", 8, "TR"],
-    [currentWeek, 2, "Sarah Johnson", 6, "FR"],
-    [currentWeek, 3, "Mike Chen", 5, "DE"]
+    [currentWeek, 1, "@Merve Odali", 10, "$45.50", "18%", "TR"],
+    [currentWeek, 2, "@Ipek Oztufekcı", 10, "$42.80", "15%", "TR"],
+    [currentWeek, 3, "@Marta Lewandowska", 8, "$38.20", "12%", "PL"]
   ];
-  sheet.getRange("A77:E79").setValues(cpUpsellData);
+  sheet.getRange("A83:G85").setValues(cpUpsellData);
 
   // ============================================
   // SECTION 10: KB UPSELL - TOP 3 MANAGERS
   // ============================================
-  sheet.getRange("A81").setValue("💪 KB UPSELL - TOP 3 MANAGERS");
-  sheet.getRange("A81:E81").merge();
-  sheet.getRange("A81:E81").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A87").setValue("💪 KB UPSELL - TOP 3 MANAGERS");
+  sheet.getRange("A87:G87").merge();
+  sheet.getRange("A87:G87").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const kbUpsellHeaders = ["Week", "Rank", "Manager Name", "Upsells", "Region"];
-  sheet.getRange("A82:E82").setValues([kbUpsellHeaders]);
-  sheet.getRange("A82:E82").setBackground("#E3F2FD").setFontWeight("bold");
+  const kbUpsellHeaders = ["Week", "Rank", "Manager Name", "N# of Sales", "ARPU", "Upsell Share", "Region"];
+  sheet.getRange("A88:G88").setValues([kbUpsellHeaders]);
+  sheet.getRange("A88:G88").setBackground("#E3F2FD").setFontWeight("bold");
 
   const kbUpsellData = [
-    [currentWeek, 1, "James Lee", 10, "PL"],
-    [currentWeek, 2, "Rachel Green", 7, "CZ"],
-    [currentWeek, 3, "Carlos Silva", 5, "RO"]
+    [currentWeek, 1, "@Selen Orcan", 18, "$52.30", "22%", "TR"],
+    [currentWeek, 2, "@Abdallah", 15, "$48.60", "18%", "ARAB"],
+    [currentWeek, 3, "@Valeria Lvova", 9, "$41.90", "14%", "IL"]
   ];
-  sheet.getRange("A83:E85").setValues(kbUpsellData);
+  sheet.getRange("A89:G91").setValues(kbUpsellData);
 
   // ============================================
   // SECTION 11: BIGGEST ARPU SALE OF THE WEEK
   // ============================================
-  sheet.getRange("A87").setValue("📈 BIGGEST ARPU SALE OF THE WEEK");
-  sheet.getRange("A87:F87").merge();
-  sheet.getRange("A87:F87").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A93").setValue("📈 BIGGEST ARPU SALE OF THE WEEK");
+  sheet.getRange("A93:F93").merge();
+  sheet.getRange("A93:F93").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const biggestArpuHeaders = ["Week", "Manager Name", "Client", "Previous ARPU ($)", "New ARPU ($)", "Region"];
-  sheet.getRange("A88:F88").setValues([biggestArpuHeaders]);
-  sheet.getRange("A88:F88").setBackground("#E1BEE7").setFontWeight("bold");
+  sheet.getRange("A94:F94").setValues([biggestArpuHeaders]);
+  sheet.getRange("A94:F94").setBackground("#E1BEE7").setFontWeight("bold");
 
   const biggestArpuSampleData = [
     [currentWeek, "Omar Al-Farsi", "Client A", 15, 75, "ARAB"],
     [currentWeek, "Sophie Martin", "Client B", 20, 60, "FR"],
     ["", "", "", "", "", ""]
   ];
-  sheet.getRange("A89:F91").setValues(biggestArpuSampleData);
+  sheet.getRange("A95:F97").setValues(biggestArpuSampleData);
 
   // ============================================
   // Formatting
@@ -322,18 +341,18 @@ function createLeaderboardTemplateV2() {
   sheet.setColumnWidth(6, 130);  // Total Payments
 
   // Add borders to all sections
-  sheet.getRange("A11:G16").setBorder(true, true, true, true, true, true);  // Churn Current (now with 5 rows)
-  sheet.getRange("A19:G24").setBorder(true, true, true, true, true, true);  // Churn Old (now with 5 rows)
-  sheet.getRange("A27:G32").setBorder(true, true, true, true, true, true);  // Killer Current (now with 5 rows)
-  sheet.getRange("A35:G40").setBorder(true, true, true, true, true, true);  // Killer Old (now with 5 rows)
-  sheet.getRange("A43:B51").setBorder(true, true, true, true, true, true);  // Totals Summary
-  sheet.getRange("A54:E55").setBorder(true, true, true, true, true, true);  // Manager of the Week
-  sheet.getRange("A58:F61").setBorder(true, true, true, true, true, true);  // KB Paid Rate
-  sheet.getRange("A64:F67").setBorder(true, true, true, true, true, true);  // CP Paid Rate
-  sheet.getRange("A70:F73").setBorder(true, true, true, true, true, true);  // Highest Payments
-  sheet.getRange("A76:E79").setBorder(true, true, true, true, true, true);  // CP Upsell Top 3
-  sheet.getRange("A82:E85").setBorder(true, true, true, true, true, true);  // KB Upsell Top 3
-  sheet.getRange("A88:F91").setBorder(true, true, true, true, true, true);  // Biggest ARPU Sale
+  sheet.getRange("A17:G22").setBorder(true, true, true, true, true, true);  // Churn Current (now with 5 rows)
+  sheet.getRange("A25:G30").setBorder(true, true, true, true, true, true);  // Churn Old (now with 5 rows)
+  sheet.getRange("A33:G38").setBorder(true, true, true, true, true, true);  // Killer Current (now with 5 rows)
+  sheet.getRange("A41:G46").setBorder(true, true, true, true, true, true);  // Killer Old (now with 5 rows)
+  sheet.getRange("A49:B57").setBorder(true, true, true, true, true, true);  // Totals Summary
+  sheet.getRange("A60:E61").setBorder(true, true, true, true, true, true);  // Manager of the Week
+  sheet.getRange("A64:F67").setBorder(true, true, true, true, true, true);  // KB Paid Rate
+  sheet.getRange("A70:F73").setBorder(true, true, true, true, true, true);  // CP Paid Rate
+  sheet.getRange("A76:F79").setBorder(true, true, true, true, true, true);  // Highest Payments
+  sheet.getRange("A82:G85").setBorder(true, true, true, true, true, true);  // CP Upsell Top 3
+  sheet.getRange("A88:G91").setBorder(true, true, true, true, true, true);  // KB Upsell Top 3
+  sheet.getRange("A94:F97").setBorder(true, true, true, true, true, true);  // Biggest ARPU Sale
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -341,9 +360,10 @@ function createLeaderboardTemplateV2() {
   const instructions = [
     ["📊 WEEKLY LEADERBOARD - INSTRUCTIONS (TOP 5 STRUCTURE WITH RISING STARS)"],
     [""],
-    ["NEW STRUCTURE - WITH SECONDARY SALES PLAN, REGIONAL CHAMPIONS & RISING STARS:"],
+    ["NEW STRUCTURE - WITH SECONDARY SALES PLAN, REGIONAL CHAMPIONS, UPSELL METRICS & RISING STARS:"],
     ["✓ Section 0: Secondary Sales Plan (EDITABLE)"],
     ["✓ Section 0.5: Regional Champions - CP & KB top regions (EDITABLE)"],
+    ["✓ Section 0.75: Upsell Metrics Summary - Overall ARPU, Upsell Share, N# of Sales (EDITABLE)"],
     ["✓ Section 1-2: Churn Prevention (Current Base & Old Base) - TOP 5 EACH (Ranks 1-3 + Rising Stars 4-5)"],
     ["✓ Section 3-4: Killer Base (Current Base & Old Base) - TOP 5 EACH (Ranks 1-3 + Rising Stars 4-5)"],
     ["✓ Section 5: Totals Summary (editable)"],
@@ -351,8 +371,8 @@ function createLeaderboardTemplateV2() {
     ["✓ Section 6: KB Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 7: CP Paid Rate Contacted 14day - TOP 3 REGIONS"],
     ["✓ Section 8: Highest Payments This Week - TOP 3"],
-    ["✓ Section 9: CP Upsell - TOP 3 MANAGERS (OPTIONAL - leave empty to skip)"],
-    ["✓ Section 10: KB Upsell - TOP 3 MANAGERS (OPTIONAL - leave empty to skip)"],
+    ["✓ Section 9: CP Upsell - TOP 3 MANAGERS with ARPU & Upsell Share (OPTIONAL - leave empty to skip)"],
+    ["✓ Section 10: KB Upsell - TOP 3 MANAGERS with ARPU & Upsell Share (OPTIONAL - leave empty to skip)"],
     ["✓ Section 11: Biggest ARPU Sale of the Week (OPTIONAL - leave empty to skip)"],
     ["✓ NEW: WoW column in each leaderboard section (inline with sales)"],
     ["✓ NEW: Rising Stars (#4 and #5) shown as honorable mentions"],
@@ -433,22 +453,33 @@ function createLeaderboardTemplateV2() {
     ["SHEET RANGES (FOR REFERENCE):"],
     ["• Secondary Sales Plan: A3:C3 (1 row, editable)"],
     ["• Regional Champions: A7:C8 (2 rows, editable)"],
-    ["• Churn Current Base: A12:G16 (5 rows, includes WoW column, ranks 1-5)"],
-    ["• Churn Old Base: A20:G24 (5 rows, includes WoW column, ranks 1-5)"],
-    ["• Killer Current Base: A28:G32 (5 rows, includes WoW column, ranks 1-5)"],
-    ["• Killer Old Base: A36:G40 (5 rows, includes WoW column, ranks 1-5)"],
-    ["• Totals Summary: A44:B51 (8 metrics)"],
-    ["• Manager of the Week: A55:E55 (1 row, editable)"],
-    ["• KB Paid Rate 14day: A59:F61 (3 regions)"],
-    ["• CP Paid Rate 14day: A65:F67 (3 regions)"],
-    ["• Highest Payments: A71:F73 (3 managers)"],
-    ["• CP Upsell Top 3: A77:E79 (3 managers, OPTIONAL)"],
-    ["• KB Upsell Top 3: A83:E85 (3 managers, OPTIONAL)"],
-    ["• Biggest ARPU Sale: A89:F91 (up to 3 entries, OPTIONAL)"],
+    ["• Upsell Metrics Summary: A12:E14 (3 rows, editable)"],
+    ["• Churn Current Base: A18:G22 (5 rows, includes WoW column, ranks 1-5)"],
+    ["• Churn Old Base: A26:G30 (5 rows, includes WoW column, ranks 1-5)"],
+    ["• Killer Current Base: A34:G38 (5 rows, includes WoW column, ranks 1-5)"],
+    ["• Killer Old Base: A42:G46 (5 rows, includes WoW column, ranks 1-5)"],
+    ["• Totals Summary: A50:B57 (8 metrics)"],
+    ["• Manager of the Week: A61:E61 (1 row, editable)"],
+    ["• KB Paid Rate 14day: A65:F67 (3 regions)"],
+    ["• CP Paid Rate 14day: A71:F73 (3 regions)"],
+    ["• Highest Payments: A77:F79 (3 managers)"],
+    ["• CP Upsell Top 3: A83:G85 (3 managers, OPTIONAL)"],
+    ["• KB Upsell Top 3: A89:G91 (3 managers, OPTIONAL)"],
+    ["• Biggest ARPU Sale: A95:F97 (up to 3 entries, OPTIONAL)"],
+    [""],
+    ["UPSELL METRICS SUMMARY (Section 0.75) - EDITABLE:"],
+    ["• Row 1: Overall ARPU for CP, KB, and Overall + Top Manager"],
+    ["• Row 2: Upsell Share percentage for CP, KB, and Overall + Top Manager"],
+    ["• Row 3: Total N# of Sales for CP, KB, and Overall + Top Manager with their count"],
+    ["• Format: Metric | CP Value | KB Value | Overall Value | Top Manager"],
+    ["• Update these weekly to show upsell performance summary"],
     [""],
     ["CP UPSELL / KB UPSELL SECTIONS (Sections 9 & 10) - OPTIONAL:"],
-    ["• Columns: Week | Rank | Manager Name | Upsells | Region"],
-    ["• Rank managers by number of upsells this week (descending)"],
+    ["• Columns: Week | Rank | Manager Name | N# of Sales | ARPU | Upsell Share | Region"],
+    ["• N# of Sales: Number of sales for this manager"],
+    ["• ARPU: Average Revenue Per User (e.g., $45.50)"],
+    ["• Upsell Share: Percentage of upsells (e.g., 18%)"],
+    ["• Rank managers by Upsell Share or N# of Sales (descending)"],
     ["• Leave all 3 rows empty to skip section in Slack message"],
     ["• Manager mentions work the same as other sections"],
     [""],
@@ -469,19 +500,21 @@ function createLeaderboardTemplateV2() {
     'The "Weekly Leaderboard" sheet has been created with the new structure:\n\n' +
     '✓ Secondary Sales Plan (Purchase & Revenue Plan Execution)\n' +
     '✓ Regional Champions (CP & KB top regions)\n' +
+    '✓ NEW: Upsell Metrics Summary (Overall ARPU, Upsell Share, N# of Sales)\n' +
     '✓ Churn Prevention: Current Base + Old Base - TOP 5 each\n' +
     '✓ Killer Base: Current Base + Old Base - TOP 5 each\n' +
     '✓ Rising Stars: Ranks 4-5 shown separately\n' +
     '✓ Cash Generated column and WoW tracking\n' +
     '✓ Regional Performance with detailed breakdown\n' +
-    '✓ CP Upsell Top 3 (optional - leave empty to skip)\n' +
-    '✓ KB Upsell Top 3 (optional - leave empty to skip)\n' +
+    '✓ CP Upsell Top 3 with ARPU & Upsell Share (optional - leave empty to skip)\n' +
+    '✓ KB Upsell Top 3 with ARPU & Upsell Share (optional - leave empty to skip)\n' +
     '✓ Biggest ARPU Sale of the Week (optional - leave empty to skip)\n\n' +
     'Next steps:\n' +
     '1. Review the sample data\n' +
     '2. Update Secondary Sales Plan (A3:C3) and Regional Champions (A7:C8)\n' +
-    '3. Update with your actual leaderboard data (5 managers per section)\n' +
-    '4. Use the automation - it will automatically split Top 3 and Rising Stars!',
+    '3. Update Upsell Metrics Summary (A12:E14) with overall metrics\n' +
+    '4. Update with your actual leaderboard data (5 managers per section)\n' +
+    '5. Use the automation - it will automatically split Top 3 and Rising Stars!',
     SpreadsheetApp.getUi().ButtonSet.OK
   );
 }

@@ -1380,18 +1380,19 @@ function buildCombinedLeaderboardFromSheet(automation) {
     // Get all data sections from the sheet (TOP 5 STRUCTURE - with Rising Stars)
     const teamPerfData = sheet.getRange("A3:C3").getValues();  // NEW: Team Performance Summary
     const regionalChampData = sheet.getRange("A7:C8").getValues();  // NEW: Regional Champions
-    const churnCurrentData = sheet.getRange("A12:G16").getValues();  // 5 rows (1-3 main, 4-5 rising stars)
-    const churnOldData = sheet.getRange("A20:G24").getValues();  // 5 rows
-    const killerCurrentData = sheet.getRange("A28:G32").getValues();  // 5 rows
-    const killerOldData = sheet.getRange("A36:G40").getValues();  // 5 rows
-    const totalsData = sheet.getRange("A44:B51").getValues();
-    const managerOfWeekData = sheet.getRange("A55:E55").getValues();
-    const kbPaidRateData = sheet.getRange("A59:F61").getValues();
-    const cpPaidRateData = sheet.getRange("A65:F67").getValues();
-    const highestPaymentsData = sheet.getRange("A71:F73").getValues();
-    const cpUpsellData = sheet.getRange("A77:E79").getValues();    // CP Upsell Top 3 (optional)
-    const kbUpsellData = sheet.getRange("A83:E85").getValues();    // KB Upsell Top 3 (optional)
-    const biggestArpuData = sheet.getRange("A89:F91").getValues(); // Biggest ARPU Sale (optional)
+    const upsellMetricsData = sheet.getRange("A12:E14").getValues();  // NEW: Upsell Metrics Summary
+    const churnCurrentData = sheet.getRange("A18:G22").getValues();  // 5 rows (1-3 main, 4-5 rising stars)
+    const churnOldData = sheet.getRange("A26:G30").getValues();  // 5 rows
+    const killerCurrentData = sheet.getRange("A34:G38").getValues();  // 5 rows
+    const killerOldData = sheet.getRange("A42:G46").getValues();  // 5 rows
+    const totalsData = sheet.getRange("A50:B57").getValues();
+    const managerOfWeekData = sheet.getRange("A61:E61").getValues();
+    const kbPaidRateData = sheet.getRange("A65:F67").getValues();
+    const cpPaidRateData = sheet.getRange("A71:F73").getValues();
+    const highestPaymentsData = sheet.getRange("A77:F79").getValues();
+    const cpUpsellData = sheet.getRange("A83:G85").getValues();    // CP Upsell Top 3 (optional) - now with ARPU & Upsell Share
+    const kbUpsellData = sheet.getRange("A89:G91").getValues();    // KB Upsell Top 3 (optional) - now with ARPU & Upsell Share
+    const biggestArpuData = sheet.getRange("A95:F97").getValues(); // Biggest ARPU Sale (optional)
 
     const blocks = [];
 
@@ -1469,6 +1470,73 @@ function buildCombinedLeaderboardFromSheet(automation) {
           text: {
             type: "mrkdwn",
             text: `*🌍 REGIONAL CHAMPIONS*\n\n🏆 *Churn Prevention*: ${cpEmoji} ${cpRegion}\n   └ ${cpPerf}\n\n💪 *Killer Base*: ${kbEmoji} ${kbRegion}\n   └ ${kbPerf}`
+          }
+        });
+
+        blocks.push({ type: "divider" });
+      }
+    }
+
+    // ============================================
+    // UPSELL METRICS SUMMARY
+    // ============================================
+    if (upsellMetricsData && upsellMetricsData.length === 3) {
+      const arpuRow = upsellMetricsData[0];  // [Metric, CP, KB, Overall, Top Manager]
+      const upsellShareRow = upsellMetricsData[1];
+      const salesRow = upsellMetricsData[2];
+
+      // Check if there's actual data (not just empty cells)
+      if (arpuRow[1] || arpuRow[2] || arpuRow[3]) {
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "*📊 UPSELL METRICS SUMMARY*"
+          }
+        });
+
+        let metricsText = "";
+
+        // ARPU Row
+        if (arpuRow[1] || arpuRow[2] || arpuRow[3]) {
+          metricsText += `*Overall ARPU:*\n`;
+          metricsText += `   • CP: *${arpuRow[1]}* | KB: *${arpuRow[2]}* | Overall: *${arpuRow[3]}*\n`;
+          if (arpuRow[4]) {
+            const topArpuManager = typeof applyManagerMentions === 'function'
+              ? applyManagerMentions(arpuRow[4])
+              : cleanSheetData(arpuRow[4]);
+            metricsText += `   • Top Manager: ${topArpuManager}\n`;
+          }
+          metricsText += `\n`;
+        }
+
+        // Upsell Share Row
+        if (upsellShareRow[1] || upsellShareRow[2] || upsellShareRow[3]) {
+          metricsText += `*Upsell Share:*\n`;
+          metricsText += `   • CP: *${upsellShareRow[1]}* | KB: *${upsellShareRow[2]}* | Overall: *${upsellShareRow[3]}*\n`;
+          if (upsellShareRow[4]) {
+            const topUpsellManager = typeof applyManagerMentions === 'function'
+              ? applyManagerMentions(upsellShareRow[4])
+              : cleanSheetData(upsellShareRow[4]);
+            metricsText += `   • Top Manager: ${topUpsellManager}\n`;
+          }
+          metricsText += `\n`;
+        }
+
+        // N# of Sales Row
+        if (salesRow[1] || salesRow[2] || salesRow[3]) {
+          metricsText += `*Total Sales:*\n`;
+          metricsText += `   • CP: *${salesRow[1]}* | KB: *${salesRow[2]}* | Overall: *${salesRow[3]}*\n`;
+          if (salesRow[4]) {
+            metricsText += `   • Top Manager: ${salesRow[4]}\n`;
+          }
+        }
+
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: metricsText
           }
         });
 
@@ -2212,10 +2280,13 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       let cpUpsellText = "";
       cpUpsellData.forEach((row) => {
+        // Row format: [Week, Rank, Manager Name, N# of Sales, ARPU, Upsell Share, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-        const upsells = row[3];
-        const region = cleanSheetData(row[4]);
+        const numSales = row[3];
+        const arpu = row[4];
+        const upsellShare = row[5];
+        const region = cleanSheetData(row[6]);
 
         if (!rank || !managerName) return;
 
@@ -2223,7 +2294,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
         cpUpsellText += `${rankEmoji} *${managerName}*\n`;
-        cpUpsellText += `   └ ${upsells} upsells`;
+        cpUpsellText += `   └ N# of Sales: *${numSales}* | ARPU: *${arpu}* | Upsell Share: *${upsellShare}*`;
         if (region) {
           cpUpsellText += ` | ${regionEmoji} ${region}`;
         }
@@ -2257,10 +2328,13 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
       let kbUpsellText = "";
       kbUpsellData.forEach((row) => {
+        // Row format: [Week, Rank, Manager Name, N# of Sales, ARPU, Upsell Share, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-        const upsells = row[3];
-        const region = cleanSheetData(row[4]);
+        const numSales = row[3];
+        const arpu = row[4];
+        const upsellShare = row[5];
+        const region = cleanSheetData(row[6]);
 
         if (!rank || !managerName) return;
 
@@ -2268,7 +2342,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         const regionEmoji = region ? getRegionSlackEmoji(region) : "";
 
         kbUpsellText += `${rankEmoji} *${managerName}*\n`;
-        kbUpsellText += `   └ ${upsells} upsells`;
+        kbUpsellText += `   └ N# of Sales: *${numSales}* | ARPU: *${arpu}* | Upsell Share: *${upsellShare}*`;
         if (region) {
           kbUpsellText += ` | ${regionEmoji} ${region}`;
         }
