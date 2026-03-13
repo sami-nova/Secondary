@@ -1560,7 +1560,10 @@ function buildCombinedLeaderboardFromSheet(automation) {
           metricsText += `*Total Sales:*\n`;
           metricsText += `   • CP: *${salesRow[1]}* | KB: *${salesRow[2]}* | Overall: *${salesRow[3]}*\n`;
           if (salesRow[4]) {
-            metricsText += `   • Top Manager: ${salesRow[4]}\n`;
+            const topSalesManager = typeof applyManagerMentions === 'function'
+              ? applyManagerMentions(salesRow[4])
+              : cleanSheetData(salesRow[4]);
+            metricsText += `   • Top Manager: ${topSalesManager}\n`;
           }
         }
 
