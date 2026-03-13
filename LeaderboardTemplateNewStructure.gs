@@ -329,6 +329,42 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A95:F97").setValues(biggestArpuSampleData);
 
   // ============================================
+  // SECTION 12: TOP 3 ARPU WITH 20 PAYMENTS TOTAL
+  // ============================================
+  sheet.getRange("A99").setValue("📊 TOP 3 ARPU - 20+ PAYMENTS");
+  sheet.getRange("A99:G99").merge();
+  sheet.getRange("A99:G99").setBackground("#00BCD4").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const top3ArpuHeaders = ["Week", "Rank", "Manager Name", "ARPU", "Total Payments", "Upsell Share", "Region"];
+  sheet.getRange("A100:G100").setValues([top3ArpuHeaders]);
+  sheet.getRange("A100:G100").setBackground("#B2EBF2").setFontWeight("bold");
+
+  const top3ArpuData = [
+    [currentWeek, 1, "@Selen Orcan", "$55.30", 22, "22%", "TR"],
+    [currentWeek, 2, "@Abdallah", "$52.60", 25, "20%", "ARAB"],
+    [currentWeek, 3, "@Merve Odali", "$48.20", 20, "18%", "TR"]
+  ];
+  sheet.getRange("A101:G103").setValues(top3ArpuData);
+
+  // ============================================
+  // SECTION 13: TOP 3 UPSELL SHARE WITH 20+ PAYMENTS
+  // ============================================
+  sheet.getRange("A105").setValue("🔥 TOP 3 UPSELL SHARE - 20+ PAYMENTS");
+  sheet.getRange("A105:G105").merge();
+  sheet.getRange("A105:G105").setBackground("#FF5722").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const top3UpsellHeaders = ["Week", "Rank", "Manager Name", "Upsell Share", "Total Payments", "ARPU", "Region"];
+  sheet.getRange("A106:G106").setValues([top3UpsellHeaders]);
+  sheet.getRange("A106:G106").setBackground("#FFCCBC").setFontWeight("bold");
+
+  const top3UpsellData = [
+    [currentWeek, 1, "@Selen Orcan", "25%", 28, "$52.30", "TR"],
+    [currentWeek, 2, "@Ipek Oztufekcı", "22%", 24, "$48.60", "TR"],
+    [currentWeek, 3, "@Marta Lewandowska", "20%", 21, "$45.90", "PL"]
+  ];
+  sheet.getRange("A107:G109").setValues(top3UpsellData);
+
+  // ============================================
   // Formatting
   // ============================================
 
@@ -353,6 +389,8 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A82:G85").setBorder(true, true, true, true, true, true);  // CP Upsell Top 3
   sheet.getRange("A88:G91").setBorder(true, true, true, true, true, true);  // KB Upsell Top 3
   sheet.getRange("A94:F97").setBorder(true, true, true, true, true, true);  // Biggest ARPU Sale
+  sheet.getRange("A100:G103").setBorder(true, true, true, true, true, true);  // Top 3 ARPU 20+ Payments
+  sheet.getRange("A106:G109").setBorder(true, true, true, true, true, true);  // Top 3 Upsell Share 20+ Payments
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -374,6 +412,8 @@ function createLeaderboardTemplateV2() {
     ["✓ Section 9: CP Upsell - TOP 3 MANAGERS with ARPU & Upsell Share (OPTIONAL - leave empty to skip)"],
     ["✓ Section 10: KB Upsell - TOP 3 MANAGERS with ARPU & Upsell Share (OPTIONAL - leave empty to skip)"],
     ["✓ Section 11: Biggest ARPU Sale of the Week (OPTIONAL - leave empty to skip)"],
+    ["✓ Section 12: TOP 3 ARPU with 20+ Payments (OPTIONAL - leave empty to skip)"],
+    ["✓ Section 13: TOP 3 Upsell Share with 20+ Payments (OPTIONAL - leave empty to skip)"],
     ["✓ NEW: WoW column in each leaderboard section (inline with sales)"],
     ["✓ NEW: Rising Stars (#4 and #5) shown as honorable mentions"],
     [""],
@@ -470,6 +510,8 @@ function createLeaderboardTemplateV2() {
     ["• CP Upsell Top 3: A83:G85 (3 managers, OPTIONAL)"],
     ["• KB Upsell Top 3: A89:G91 (3 managers, OPTIONAL)"],
     ["• Biggest ARPU Sale: A95:F97 (up to 3 entries, OPTIONAL)"],
+    ["• Top 3 ARPU 20+ Payments: A101:G103 (3 managers, OPTIONAL)"],
+    ["• Top 3 Upsell Share 20+ Payments: A107:G109 (3 managers, OPTIONAL)"],
     [""],
     ["UPSELL METRICS SUMMARY (Section 0.75) - EDITABLE:"],
     ["• Row 1: Overall ARPU for CP, KB, and Overall + Top Manager"],
@@ -492,7 +534,25 @@ function createLeaderboardTemplateV2() {
     ["• Enter the client's previous ARPU and new ARPU after upsell"],
     ["• ARPU uplift is automatically calculated (New ARPU - Previous ARPU)"],
     ["• Leave rows empty to skip section in Slack message"],
-    ["• Example: Manager 'Omar Al-Farsi' upgraded Client A from $15 → $75 ARPU"]
+    ["• Example: Manager 'Omar Al-Farsi' upgraded Client A from $15 → $75 ARPU"],
+    [""],
+    ["TOP 3 ARPU WITH 20+ PAYMENTS (Section 12) - OPTIONAL:"],
+    ["• Columns: Week | Rank | Manager Name | ARPU | Total Payments | Upsell Share | Region"],
+    ["• Only include managers with 20 or more total payments"],
+    ["• Rank by highest ARPU (descending)"],
+    ["• ARPU: Average Revenue Per User (e.g., $55.30)"],
+    ["• Total Payments: Total number of payments (e.g., 22)"],
+    ["• Upsell Share: Percentage of upsells (e.g., 22%)"],
+    ["• Leave all 3 rows empty to skip section in Slack message"],
+    [""],
+    ["TOP 3 UPSELL SHARE WITH 20+ PAYMENTS (Section 13) - OPTIONAL:"],
+    ["• Columns: Week | Rank | Manager Name | Upsell Share | Total Payments | ARPU | Region"],
+    ["• Only include managers with 20 or more total payments"],
+    ["• Rank by highest Upsell Share percentage (descending)"],
+    ["• Upsell Share: Percentage of upsells (e.g., 25%)"],
+    ["• Total Payments: Total number of payments (e.g., 28)"],
+    ["• ARPU: Average Revenue Per User (e.g., $52.30)"],
+    ["• Leave all 3 rows empty to skip section in Slack message"]
   ];
 
   instructionSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
@@ -512,7 +572,9 @@ function createLeaderboardTemplateV2() {
     '✓ Regional Performance with detailed breakdown\n' +
     '✓ CP Upsell Top 3 with ARPU & Upsell Share (optional - leave empty to skip)\n' +
     '✓ KB Upsell Top 3 with ARPU & Upsell Share (optional - leave empty to skip)\n' +
-    '✓ Biggest ARPU Sale of the Week (optional - leave empty to skip)\n\n' +
+    '✓ Biggest ARPU Sale of the Week (optional - leave empty to skip)\n' +
+    '✓ TOP 3 ARPU with 20+ Payments (optional - leave empty to skip)\n' +
+    '✓ TOP 3 Upsell Share with 20+ Payments (optional - leave empty to skip)\n\n' +
     'Next steps:\n' +
     '1. Review the sample data\n' +
     '2. Update Secondary Sales Plan (A3:C3) and Regional Champions (A7:C8)\n' +

@@ -1393,6 +1393,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const cpUpsellData = sheet.getRange("A83:G85").getValues();    // CP Upsell Top 3 (optional) - now with ARPU & Upsell Share
     const kbUpsellData = sheet.getRange("A89:G91").getValues();    // KB Upsell Top 3 (optional) - now with ARPU & Upsell Share
     const biggestArpuData = sheet.getRange("A95:F97").getValues(); // Biggest ARPU Sale (optional)
+    const top3ArpuData = sheet.getRange("A101:G103").getValues();  // Top 3 ARPU with 20+ Payments (optional)
+    const top3UpsellData = sheet.getRange("A107:G109").getValues(); // Top 3 Upsell Share with 20+ Payments (optional)
 
     const blocks = [];
 
@@ -2535,6 +2537,102 @@ function buildCombinedLeaderboardFromSheet(automation) {
         text: {
           type: "mrkdwn",
           text: biggestArpuText || "_No data available_"
+        }
+      });
+    }
+
+    // ============================================
+    // SECTION 12: TOP 3 ARPU WITH 20+ PAYMENTS (OPTIONAL)
+    // ============================================
+    const hasTop3ArpuData = top3ArpuData.some(row => row[1] && row[2]);
+
+    if (hasTop3ArpuData) {
+      blocks.push({ type: "divider" });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*📊 TOP 3 ARPU - 20+ PAYMENTS*"
+        }
+      });
+
+      let top3ArpuText = "";
+      top3ArpuData.forEach((row) => {
+        // Row format: [Week, Rank, Manager Name, ARPU, Total Payments, Upsell Share, Region]
+        const rank = row[1];
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+        const arpu = row[3];
+        const totalPayments = row[4];
+        const upsellShare = row[5];
+        const region = cleanSheetData(row[6]);
+
+        if (!rank || !managerName) return;
+
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+        top3ArpuText += `${rankEmoji} *${managerName}*\n`;
+        top3ArpuText += `   └ ARPU: *${arpu}* | Total Payments: *${totalPayments}* | Upsell Share: *${upsellShare}*`;
+        if (region) {
+          top3ArpuText += ` | ${regionEmoji} ${region}`;
+        }
+        top3ArpuText += `\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: top3ArpuText || "_No data available_"
+        }
+      });
+    }
+
+    // ============================================
+    // SECTION 13: TOP 3 UPSELL SHARE WITH 20+ PAYMENTS (OPTIONAL)
+    // ============================================
+    const hasTop3UpsellData = top3UpsellData.some(row => row[1] && row[2]);
+
+    if (hasTop3UpsellData) {
+      blocks.push({ type: "divider" });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*🔥 TOP 3 UPSELL SHARE - 20+ PAYMENTS*"
+        }
+      });
+
+      let top3UpsellText = "";
+      top3UpsellData.forEach((row) => {
+        // Row format: [Week, Rank, Manager Name, Upsell Share, Total Payments, ARPU, Region]
+        const rank = row[1];
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+        const upsellShare = row[3];
+        const totalPayments = row[4];
+        const arpu = row[5];
+        const region = cleanSheetData(row[6]);
+
+        if (!rank || !managerName) return;
+
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+        top3UpsellText += `${rankEmoji} *${managerName}*\n`;
+        top3UpsellText += `   └ Upsell Share: *${upsellShare}* | Total Payments: *${totalPayments}* | ARPU: *${arpu}*`;
+        if (region) {
+          top3UpsellText += ` | ${regionEmoji} ${region}`;
+        }
+        top3UpsellText += `\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: top3UpsellText || "_No data available_"
         }
       });
     }
