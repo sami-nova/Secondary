@@ -1378,23 +1378,23 @@ function buildCombinedLeaderboardFromSheet(automation) {
     }
 
     // Get all data sections from the sheet (TOP 5 STRUCTURE - with Rising Stars + ARPU & Upsell Share)
-    const teamPerfData = sheet.getRange("A3:C3").getValues();  // NEW: Team Performance Summary
-    const regionalChampData = sheet.getRange("A7:C8").getValues();  // NEW: Regional Champions
-    const upsellMetricsData = sheet.getRange("A12:E14").getValues();  // NEW: Upsell Metrics Summary
-    const churnCurrentData = sheet.getRange("A18:I22").getValues();  // 5 rows (1-3 main, 4-5 rising stars) + ARPU & Upsell Share
-    const churnOldData = sheet.getRange("A26:I30").getValues();  // 5 rows + ARPU & Upsell Share
-    const killerCurrentData = sheet.getRange("A34:I38").getValues();  // 5 rows + ARPU & Upsell Share
-    const killerOldData = sheet.getRange("A42:I46").getValues();  // 5 rows + ARPU & Upsell Share
-    const totalsData = sheet.getRange("A50:B57").getValues();
-    const managerOfWeekData = sheet.getRange("A61:G61").getValues();  // Now includes ARPU & Upsell Share
-    const kbPaidRateData = sheet.getRange("A65:F67").getValues();
-    const cpPaidRateData = sheet.getRange("A71:F73").getValues();
-    const highestPaymentsData = sheet.getRange("A77:F79").getValues();
-    const cpUpsellData = sheet.getRange("A83:G85").getValues();    // CP Upsell Top 3 (optional) - now with ARPU & Upsell Share
-    const kbUpsellData = sheet.getRange("A89:G91").getValues();    // KB Upsell Top 3 (optional) - now with ARPU & Upsell Share
-    const biggestArpuData = sheet.getRange("A95:F97").getValues(); // Biggest ARPU Sale (optional)
-    const top3ArpuData = sheet.getRange("A101:G103").getValues();  // Top 3 ARPU with 20+ Payments (optional)
-    const top3UpsellData = sheet.getRange("A107:G109").getValues(); // Top 3 Upsell Share with 20+ Payments (optional)
+    const teamPerfData = sheet.getRange("A3:E6").getValues();  // NEW: Team Performance Summary (4 rows: Purchase, Revenue, Net Churn, ARPU)
+    const regionalChampData = sheet.getRange("A10:C11").getValues();  // NEW: Regional Champions
+    const upsellMetricsData = sheet.getRange("A15:E17").getValues();  // NEW: Upsell Metrics Summary
+    const churnCurrentData = sheet.getRange("A21:I25").getValues();  // 5 rows (1-3 main, 4-5 rising stars) + ARPU & Upsell Share
+    const churnOldData = sheet.getRange("A29:I33").getValues();  // 5 rows + ARPU & Upsell Share
+    const killerCurrentData = sheet.getRange("A37:I41").getValues();  // 5 rows + ARPU & Upsell Share
+    const killerOldData = sheet.getRange("A45:I49").getValues();  // 5 rows + ARPU & Upsell Share
+    const totalsData = sheet.getRange("A53:B60").getValues();
+    const managerOfWeekData = sheet.getRange("A64:G64").getValues();  // Now includes ARPU & Upsell Share
+    const kbPaidRateData = sheet.getRange("A68:F70").getValues();
+    const cpPaidRateData = sheet.getRange("A74:F76").getValues();
+    const highestPaymentsData = sheet.getRange("A80:F82").getValues();
+    const cpUpsellData = sheet.getRange("A86:G88").getValues();    // CP Upsell Top 3 (optional) - now with ARPU & Upsell Share
+    const kbUpsellData = sheet.getRange("A92:G94").getValues();    // KB Upsell Top 3 (optional) - now with ARPU & Upsell Share
+    const biggestArpuData = sheet.getRange("A98:F100").getValues(); // Biggest ARPU Sale (optional)
+    const top3ArpuData = sheet.getRange("A104:G106").getValues();  // Top 3 ARPU with 20+ Payments (optional)
+    const top3UpsellData = sheet.getRange("A110:G112").getValues(); // Top 3 Upsell Share with 20+ Payments (optional)
 
     const blocks = [];
 
@@ -1416,39 +1416,72 @@ function buildCombinedLeaderboardFromSheet(automation) {
     // ============================================
     // SECONDARY SALES PLAN (was Team Performance)
     // ============================================
-    const teamPerfRow = teamPerfData[0];
-    if (teamPerfRow && teamPerfRow[1] && teamPerfRow[2]) {
-      let purchPct = teamPerfRow[1];
-      let revPct = teamPerfRow[2];
+    if (teamPerfData && teamPerfData.length >= 2) {
+      const purchaseRow = teamPerfData[0];  // [Metric, Plan, Forecast, DoD, WoW]
+      const revenueRow = teamPerfData[1];
+      const netChurnRow = teamPerfData.length > 2 ? teamPerfData[2] : null;
+      const arpuRow = teamPerfData.length > 3 ? teamPerfData[3] : null;
 
-      // Convert to percentage if stored as decimal (1.109 -> 110.9%)
-      if (typeof purchPct === 'number' && purchPct > 0 && purchPct < 10) {
-        purchPct = (purchPct * 100).toFixed(1) + '%';
-      } else if (typeof purchPct === 'string' && !purchPct.includes('%')) {
-        const num = parseFloat(purchPct);
-        if (!isNaN(num) && num > 0 && num < 10) {
-          purchPct = (num * 100).toFixed(1) + '%';
+      let messageLines = [];
+
+      // Purchase Plan Execution
+      if (purchaseRow && purchaseRow[1]) {
+        let purchPlan = purchaseRow[1];
+        // Convert to percentage if stored as decimal (1.109 -> 110.9%)
+        if (typeof purchPlan === 'number' && purchPlan > 0 && purchPlan < 10) {
+          purchPlan = (purchPlan * 100).toFixed(1) + '%';
+        } else if (typeof purchPlan === 'string' && !purchPlan.includes('%')) {
+          const num = parseFloat(purchPlan);
+          if (!isNaN(num) && num > 0 && num < 10) {
+            purchPlan = (num * 100).toFixed(1) + '%';
+          }
         }
+        messageLines.push(`• Purchase Plan Execution: *${purchPlan}*`);
       }
 
-      if (typeof revPct === 'number' && revPct > 0 && revPct < 10) {
-        revPct = (revPct * 100).toFixed(1) + '%';
-      } else if (typeof revPct === 'string' && !revPct.includes('%')) {
-        const num = parseFloat(revPct);
-        if (!isNaN(num) && num > 0 && num < 10) {
-          revPct = (num * 100).toFixed(1) + '%';
+      // Revenue Plan Execution
+      if (revenueRow && revenueRow[1]) {
+        let revPlan = revenueRow[1];
+        if (typeof revPlan === 'number' && revPlan > 0 && revPlan < 10) {
+          revPlan = (revPlan * 100).toFixed(1) + '%';
+        } else if (typeof revPlan === 'string' && !revPlan.includes('%')) {
+          const num = parseFloat(revPlan);
+          if (!isNaN(num) && num > 0 && num < 10) {
+            revPlan = (num * 100).toFixed(1) + '%';
+          }
         }
+        messageLines.push(`• Revenue Plan Execution: *${revPlan}*`);
       }
 
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*📊 SECONDARY SALES PLAN*\n\n• Purchase Plan Execution: *${purchPct}*\n• Revenue Plan Execution: *${revPct}*`
-        }
-      });
+      // Net Churn (optional)
+      if (netChurnRow && (netChurnRow[1] || netChurnRow[2] || netChurnRow[3] || netChurnRow[4])) {
+        let churnLine = "• Net Churn:";
+        if (netChurnRow[1]) churnLine += ` Plan *${netChurnRow[1]}*`;
+        if (netChurnRow[2]) churnLine += ` | Forecast *${netChurnRow[2]}*`;
+        if (netChurnRow[3]) churnLine += ` | DoD *${netChurnRow[3]}*`;
+        if (netChurnRow[4]) churnLine += ` | WoW *${netChurnRow[4]}*`;
+        messageLines.push(churnLine);
+      }
 
-      blocks.push({ type: "divider" });
+      // ARPU (optional)
+      if (arpuRow && (arpuRow[1] || arpuRow[2])) {
+        let arpuLine = "• ARPU:";
+        if (arpuRow[1]) arpuLine += ` Plan *${arpuRow[1]}*`;
+        if (arpuRow[2]) arpuLine += ` | Today *${arpuRow[2]}*`;
+        messageLines.push(arpuLine);
+      }
+
+      if (messageLines.length > 0) {
+        blocks.push({
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*📊 SECONDARY SALES PLAN*\n\n${messageLines.join('\n')}`
+          }
+        });
+
+        blocks.push({ type: "divider" });
+      }
     }
 
     // ============================================
