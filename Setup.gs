@@ -96,12 +96,22 @@ function _applyColorCodingToSheet(sheet) {
   var template = CONFIG.REGION_ROW_TEMPLATE;
 
   CONFIG.REGIONS.forEach(function(region, r) {
+    var regionBg = CONFIG.REGION_COLORS[region] || '#FFFFFF';
+
     template.forEach(function(tpl, t) {
       var rowNum = getRowForRegionAndOffset(r, t);
-      // Row background from scenario color
-      sheet.getRange(rowNum, 1, 1, CONFIG.COLUMNS.NOTES).setBackground(tpl.color);
 
-      // Segment cell – colored badge
+      // Columns B-Q: scenario background color
+      sheet.getRange(rowNum, CONFIG.COLUMNS.SEGMENT, 1, CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.SEGMENT + 1)
+        .setBackground(tpl.color);
+
+      // Column A (Region): unique per-region color — survives filtering because it's a cell property
+      sheet.getRange(rowNum, CONFIG.COLUMNS.REGION, 1, 1)
+        .setBackground(regionBg)
+        .setFontWeight('bold')
+        .setFontColor('#333333');
+
+      // Column B (Segment): colored badge on top of scenario background
       var segStyle = CONFIG.SEGMENT_COLORS[tpl.segment] || { bg: '#CCCCCC', text: '#000000' };
       sheet.getRange(rowNum, CONFIG.COLUMNS.SEGMENT, 1, 1)
         .setBackground(segStyle.bg)
@@ -147,9 +157,6 @@ function _applySheetFormatting(sheet) {
   for (var i = 0; i < totalRows; i++) {
     sheet.setRowHeight(CONFIG.DATA_START_ROW + i, 25);
   }
-
-  // Region column – bold
-  sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS.REGION, totalRows, 1).setFontWeight('bold');
 
   // Discount column – centre-aligned
   sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS.DISCOUNT, totalRows, 1).setHorizontalAlignment('center');

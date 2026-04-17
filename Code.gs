@@ -1,8 +1,9 @@
 /**
  * Monthly Discount Tracker v2.0 - Main Configuration & Entry Point
  *
- * Structure: 14 regions × 14 rows/region = 196 total data rows
+ * Structure: 14 regions × 12 rows/region = 168 total data rows
  * New: Scenario column (C) inserted between Segment and Discount %
+ * New: Per-region color on column A persists through filtering
  */
 
 const CONFIG = {
@@ -15,7 +16,7 @@ const CONFIG = {
 
   DATA_START_ROW: 16,
   HEADER_ROW: 15,
-  ROWS_PER_REGION: 14,
+  ROWS_PER_REGION: 12,
 
   REGIONS: [
     'Poland', 'Italy', 'Spain', 'France', 'Germany',
@@ -23,7 +24,7 @@ const CONFIG = {
     'Israel', 'Korea', 'Japan', 'GLOBAL'
   ],
 
-  // Template for the 14 rows that repeat per region
+  // 12 rows per region: 4 MO + 4 KO + 1 PPC + 1 CP + 2 Paid
   REGION_ROW_TEMPLATE: [
     { segment: 'Secondary MO',    scenario: 'CHURN PREVENTION (14-30 days)', color: '#D4EDDA' },
     { segment: 'Secondary MO',    scenario: 'CHURN (180-30 days)',            color: '#FFF3CD' },
@@ -34,12 +35,28 @@ const CONFIG = {
     { segment: 'Secondary KO',    scenario: 'Not loyal churn',                color: '#FADBD8' },
     { segment: 'Secondary KO',    scenario: '',                                color: '#FFFFFF' },
     { segment: 'PPC',             scenario: 'Regular Campaign',               color: '#FFFFFF' },
-    { segment: 'PPC',             scenario: '',                                color: '#FFFFFF' },
     { segment: 'CP',              scenario: 'Regular Campaign',               color: '#FFFFFF' },
-    { segment: 'CP',              scenario: '',                                color: '#FFFFFF' },
     { segment: 'Paid in Advance', scenario: 'Regular Campaign',               color: '#FFFFFF' },
     { segment: 'Paid in Advance', scenario: '',                                color: '#FFFFFF' }
   ],
+
+  // Unique background color per region – applied to column A only, persists after filtering
+  REGION_COLORS: {
+    'Poland':   '#DDEEFF',
+    'Italy':    '#DDFFDD',
+    'Spain':    '#FFEECC',
+    'France':   '#FFE5E5',
+    'Germany':  '#EEDDFF',
+    'Russia':   '#FFDDCC',
+    'Romania':  '#DDFFFF',
+    'Czech':    '#FFE5CC',
+    'ARAB':     '#E5FFE8',
+    'Turkey':   '#FFCCCC',
+    'Israel':   '#CCE5FF',
+    'Korea':    '#FFCCFF',
+    'Japan':    '#FFEEBB',
+    'GLOBAL':   '#E8E8E8'
+  },
 
   // Column positions (1-indexed)
   COLUMNS: {
@@ -146,8 +163,14 @@ function getDefaultMonthYear() {
 function setCurrentMonthYear(monthYear) {
   var sheet = getMainSheet();
   if (!sheet) return;
-  // Update A2 (the current month display cell below the static title)
-  sheet.getRange('A2').setValue('Current Month: ' + monthYear);
+  var display = 'Current Month: ' + monthYear;
+  // Always update A2 (dedicated month display row in new layout)
+  sheet.getRange('A2').setValue(display);
+  // Also update A1 if it currently contains a month string (handles old layout gracefully)
+  var a1 = sheet.getRange('A1').getValue().toString();
+  if (a1.indexOf('Current Month:') !== -1) {
+    sheet.getRange('A1').setValue(display);
+  }
 }
 
 // ─── Row calculation ──────────────────────────────────────────────────────────
