@@ -87,6 +87,7 @@ function _ensureDataStoreHeaders(dsSheet) {
  * Returns true if any rows were loaded.
  */
 function loadMonthFromDataStore(targetMonth) {
+  targetMonth = normalizeMonthYear(targetMonth);
   var mainSheet = getMainSheet();
   var dsSheet   = getDataStore();
 
@@ -163,7 +164,7 @@ function showLoadMonthDialog() {
   );
   if (result.getSelectedButton() !== ui.Button.OK) return;
 
-  var targetMonth = result.getResponseText().trim();
+  var targetMonth = normalizeMonthYear(result.getResponseText());
   if (!targetMonth) return;
 
   var save = ui.alert(

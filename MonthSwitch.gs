@@ -19,7 +19,7 @@ function showMonthSwitcher() {
 
   if (result.getSelectedButton() !== ui.Button.OK) return;
 
-  var target = result.getResponseText().trim();
+  var target = normalizeMonthYear(result.getResponseText());
   if (!target || target === current) return;
 
   switchToMonth(target);

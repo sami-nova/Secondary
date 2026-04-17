@@ -130,6 +130,10 @@ function onOpen() {
       .addItem('📤 Export Current Month CSV', 'exportCurrentMonthCSV')
       .addItem('📤 Export All Data CSV', 'exportAllDataCSV')
     )
+    .addSubMenu(SpreadsheetApp.getUi().createMenu('🗃️ Maintenance')
+      .addItem('📦 Archive Old Months', 'showArchiveDialog')
+      .addItem('🧹 Clean Orphaned Keys', 'showCleanupDialog')
+    )
     .addToUi();
 }
 
@@ -177,4 +181,38 @@ function setCurrentMonthYear(monthYear) {
 
 function getRowForRegionAndOffset(regionIndex, rowOffset) {
   return CONFIG.DATA_START_ROW + (regionIndex * CONFIG.ROWS_PER_REGION) + rowOffset;
+}
+
+// ─── Shared utilities ─────────────────────────────────────────────────────────
+
+/**
+ * Normalize "june 2026" → "June 2026", "APRIL 2025" → "April 2025".
+ * Returns the original string unchanged if it can't be parsed.
+ */
+function normalizeMonthYear(input) {
+  if (!input) return getDefaultMonthYear();
+  var parts = input.toString().trim().split(/\s+/);
+  if (parts.length < 2) return input.toString().trim();
+  var month = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+  var year  = parts[parts.length - 1];
+  return CONFIG.MONTHS.indexOf(month) !== -1 ? month + ' ' + year : input.toString().trim();
+}
+
+/** Parse "May 2026" → Date(2026, 4, 1). Returns null if unparseable. */
+function parseMonthYear(str) {
+  if (!str) return null;
+  var parts = str.toString().trim().split(/\s+/);
+  if (parts.length < 2) return null;
+  var month = parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase();
+  var idx   = CONFIG.MONTHS.indexOf(month);
+  var year  = parseInt(parts[parts.length - 1]);
+  return (idx !== -1 && !isNaN(year)) ? new Date(year, idx, 1) : null;
+}
+
+/** Convert 1-based column number to A1 letter(s): 1→'A', 28→'AB'. */
+function columnToLetter(col) {
+  var s = '';
+  for (; col > 0; col = Math.floor((col - 1) / 26))
+    s = String.fromCharCode(65 + (col - 1) % 26) + s;
+  return s;
 }

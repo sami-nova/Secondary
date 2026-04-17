@@ -1,10 +1,15 @@
 /**
  * Filter functions for Monthly Discount Tracker v2.0
  *
- * Filter state is persisted in ScriptProperties so it survives
- * between independent button-click function calls.
+ * Uses Google Sheets native BasicFilter (createFilter / setColumnFilterCriteria)
+ * instead of row hide/show. Benefits:
+ *   - Single API call vs 168 individual hideRows calls (~100× faster)
+ *   - Survives browser refresh and sheet reload
+ *   - Shows native filter arrows in the header row
+ *   - Does not affect other users viewing the sheet simultaneously
  *
- * Supported filters: Region | Segment | Scenario (combinable)
+ * Filter state is persisted in ScriptProperties so button-click function
+ * calls (each a separate execution) share state.
  */
 
 // ─── State helpers ────────────────────────────────────────────────────────────
@@ -26,16 +31,21 @@ function _setFilter(key, value) {
 
 function _clearFilters() {
   var p = PropertiesService.getScriptProperties();
-  p.deleteProperty('filter_region');
-  p.deleteProperty('filter_segment');
-  p.deleteProperty('filter_scenario');
+  ['filter_region', 'filter_segment', 'filter_scenario'].forEach(function(k) {
+    p.deleteProperty(k);
+  });
 }
 
 // ─── Public clear ─────────────────────────────────────────────────────────────
 
 function filterShowAll() {
   _clearFilters();
-  _applyFilters();
+  var sheet = getMainSheet();
+  if (!sheet) return;
+  var f = sheet.getFilter();
+  if (f) f.remove();
+  _updateFilterBanner(sheet, { region: null, segment: null, scenario: null });
+  SpreadsheetApp.getActiveSpreadsheet().toast('All filters cleared', '✅', 2);
 }
 
 function filterShowAllRegions() {
@@ -62,10 +72,10 @@ function filterGlobal()   { _setFilter('region', 'GLOBAL');   _applyFilters(); }
 
 // ─── Segment filters ──────────────────────────────────────────────────────────
 
-function filterSecondaryMO()   { _setFilter('segment', 'Secondary MO');   _applyFilters(); }
-function filterSecondaryKO()   { _setFilter('segment', 'Secondary KO');   _applyFilters(); }
-function filterPPC()           { _setFilter('segment', 'PPC');            _applyFilters(); }
-function filterCP()            { _setFilter('segment', 'CP');             _applyFilters(); }
+function filterSecondaryMO()   { _setFilter('segment', 'Secondary MO');    _applyFilters(); }
+function filterSecondaryKO()   { _setFilter('segment', 'Secondary KO');    _applyFilters(); }
+function filterPPC()           { _setFilter('segment', 'PPC');             _applyFilters(); }
+function filterCP()            { _setFilter('segment', 'CP');              _applyFilters(); }
 function filterPaidInAdvance() { _setFilter('segment', 'Paid in Advance'); _applyFilters(); }
 
 // ─── Scenario filters ─────────────────────────────────────────────────────────
@@ -87,35 +97,45 @@ function filterCombined(region, segment, scenario) {
   _applyFilters();
 }
 
-// ─── Core filter engine ───────────────────────────────────────────────────────
+// ─── Core filter engine — native BasicFilter ──────────────────────────────────
 
 function _applyFilters() {
   var sheet = getMainSheet();
   if (!sheet) return;
 
-  var active   = _getFilters();
-  var template = CONFIG.REGION_ROW_TEMPLATE;
-  var regions  = CONFIG.REGIONS;
+  var active = _getFilters();
 
-  SpreadsheetApp.getActiveSpreadsheet().toast('Applying filters…', '🔍', 1);
+  // Always remove the existing filter first (required before createFilter)
+  var existing = sheet.getFilter();
+  if (existing) existing.remove();
 
-  regions.forEach(function(region, r) {
-    var regionMatch = !active.region || active.region === region;
+  // If nothing is active, banner update is all we need
+  if (!active.region && !active.segment && !active.scenario) {
+    _updateFilterBanner(sheet, active);
+    return;
+  }
 
-    template.forEach(function(tpl, t) {
-      var rowNum       = getRowForRegionAndOffset(r, t);
-      var segmentMatch = !active.segment  || active.segment  === tpl.segment;
-      var scenarioMatch= !active.scenario || active.scenario === tpl.scenario;
+  // Create a new BasicFilter on the header row + all data rows
+  var totalRows   = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
+  var filterRange = sheet.getRange(CONFIG.HEADER_ROW, 1, totalRows + 1, CONFIG.COLUMNS.NOTES);
+  var filter      = filterRange.createFilter();
 
-      if (regionMatch && segmentMatch && scenarioMatch) {
-        sheet.showRows(rowNum);
-      } else {
-        sheet.hideRows(rowNum);
-      }
-    });
-  });
+  // Apply criteria — whenTextEqualTo is case-sensitive and matches cell values exactly
+  if (active.region) {
+    filter.setColumnFilterCriteria(CONFIG.COLUMNS.REGION,
+      SpreadsheetApp.newFilterCriteria().whenTextEqualTo(active.region).build());
+  }
+  if (active.segment) {
+    filter.setColumnFilterCriteria(CONFIG.COLUMNS.SEGMENT,
+      SpreadsheetApp.newFilterCriteria().whenTextEqualTo(active.segment).build());
+  }
+  if (active.scenario) {
+    filter.setColumnFilterCriteria(CONFIG.COLUMNS.SCENARIO,
+      SpreadsheetApp.newFilterCriteria().whenTextEqualTo(active.scenario).build());
+  }
 
   _updateFilterBanner(sheet, active);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Filter applied', '🔍', 2);
 }
 
 function _updateFilterBanner(sheet, active) {
@@ -126,12 +146,15 @@ function _updateFilterBanner(sheet, active) {
 
   var text = parts.length
     ? '🔍 Active Filters: ' + parts.join(' | ') + '   (run "Show All" to reset)'
-    : '✅ Showing all data';
+    : '✨ Click month to switch | Data auto-saved | Previous months preserved in Data_Store!';
 
-  sheet.getRange(6, 1)
-    .setValue(text)
-    .setBackground(parts.length ? '#FFC107' : '#28A745')
-    .setFontColor(parts.length ? '#000000' : '#FFFFFF');
+  // Row 6 info banner
+  try {
+    sheet.getRange(6, 1)
+      .setValue(text)
+      .setBackground(parts.length ? '#FFC107' : '#28A745')
+      .setFontColor(parts.length ? '#000000' : '#FFFFFF');
+  } catch(e) { /* banner row may be merged differently, safe to ignore */ }
 }
 
 // ─── Filter sidebar dialog ────────────────────────────────────────────────────
@@ -139,39 +162,41 @@ function _updateFilterBanner(sheet, active) {
 function showFilterDialog() {
   var current = _getFilters();
 
-  function opts(list, current) {
+  function opts(list, sel) {
     return ['<option value="">All</option>']
       .concat(list.map(function(v) {
-        return '<option' + (v === current ? ' selected' : '') + '>' + v + '</option>';
+        return '<option' + (v === sel ? ' selected' : '') + '>' + v + '</option>';
       }))
       .join('');
   }
 
-  var regionOpts   = opts(CONFIG.REGIONS,       current.region);
+  var regionOpts   = opts(CONFIG.REGIONS, current.region);
   var segmentOpts  = opts(['Secondary MO','Secondary KO','PPC','CP','Paid in Advance'], current.segment);
   var scenarioOpts = opts(CONFIG.SCENARIO_LIST, current.scenario);
 
-  var html = '<!DOCTYPE html><html><head><style>' +
+  var html =
+    '<!DOCTYPE html><html><head><style>' +
     'body{font-family:Arial,sans-serif;padding:16px;font-size:13px}' +
     'label{display:block;margin-top:12px;font-weight:bold;color:#4B4B9B}' +
     'select{width:100%;padding:6px;border:1px solid #ccc;border-radius:4px;margin-top:4px}' +
-    'button{width:100%;margin-top:10px;padding:8px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold}' +
-    '.btn-apply{background:#4B4B9B;color:#fff}' +
-    '.btn-clear{background:#6c757d;color:#fff}' +
+    'button{width:100%;margin-top:10px;padding:8px;border:none;border-radius:4px;' +
+    '       cursor:pointer;font-size:13px;font-weight:bold}' +
+    '.apply{background:#4B4B9B;color:#fff}.clear{background:#6c757d;color:#fff}' +
     '</style></head><body>' +
-    '<h3 style="color:#4B4B9B;margin-top:0">🔍 Filter Data</h3>' +
-    '<label>Region</label><select id="r">' + regionOpts + '</select>' +
-    '<label>Segment</label><select id="s">' + segmentOpts + '</select>' +
-    '<label>Scenario</label><select id="sc">' + scenarioOpts + '</select>' +
-    '<button class="btn-apply" onclick="apply()">Apply Filter</button>' +
-    '<button class="btn-clear" onclick="clear_()">Show All</button>' +
+    '<h3 style="color:#4B4B9B;margin:0 0 12px">🔍 Filter Data</h3>' +
+    '<label>Region</label><select id="r">'   + regionOpts   + '</select>' +
+    '<label>Segment</label><select id="s">'  + segmentOpts  + '</select>' +
+    '<label>Scenario</label><select id="sc">'+ scenarioOpts + '</select>' +
+    '<button class="apply" onclick="go()">Apply Filter</button>' +
+    '<button class="clear" onclick="clr()">Show All</button>' +
     '<script>' +
-    'function v(id){var el=document.getElementById(id);return el.value||null;}' +
-    'function apply(){google.script.run.filterCombined(v("r"),v("s"),v("sc"));}' +
-    'function clear_(){google.script.run.filterShowAll();["r","s","sc"].forEach(function(id){document.getElementById(id).value="";})}' +
-    '</script></body></html>';
+    'function v(id){var e=document.getElementById(id);return e.value||null;}' +
+    'function go(){google.script.run.filterCombined(v("r"),v("s"),v("sc"));}' +
+    'function clr(){google.script.run.filterShowAll();' +
+    '  ["r","s","sc"].forEach(function(i){document.getElementById(i).value="";});}' +
+    '<\/script></body></html>';
 
   SpreadsheetApp.getUi().showSidebar(
-    HtmlService.createHtmlOutput(html).setTitle('Filter Discount Tracker').setWidth(300)
+    HtmlService.createHtmlOutput(html).setTitle('Filter').setWidth(280)
   );
 }

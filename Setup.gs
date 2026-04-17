@@ -8,32 +8,40 @@ function setupSheetStructure() {
   var ui = SpreadsheetApp.getUi();
   var response = ui.alert(
     '🏗️ Initialize Sheet Structure',
-    'This will rebuild Main_Input rows 15+ with the complete 196-row scenario structure.\n\n' +
+    'This will rebuild Main_Input rows 15+ with the complete 168-row scenario structure.\n\n' +
     '⚠️  Existing data in those rows will be cleared.\n\nContinue?',
     ui.ButtonSet.YES_NO
   );
   if (response !== ui.Button.YES) return;
 
-  var mainSheet = getOrCreateSheet(CONFIG.SHEET_NAMES.MAIN);
-
-  _clearDataArea(mainSheet);
-  _setupHeaders(mainSheet);
-  _fillDataRows(mainSheet);
-  _applyColorCodingToSheet(mainSheet);
-  _applySheetFormatting(mainSheet);
-  _setupDropdownsOnSheet(mainSheet);
-  _setupFilterArea(mainSheet);
-
-  setupReferenceData();
+  // Ensure required sheets exist before sidebar opens
+  getOrCreateSheet(CONFIG.SHEET_NAMES.MAIN);
   getOrCreateSheet(CONFIG.SHEET_NAMES.DATA_STORE);
 
-  ui.alert('✅ Setup Complete',
-    '196 data rows created (14 regions × 14 rows each)\n' +
-    'Scenario column added at column C\n' +
-    'Color coding and dropdowns applied\n\n' +
-    'Next: Create button drawings over the colored filter cells\n' +
-    'and assign the script names shown in small text beneath them.',
-    ui.ButtonSet.OK);
+  // Open progress sidebar — it drives each step via runSetupStep()
+  SpreadsheetApp.getUi().showSidebar(
+    HtmlService.createHtmlOutputFromFile('SetupProgress')
+      .setTitle('🏗️ Setting Up Sheet…')
+  );
+}
+
+/**
+ * Called by SetupProgress.html for each numbered step.
+ * Keeps individual steps small so progress updates feel responsive.
+ */
+function runSetupStep(step) {
+  var sheet = getOrCreateSheet(CONFIG.SHEET_NAMES.MAIN);
+  switch (step) {
+    case 1: _clearDataArea(sheet);           break;
+    case 2: _setupHeaders(sheet);            break;
+    case 3: _fillDataRows(sheet);            break;
+    case 4: _applyColorCodingToSheet(sheet); break;
+    case 5: _applySheetFormatting(sheet);    break;
+    case 6: _setupDropdownsOnSheet(sheet);   break;
+    case 7: _setupFilterArea(sheet);         break;
+    case 8: setupReferenceData();            break;
+    default: throw new Error('Unknown setup step: ' + step);
+  }
 }
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -93,33 +101,62 @@ function populateStructure() {
   SpreadsheetApp.getActiveSpreadsheet().toast('Structure columns A-C restored!', '✅ Done', 3);
 }
 
+/**
+ * Batch color coding using RangeList — ~25 API calls instead of ~500+.
+ *
+ * Column A  : per-region color (14 contiguous range calls, one per region block)
+ * Cols B-Q  : per-scenario color (one getRangeList per unique non-white color)
+ * Column B  : segment badge (one getRangeList per segment type)
+ */
 function _applyColorCodingToSheet(sheet) {
-  var template = CONFIG.REGION_ROW_TEMPLATE;
+  var colA = columnToLetter(CONFIG.COLUMNS.REGION);
+  var colB = columnToLetter(CONFIG.COLUMNS.SEGMENT);
+  var colQ = columnToLetter(CONFIG.COLUMNS.NOTES);
 
+  // ── 1. Column A: region colors (14 contiguous block calls) ───────────────
   CONFIG.REGIONS.forEach(function(region, r) {
-    var regionBg = CONFIG.REGION_COLORS[region] || '#FFFFFF';
+    var firstRow = CONFIG.DATA_START_ROW + r * CONFIG.ROWS_PER_REGION;
+    sheet.getRange(firstRow, CONFIG.COLUMNS.REGION, CONFIG.ROWS_PER_REGION, 1)
+      .setBackground(CONFIG.REGION_COLORS[region] || '#FFFFFF')
+      .setFontWeight('bold')
+      .setFontColor('#333333');
+  });
 
-    template.forEach(function(tpl, t) {
-      var rowNum = getRowForRegionAndOffset(r, t);
-
-      // Columns B-Q: scenario background color
-      sheet.getRange(rowNum, CONFIG.COLUMNS.SEGMENT, 1, CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.SEGMENT + 1)
-        .setBackground(tpl.color);
-
-      // Column A (Region): unique per-region color — survives filtering because it's a cell property
-      sheet.getRange(rowNum, CONFIG.COLUMNS.REGION, 1, 1)
-        .setBackground(regionBg)
-        .setFontWeight('bold')
-        .setFontColor('#333333');
-
-      // Column B (Segment): colored badge on top of scenario background
-      var segStyle = CONFIG.SEGMENT_COLORS[tpl.segment] || { bg: '#CCCCCC', text: '#000000' };
-      sheet.getRange(rowNum, CONFIG.COLUMNS.SEGMENT, 1, 1)
-        .setBackground(segStyle.bg)
-        .setFontColor(segStyle.text)
-        .setFontWeight('bold')
-        .setHorizontalAlignment('center');
+  // ── 2. Cols B-Q: scenario row colors (one RangeList per unique color) ────
+  var scenarioColorGroups = {}; // color → [A1 range strings]
+  CONFIG.REGION_ROW_TEMPLATE.forEach(function(tpl, t) {
+    if (!tpl.color || tpl.color === '#FFFFFF') return; // white is the default, skip
+    if (!scenarioColorGroups[tpl.color]) scenarioColorGroups[tpl.color] = [];
+    CONFIG.REGIONS.forEach(function(region, r) {
+      var row = getRowForRegionAndOffset(r, t);
+      scenarioColorGroups[tpl.color].push(colB + row + ':' + colQ + row);
     });
+  });
+  Object.keys(scenarioColorGroups).forEach(function(color) {
+    sheet.getRangeList(scenarioColorGroups[color]).setBackground(color);
+  });
+
+  // ── 3. Column B: segment badge (one RangeList per segment type) ───────────
+  var segGroups = {}; // segment → { style, ranges[] }
+  CONFIG.REGION_ROW_TEMPLATE.forEach(function(tpl, t) {
+    if (!segGroups[tpl.segment]) {
+      segGroups[tpl.segment] = {
+        style:  CONFIG.SEGMENT_COLORS[tpl.segment] || { bg: '#CCCCCC', text: '#000000' },
+        ranges: []
+      };
+    }
+    CONFIG.REGIONS.forEach(function(region, r) {
+      var row = getRowForRegionAndOffset(r, t);
+      segGroups[tpl.segment].ranges.push(colB + row);
+    });
+  });
+  Object.keys(segGroups).forEach(function(seg) {
+    var g = segGroups[seg];
+    sheet.getRangeList(g.ranges)
+      .setBackground(g.style.bg)
+      .setFontColor(g.style.text)
+      .setFontWeight('bold')
+      .setHorizontalAlignment('center');
   });
 }
 
@@ -212,9 +249,22 @@ function _setupDropdownsOnSheet(sheet) {
     );
 
   // Checkboxes: Banner, PopUp, InApp, WA, Push, SMS
-  [CONFIG.COLUMNS.BANNER, CONFIG.COLUMNS.POPUP, CONFIG.COLUMNS.INAPP,
-   CONFIG.COLUMNS.WA, CONFIG.COLUMNS.PUSH, CONFIG.COLUMNS.SMS].forEach(function(col) {
+  // Save existing TRUE values first — insertCheckboxes() resets everything to FALSE on re-runs
+  var checkboxCols = [CONFIG.COLUMNS.BANNER, CONFIG.COLUMNS.POPUP, CONFIG.COLUMNS.INAPP,
+                      CONFIG.COLUMNS.WA, CONFIG.COLUMNS.PUSH, CONFIG.COLUMNS.SMS];
+  var saved = {};
+  checkboxCols.forEach(function(col) {
+    var vals = sheet.getRange(CONFIG.DATA_START_ROW, col, totalRows, 1).getValues();
+    if (vals.some(function(r) { return r[0] === true; })) saved[col] = vals;
+  });
+
+  checkboxCols.forEach(function(col) {
     sheet.getRange(CONFIG.DATA_START_ROW, col, totalRows, 1).insertCheckboxes();
+  });
+
+  // Restore any TRUE values that were overwritten
+  Object.keys(saved).forEach(function(col) {
+    sheet.getRange(CONFIG.DATA_START_ROW, parseInt(col), totalRows, 1).setValues(saved[col]);
   });
 }
 
