@@ -66,7 +66,8 @@ function _setupHeaders(sheet) {
   sheet.setRowHeight(CONFIG.HEADER_ROW, 36);
 
   sheet.setFrozenRows(CONFIG.HEADER_ROW);
-  sheet.setFrozenColumns(3); // Region | Segment | Scenario always visible
+  // Note: setFrozenColumns is intentionally omitted — it conflicts with the
+  // full-row merges in the filter area (rows 1-14) on re-runs.
 }
 
 function _fillDataRows(sheet) {
@@ -165,6 +166,14 @@ function _applySheetFormatting(sheet) {
   ['START_DATE', 'END_DATE'].forEach(function(key) {
     sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS[key], totalRows, 1).setNumberFormat('dd/mm/yyyy');
   });
+
+  // Thick bottom border after each region's last row for easy visual separation
+  CONFIG.REGIONS.forEach(function(region, r) {
+    var lastRow = CONFIG.DATA_START_ROW + ((r + 1) * CONFIG.ROWS_PER_REGION) - 1;
+    sheet.getRange(lastRow, 1, 1, CONFIG.COLUMNS.NOTES)
+      .setBorder(null, null, true, null, null, null,
+                 '#555555', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+  });
 }
 
 // ─── Public wrappers ──────────────────────────────────────────────────────────
@@ -212,6 +221,10 @@ function _setupDropdownsOnSheet(sheet) {
 // ─── Filter / navigation area (rows 1-14) ────────────────────────────────────
 
 function _setupFilterArea(sheet) {
+  // Break apart any merged cells from a previous setup run before re-merging.
+  // This prevents the "can't freeze columns inside a merged cell" error.
+  sheet.getRange(1, 1, CONFIG.HEADER_ROW - 1, CONFIG.COLUMNS.NOTES).breakApart();
+
   // Row 1 – Static spreadsheet title (never updated by script)
   sheet.getRange(1, 1, 1, CONFIG.COLUMNS.NOTES).merge();
   sheet.getRange(1, 1)
