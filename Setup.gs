@@ -70,21 +70,26 @@ function _setupHeaders(sheet) {
 }
 
 function _fillDataRows(sheet) {
-  var template = CONFIG.REGION_ROW_TEMPLATE;
-  var allRows = [];
-
+  // Write ONLY the 3 structure columns (A-C). Data columns D-Q start empty.
+  // Writing 196×3 instead of 196×17 is simpler and avoids any batch-write issues.
+  var batch = [];
   CONFIG.REGIONS.forEach(function(region) {
-    template.forEach(function(tpl) {
-      var row = new Array(CONFIG.COLUMNS.NOTES).fill('');
-      row[CONFIG.COLUMNS.REGION - 1]   = region;
-      row[CONFIG.COLUMNS.SEGMENT - 1]  = tpl.segment;
-      row[CONFIG.COLUMNS.SCENARIO - 1] = tpl.scenario;
-      allRows.push(row);
+    CONFIG.REGION_ROW_TEMPLATE.forEach(function(tpl) {
+      batch.push([region, tpl.segment, tpl.scenario]);
     });
   });
+  sheet.getRange(CONFIG.DATA_START_ROW, 1, batch.length, 3).setValues(batch);
+}
 
-  sheet.getRange(CONFIG.DATA_START_ROW, 1, allRows.length, CONFIG.COLUMNS.NOTES)
-    .setValues(allRows);
+/**
+ * Public: re-write Region / Segment / Scenario from CONFIG into the sheet.
+ * Safe to call at any time – never touches data columns D-Q.
+ */
+function populateStructure() {
+  var sheet = getMainSheet();
+  if (!sheet) { SpreadsheetApp.getUi().alert('Main_Input not found. Run full setup first.'); return; }
+  _fillDataRows(sheet);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Structure columns A-C restored!', '✅ Done', 3);
 }
 
 function _applyColorCodingToSheet(sheet) {
@@ -200,15 +205,23 @@ function _setupDropdownsOnSheet(sheet) {
 // ─── Filter / navigation area (rows 1-14) ────────────────────────────────────
 
 function _setupFilterArea(sheet) {
-  // Row 1 – title bar
+  // Row 1 – Static spreadsheet title (never updated by script)
   sheet.getRange(1, 1, 1, CONFIG.COLUMNS.NOTES).merge();
   sheet.getRange(1, 1)
-    .setValue('Current Month: ' + getDefaultMonthYear())
-    .setBackground('#4B4B9B').setFontColor('#FFFFFF')
-    .setFontSize(14).setFontWeight('bold').setHorizontalAlignment('left');
-  sheet.setRowHeight(1, 32);
+    .setValue('🗓️  MONTHLY DISCOUNT TRACKER')
+    .setBackground('#2C3E6B').setFontColor('#FFFFFF')
+    .setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center');
+  sheet.setRowHeight(1, 40);
 
-  // Rows 2-3 – month buttons row 1 (APR–AUG)
+  // Row 2 left (A2:F2) – Current month display ← updated by setCurrentMonthYear()
+  sheet.getRange(2, 1, 1, 6).merge();
+  sheet.getRange(2, 1)
+    .setValue('Current Month: ' + getDefaultMonthYear())
+    .setBackground('#4B5D99').setFontColor('#FFFFFF')
+    .setFontSize(11).setFontWeight('bold')
+    .setHorizontalAlignment('left').setVerticalAlignment('middle');
+
+  // Rows 2-3 – month buttons row 1 (APR–AUG)  (cols 7+ in row 2)
   var months1 = [
     { col: 7,  label: 'APR', fn: 'switchToApril'     },
     { col: 9,  label: 'MAY', fn: 'switchToMay'       },

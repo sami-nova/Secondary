@@ -106,6 +106,7 @@ function onOpen() {
     .addSeparator()
     .addSubMenu(SpreadsheetApp.getUi().createMenu('🔧 Setup & Tools')
       .addItem('🏗️ Initialize Full Structure (196 rows)', 'setupSheetStructure')
+      .addItem('🔁 Restore Structure Columns (A-C)', 'populateStructure')
       .addItem('🎨 Re-apply Color Coding', 'applyColorCoding')
       .addItem('📋 Setup Dropdowns', 'setupDropdowns')
       .addItem('📊 Setup Reference Data', 'setupReferenceData')
@@ -132,7 +133,8 @@ function getOrCreateSheet(name) {
 function getCurrentMonthYear() {
   var sheet = getMainSheet();
   if (!sheet) return getDefaultMonthYear();
-  var val = sheet.getRange('A1').getValue().toString().replace('Current Month: ', '').trim();
+  // A2 is the dedicated "Current Month: XXXX YYYY" display cell (row 1 is the static title)
+  var val = sheet.getRange('A2').getValue().toString().replace('Current Month: ', '').trim();
   return val || getDefaultMonthYear();
 }
 
@@ -143,7 +145,9 @@ function getDefaultMonthYear() {
 
 function setCurrentMonthYear(monthYear) {
   var sheet = getMainSheet();
-  if (sheet) sheet.getRange('A1').setValue('Current Month: ' + monthYear);
+  if (!sheet) return;
+  // Update A2 (the current month display cell below the static title)
+  sheet.getRange('A2').setValue('Current Month: ' + monthYear);
 }
 
 // ─── Row calculation ──────────────────────────────────────────────────────────

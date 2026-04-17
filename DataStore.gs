@@ -19,10 +19,11 @@ function saveCurrentToDataStore() {
   _ensureDataStoreHeaders(dsSheet);
 
   var currentMonth  = getCurrentMonthYear();
-  var totalDataRows = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
-  var numDataCols   = CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.DISCOUNT + 1; // D..Q
+  var numDataCols   = CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.DISCOUNT + 1; // D..Q = 14 cols
 
-  var allRows = mainSheet.getRange(CONFIG.DATA_START_ROW, 1, totalDataRows, CONFIG.COLUMNS.NOTES).getValues();
+  // Read ALL data columns D-Q at once (faster than per-row reads)
+  var totalRows = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
+  var dataBlock = mainSheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS.DISCOUNT, totalRows, numDataCols).getValues();
 
   // Build map of existing keys → row numbers in Data_Store
   var dsLastRow = dsSheet.getLastRow();
@@ -30,32 +31,28 @@ function saveCurrentToDataStore() {
   if (dsLastRow >= 2) {
     var keys = dsSheet.getRange(2, 1, dsLastRow - 1, 1).getValues();
     keys.forEach(function(k, i) {
-      if (k[0]) existingRowMap[k[0]] = i + 2; // 1-indexed sheet row
+      if (k[0]) existingRowMap[k[0]] = i + 2;
     });
   }
 
   var newRows = [];
 
-  allRows.forEach(function(row) {
-    var region   = row[CONFIG.COLUMNS.REGION - 1];
-    var segment  = row[CONFIG.COLUMNS.SEGMENT - 1];
-    var scenario = row[CONFIG.COLUMNS.SCENARIO - 1];
+  // Use CONFIG to get region/segment/scenario – never read from sheet columns A-C
+  // (they may be empty if setup wasn't run; CONFIG is always authoritative)
+  CONFIG.REGIONS.forEach(function(region, r) {
+    CONFIG.REGION_ROW_TEMPLATE.forEach(function(tpl, t) {
+      var rowIdx     = r * CONFIG.ROWS_PER_REGION + t;
+      var dataValues = dataBlock[rowIdx];
+      var key        = [currentMonth, region, tpl.segment, tpl.scenario].join(' | ');
 
-    if (!region) return; // skip blank
+      var storeRow = [key, currentMonth, region, tpl.segment, tpl.scenario].concat(dataValues);
 
-    var key = [currentMonth, region, segment, scenario].join(' | ');
-
-    // Columns D..Q (data)
-    var dataValues = row.slice(CONFIG.COLUMNS.DISCOUNT - 1, CONFIG.COLUMNS.NOTES);
-
-    // Store row layout: Key | Month | Region | Segment | Scenario | D..Q
-    var storeRow = [key, currentMonth, region, segment, scenario].concat(dataValues);
-
-    if (existingRowMap[key]) {
-      dsSheet.getRange(existingRowMap[key], 1, 1, storeRow.length).setValues([storeRow]);
-    } else {
-      newRows.push(storeRow);
-    }
+      if (existingRowMap[key]) {
+        dsSheet.getRange(existingRowMap[key], 1, 1, storeRow.length).setValues([storeRow]);
+      } else {
+        newRows.push(storeRow);
+      }
+    });
   });
 
   if (newRows.length > 0) {
@@ -64,7 +61,7 @@ function saveCurrentToDataStore() {
   }
 
   SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Saved ' + totalDataRows + ' rows for ' + currentMonth,
+    'Saved ' + totalRows + ' rows for ' + currentMonth,
     '💾 Saved', 4
   );
 }
@@ -122,29 +119,28 @@ function loadMonthFromDataStore(targetMonth) {
     return false;
   }
 
-  // Clear existing data columns (D..Q) in Main_Input
+  // Clear existing data columns (D-Q) in Main_Input
   var totalDataRows = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
   var numDataCols   = CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.DISCOUNT + 1;
   mainSheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS.DISCOUNT, totalDataRows, numDataCols).clearContent();
 
-  // Re-read structure (Region, Segment, Scenario) then fill from lookup
-  var structure = mainSheet.getRange(CONFIG.DATA_START_ROW, 1, totalDataRows, 3).getValues();
+  // Use CONFIG to calculate target rows – never depends on sheet columns A-C being populated
   var filled = 0;
+  CONFIG.REGIONS.forEach(function(region, r) {
+    CONFIG.REGION_ROW_TEMPLATE.forEach(function(tpl, t) {
+      var key    = [targetMonth, region, tpl.segment, tpl.scenario].join(' | ');
+      var rowNum = CONFIG.DATA_START_ROW + (r * CONFIG.ROWS_PER_REGION) + t;
 
-  structure.forEach(function(row, i) {
-    var region   = row[0];
-    var segment  = row[1];
-    var scenario = row[2];
-    if (!region) return;
-
-    var key = [targetMonth, region, segment, scenario].join(' | ');
-    if (lookup[key]) {
-      var targetRow = CONFIG.DATA_START_ROW + i;
-      mainSheet.getRange(targetRow, CONFIG.COLUMNS.DISCOUNT, 1, lookup[key].length)
-        .setValues([lookup[key]]);
-      filled++;
-    }
+      if (lookup[key]) {
+        mainSheet.getRange(rowNum, CONFIG.COLUMNS.DISCOUNT, 1, lookup[key].length)
+          .setValues([lookup[key]]);
+        filled++;
+      }
+    });
   });
+
+  // Always restore structure columns A-C from CONFIG after loading
+  _fillDataRows(mainSheet);
 
   setCurrentMonthYear(targetMonth);
 
