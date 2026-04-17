@@ -1,0 +1,223 @@
+/**
+ * Data persistence for Monthly Discount Tracker v2.0
+ *
+ * Key format: "Month | Region | Segment | Scenario"
+ * (4-field composite key vs. old 3-field key)
+ */
+
+// ─── Save ─────────────────────────────────────────────────────────────────────
+
+function saveCurrentToDataStore() {
+  var mainSheet = getMainSheet();
+  var dsSheet   = getDataStore();
+
+  if (!mainSheet || !dsSheet) {
+    SpreadsheetApp.getUi().alert('Required sheets not found. Run Setup first.');
+    return;
+  }
+
+  _ensureDataStoreHeaders(dsSheet);
+
+  var currentMonth  = getCurrentMonthYear();
+  var totalDataRows = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
+  var numDataCols   = CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.DISCOUNT + 1; // D..Q
+
+  var allRows = mainSheet.getRange(CONFIG.DATA_START_ROW, 1, totalDataRows, CONFIG.COLUMNS.NOTES).getValues();
+
+  // Build map of existing keys → row numbers in Data_Store
+  var dsLastRow = dsSheet.getLastRow();
+  var existingRowMap = {};
+  if (dsLastRow >= 2) {
+    var keys = dsSheet.getRange(2, 1, dsLastRow - 1, 1).getValues();
+    keys.forEach(function(k, i) {
+      if (k[0]) existingRowMap[k[0]] = i + 2; // 1-indexed sheet row
+    });
+  }
+
+  var newRows = [];
+
+  allRows.forEach(function(row) {
+    var region   = row[CONFIG.COLUMNS.REGION - 1];
+    var segment  = row[CONFIG.COLUMNS.SEGMENT - 1];
+    var scenario = row[CONFIG.COLUMNS.SCENARIO - 1];
+
+    if (!region) return; // skip blank
+
+    var key = [currentMonth, region, segment, scenario].join(' | ');
+
+    // Columns D..Q (data)
+    var dataValues = row.slice(CONFIG.COLUMNS.DISCOUNT - 1, CONFIG.COLUMNS.NOTES);
+
+    // Store row layout: Key | Month | Region | Segment | Scenario | D..Q
+    var storeRow = [key, currentMonth, region, segment, scenario].concat(dataValues);
+
+    if (existingRowMap[key]) {
+      dsSheet.getRange(existingRowMap[key], 1, 1, storeRow.length).setValues([storeRow]);
+    } else {
+      newRows.push(storeRow);
+    }
+  });
+
+  if (newRows.length > 0) {
+    var appendAt = Math.max(dsSheet.getLastRow() + 1, 2);
+    dsSheet.getRange(appendAt, 1, newRows.length, newRows[0].length).setValues(newRows);
+  }
+
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Saved ' + totalDataRows + ' rows for ' + currentMonth,
+    '💾 Saved', 4
+  );
+}
+
+function _ensureDataStoreHeaders(dsSheet) {
+  if (dsSheet.getRange('A1').getValue() === 'Key') return;
+  var headers = [
+    'Key', 'Month', 'Region', 'Segment', 'Scenario',
+    'Discount %', 'Promo Code', 'Condition', 'Code Effect',
+    'Status', 'Start Date', 'End Date',
+    'Banner', 'PopUp', 'InApp', 'WA', 'Push', 'SMS', 'Notes'
+  ];
+  dsSheet.getRange(1, 1, 1, headers.length)
+    .setValues([headers])
+    .setBackground('#4B4B9B').setFontColor('#FFFFFF').setFontWeight('bold');
+}
+
+// ─── Load ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Load campaign data for targetMonth from Data_Store into Main_Input.
+ * Matches on all 4 key fields: month, region, segment, scenario.
+ * Returns true if any rows were loaded.
+ */
+function loadMonthFromDataStore(targetMonth) {
+  var mainSheet = getMainSheet();
+  var dsSheet   = getDataStore();
+
+  if (!mainSheet || !dsSheet) {
+    SpreadsheetApp.getUi().alert('Required sheets not found. Run Setup first.');
+    return false;
+  }
+
+  var dsLastRow = dsSheet.getLastRow();
+  if (dsLastRow < 2) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('No stored data found.', '⚠️ Warning', 3);
+    return false;
+  }
+
+  // Read every stored row
+  // Layout: Key(0) | Month(1) | Region(2) | Segment(3) | Scenario(4) | data(5+)
+  var stored = dsSheet.getRange(2, 1, dsLastRow - 1, 5 + (CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.DISCOUNT + 1)).getValues();
+
+  // Build lookup keyed by "Month | Region | Segment | Scenario"
+  var lookup = {};
+  stored.forEach(function(row) {
+    var key = row[0];
+    if (key && key.toString().startsWith(targetMonth + ' | ')) {
+      lookup[key] = row.slice(5); // data columns only
+    }
+  });
+
+  if (Object.keys(lookup).length === 0) {
+    SpreadsheetApp.getActiveSpreadsheet().toast('No data found for ' + targetMonth, '⚠️ Warning', 3);
+    return false;
+  }
+
+  // Clear existing data columns (D..Q) in Main_Input
+  var totalDataRows = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
+  var numDataCols   = CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.DISCOUNT + 1;
+  mainSheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS.DISCOUNT, totalDataRows, numDataCols).clearContent();
+
+  // Re-read structure (Region, Segment, Scenario) then fill from lookup
+  var structure = mainSheet.getRange(CONFIG.DATA_START_ROW, 1, totalDataRows, 3).getValues();
+  var filled = 0;
+
+  structure.forEach(function(row, i) {
+    var region   = row[0];
+    var segment  = row[1];
+    var scenario = row[2];
+    if (!region) return;
+
+    var key = [targetMonth, region, segment, scenario].join(' | ');
+    if (lookup[key]) {
+      var targetRow = CONFIG.DATA_START_ROW + i;
+      mainSheet.getRange(targetRow, CONFIG.COLUMNS.DISCOUNT, 1, lookup[key].length)
+        .setValues([lookup[key]]);
+      filled++;
+    }
+  });
+
+  setCurrentMonthYear(targetMonth);
+
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    'Loaded ' + filled + ' rows for ' + targetMonth,
+    '📂 Loaded', 4
+  );
+  return true;
+}
+
+// ─── Dialogs ──────────────────────────────────────────────────────────────────
+
+function showLoadMonthDialog() {
+  var ui = SpreadsheetApp.getUi();
+
+  var result = ui.prompt(
+    '📂 Load Month Data',
+    'Enter the month to load (e.g. "May 2026"):',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (result.getSelectedButton() !== ui.Button.OK) return;
+
+  var targetMonth = result.getResponseText().trim();
+  if (!targetMonth) return;
+
+  var save = ui.alert(
+    '💾 Save current first?',
+    'Save "' + getCurrentMonthYear() + '" before loading "' + targetMonth + '"?',
+    ui.ButtonSet.YES_NO_CANCEL
+  );
+  if (save === ui.Button.CANCEL) return;
+  if (save === ui.Button.YES) saveCurrentToDataStore();
+
+  loadMonthFromDataStore(targetMonth);
+}
+
+// ─── Export helpers ───────────────────────────────────────────────────────────
+
+function exportCurrentMonthCSV() {
+  var mainSheet = getMainSheet();
+  if (!mainSheet) return;
+
+  var currentMonth = getCurrentMonthYear();
+  var totalRows    = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
+  var headers      = mainSheet.getRange(CONFIG.HEADER_ROW, 1, 1, CONFIG.COLUMNS.NOTES).getValues()[0];
+  var data         = mainSheet.getRange(CONFIG.DATA_START_ROW, 1, totalRows, CONFIG.COLUMNS.NOTES).getValues();
+
+  var csv = [headers].concat(data).map(function(row) {
+    return row.map(function(cell) {
+      return '"' + (cell || '').toString().replace(/"/g, '""') + '"';
+    }).join(',');
+  }).join('\n');
+
+  var filename = 'DiscountTracker_' + currentMonth.replace(' ', '_') + '.csv';
+  var file = DriveApp.createFile(Utilities.newBlob(csv, 'text/csv', filename));
+
+  SpreadsheetApp.getUi().alert('✅ Exported', 'Saved to Drive: ' + file.getName() + '\n' + file.getUrl(), SpreadsheetApp.getUi().ButtonSet.OK);
+}
+
+function exportAllDataCSV() {
+  var dsSheet = getDataStore();
+  if (!dsSheet || dsSheet.getLastRow() < 2) {
+    SpreadsheetApp.getUi().alert('No data in Data_Store to export.');
+    return;
+  }
+
+  var data = dsSheet.getRange(1, 1, dsSheet.getLastRow(), 19).getValues();
+  var csv = data.map(function(row) {
+    return row.map(function(cell) {
+      return '"' + (cell || '').toString().replace(/"/g, '""') + '"';
+    }).join(',');
+  }).join('\n');
+
+  var file = DriveApp.createFile(Utilities.newBlob(csv, 'text/csv', 'DiscountTracker_AllData.csv'));
+  SpreadsheetApp.getUi().alert('✅ Exported', 'Saved to Drive: ' + file.getName(), SpreadsheetApp.getUi().ButtonSet.OK);
+}
