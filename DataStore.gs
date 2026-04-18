@@ -64,6 +64,10 @@ function saveCurrentToDataStore() {
     'Saved ' + totalRows + ' rows for ' + currentMonth,
     '💾 Saved', 4
   );
+
+  // Update "Last saved" timestamp (N1 = start of the merged N1:Q1 band in the header)
+  var ts = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd MMM yyyy HH:mm');
+  mainSheet.getRange(1, 14).setValue('Last saved: ' + ts);
 }
 
 function _ensureDataStoreHeaders(dsSheet) {

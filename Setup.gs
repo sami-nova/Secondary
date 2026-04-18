@@ -275,12 +275,18 @@ function _setupFilterArea(sheet) {
   // This prevents the "can't freeze columns inside a merged cell" error.
   sheet.getRange(1, 1, CONFIG.HEADER_ROW - 1, CONFIG.COLUMNS.NOTES).breakApart();
 
-  // Row 1 – Static spreadsheet title (never updated by script)
-  sheet.getRange(1, 1, 1, CONFIG.COLUMNS.NOTES).merge();
+  // Row 1 – Title (left) + Last Saved indicator (right)
+  sheet.getRange(1, 1, 1, 13).merge();
   sheet.getRange(1, 1)
     .setValue('🗓️  MONTHLY DISCOUNT TRACKER')
     .setBackground('#2C3E6B').setFontColor('#FFFFFF')
-    .setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center');
+    .setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.getRange(1, 14, 1, 4).merge();
+  sheet.getRange(1, 14)
+    .setValue('Last saved: —')
+    .setBackground('#1E2A4A').setFontColor('#7788AA')
+    .setFontSize(9).setHorizontalAlignment('right').setVerticalAlignment('middle');
   sheet.setRowHeight(1, 40);
 
   // Row 2 left (A2:F2) – Current month display ← updated by setCurrentMonthYear()
@@ -356,15 +362,33 @@ function _setupFilterArea(sheet) {
   ];
   _writeButtonRow(sheet, 11, 12, reg2, null, '#FFFFFF');
 
-  // Row 13 – button instructions
-  sheet.getRange(13, 1, 1, CONFIG.COLUMNS.NOTES).merge();
-  sheet.getRange(13, 1)
-    .setValue('● CREATE BUTTONS: Insert → Drawing | Match colors & text | Position over colored cells | Assign script names | See Button_Guide')
-    .setBackground('#DC3545').setFontColor('#FFFFFF')
-    .setFontSize(9).setHorizontalAlignment('center');
+  // Row 13 – thin separator
+  sheet.getRange(13, 1, 1, CONFIG.COLUMNS.NOTES).clearContent().clearFormat();
+  sheet.getRange(13, 1, 1, CONFIG.COLUMNS.NOTES).setBackground('#EEF0F8');
+  sheet.setRowHeight(13, 4);
 
-  // Row 14 – spacer
-  sheet.setRowHeight(14, 8);
+  // Row 14 – column-group sub-header (directly above the data header)
+  sheet.getRange(14, 1, 1, 3).merge()
+    .setValue('STRUCTURE')
+    .setBackground('#3A3A7A').setFontColor('#8888BB')
+    .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.getRange(14, 4, 1, 7).merge()
+    .setValue('CAMPAIGN DETAILS')
+    .setBackground('#3A3A7A').setFontColor('#AAAADD')
+    .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.getRange(14, 11, 1, 6).merge()
+    .setValue('📢  CHANNELS')
+    .setBackground('#B34700').setFontColor('#FFFFFF')
+    .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.getRange(14, 17)
+    .setValue('NOTES')
+    .setBackground('#3A3A7A').setFontColor('#AAAADD')
+    .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.setRowHeight(14, 20);
 }
 
 function _writeButtonRow(sheet, labelRow, scriptRow, buttons, defaultBg, textColor) {
