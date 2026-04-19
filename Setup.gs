@@ -50,9 +50,10 @@ function _clearDataArea(sheet) {
   var lastRow = Math.max(sheet.getLastRow(), CONFIG.HEADER_ROW + 1);
   var rows = lastRow - CONFIG.HEADER_ROW + 1;
   if (rows > 0) {
-    sheet.getRange(CONFIG.HEADER_ROW, 1, rows, CONFIG.COLUMNS.NOTES)
-      .clearContent()
-      .clearFormat();
+    var clearRange = sheet.getRange(CONFIG.HEADER_ROW, 1, rows, 20);
+    clearRange.clearContent();
+    clearRange.clearFormat();
+    clearRange.clearDataValidations();
   }
 }
 
@@ -210,17 +211,19 @@ function _applySheetFormatting(sheet) {
  * Uses columnToLetter() so formulas stay correct after any column renumber.
  */
 function _applyConditionalFormats(sheet) {
-  var s   = CONFIG.DATA_START_ROW;
-  var n   = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
-  var stL = columnToLetter(CONFIG.COLUMNS.STATUS);
-  var dL  = columnToLetter(CONFIG.COLUMNS.DISCOUNT);
-  var pL  = columnToLetter(CONFIG.COLUMNS.PROMO_CODE);
-  var sdL = columnToLetter(CONFIG.COLUMNS.START_DATE);
-  var edL = columnToLetter(CONFIG.COLUMNS.END_DATE);
+  var s    = CONFIG.DATA_START_ROW;
+  var n    = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
+  var stL  = columnToLetter(CONFIG.COLUMNS.STATUS);
+  var dL   = columnToLetter(CONFIG.COLUMNS.DISCOUNT);
+  var pL   = columnToLetter(CONFIG.COLUMNS.PROMO_CODE);
+  var cndL = columnToLetter(CONFIG.COLUMNS.CONDITION);
+  var sdL  = columnToLetter(CONFIG.COLUMNS.START_DATE);
+  var edL  = columnToLetter(CONFIG.COLUMNS.END_DATE);
 
-  // All data-entry columns (excludes A-C structure columns)
-  var rowRange = sheet.getRange(s, CONFIG.COLUMNS.DISCOUNT, n,
+  // All data-entry columns (D-P, excludes A-C structure columns)
+  var rowRange  = sheet.getRange(s, CONFIG.COLUMNS.DISCOUNT, n,
     CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.DISCOUNT + 1);
+  var cndRange  = sheet.getRange(s, CONFIG.COLUMNS.CONDITION, n, 1);
 
   var rules = [];
 
@@ -241,17 +244,30 @@ function _applyConditionalFormats(sheet) {
     .setBackground('#F8D7DA').setFontColor('#721C24')
     .setRanges([sheet.getRange(s, CONFIG.COLUMNS.END_DATE, n, 1)]).build());
 
+  // ── Condition column indicator ────────────────────────────────────────────
+  // Condition filled → teal highlight (row has been configured)
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=$' + cndL + s + '<>""')
+    .setBackground('#80CBC4').setFontColor('#004D40')
+    .setRanges([cndRange]).build());
+
+  // Condition empty but row has campaign data → soft amber hint (needs attention)
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=AND($' + dL + s + '<>"",$' + cndL + s + '="")')
+    .setBackground('#FFF9C4').setFontColor('#5D4037')
+    .setRanges([cndRange]).build());
+
   // ── Status-based row coloring (data cols D-P) ─────────────────────────────
   [
-    { status: 'Active',   bg: '#D4EDDA' }, // light green
-    { status: 'Pending',  bg: '#FFF8E1' }, // light amber
-    { status: 'Inactive', bg: '#F0F0F0' }, // light grey
-    { status: 'Expired',  bg: '#FCE4E4' }, // light red
-    { status: 'Draft',    bg: '#E8EAF6' }  // light indigo
+    { status: 'Active',   bg: '#A5D6A7', fg: '#1B5E20' }, // strong green
+    { status: 'Pending',  bg: '#FFE082', fg: '#5D4037' }, // strong amber
+    { status: 'Inactive', bg: '#BDBDBD', fg: '#212121' }, // medium grey
+    { status: 'Expired',  bg: '#EF9A9A', fg: '#7F0000' }, // strong red/pink
+    { status: 'Draft',    bg: '#90CAF9', fg: '#0D47A1' }  // strong blue
   ].forEach(function(sr) {
     rules.push(SpreadsheetApp.newConditionalFormatRule()
       .whenFormulaSatisfied('=$' + stL + s + '="' + sr.status + '"')
-      .setBackground(sr.bg)
+      .setBackground(sr.bg).setFontColor(sr.fg)
       .setRanges([rowRange]).build());
   });
 
