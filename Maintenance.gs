@@ -5,7 +5,7 @@
  * - cleanDataStore    : remove orphaned keys that no longer match CONFIG structure
  */
 
-var ARCHIVE_COLS = 19; // Key | Month | Region | Segment | Scenario | D..Q
+var ARCHIVE_COLS = 18; // Key | Month | Region | Segment | Scenario | D..P (Code Effect removed)
 
 // ─── Archive ──────────────────────────────────────────────────────────────────
 
@@ -87,7 +87,7 @@ function _ensureArchiveHeaders(sheet) {
   if (sheet.getRange('A1').getValue() === 'Key') return;
   var headers = [
     'Key', 'Month', 'Region', 'Segment', 'Scenario',
-    'Discount %', 'Promo Code', 'Condition', 'Code Effect',
+    'Discount %', 'Promo Code', 'Condition',
     'Status', 'Start Date', 'End Date',
     'Banner', 'PopUp', 'InApp', 'WA', 'Push', 'SMS', 'Notes'
   ];

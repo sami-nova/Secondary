@@ -70,9 +70,9 @@ function saveCurrentToDataStore(opt_silent) {
     );
   }
 
-  // Always update the "Last saved" timestamp in the header (N1:Q1 band)
+  // Always update the "Last saved" timestamp in the header (M1:P1 band)
   var ts = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd MMM yyyy HH:mm');
-  mainSheet.getRange(1, 14).setValue('Last saved: ' + ts);
+  mainSheet.getRange(1, 13).setValue('Last saved: ' + ts);
 
   // Audit log
   _auditLog('SAVE', 'Saved ' + totalRows + ' rows');
@@ -87,7 +87,7 @@ function _ensureDataStoreHeaders(dsSheet) {
   if (dsSheet.getRange('A1').getValue() === 'Key') return;
   var headers = [
     'Key', 'Month', 'Region', 'Segment', 'Scenario',
-    'Discount %', 'Promo Code', 'Condition', 'Code Effect',
+    'Discount %', 'Promo Code', 'Condition',
     'Status', 'Start Date', 'End Date',
     'Banner', 'PopUp', 'InApp', 'WA', 'Push', 'SMS', 'Notes'
   ];

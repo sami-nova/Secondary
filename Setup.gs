@@ -59,7 +59,7 @@ function _clearDataArea(sheet) {
 function _setupHeaders(sheet) {
   var headers = [
     'Region', 'Segment', 'Scenario', 'Discount %', 'Promo Code',
-    'Condition', 'Code Effect', 'Status', 'Start Date', 'End Date',
+    'Condition', 'Status', 'Start Date', 'End Date',
     'Banner', 'PopUp', 'InApp', 'WA', 'Push', 'SMS', 'Notes'
   ];
 
@@ -102,18 +102,16 @@ function populateStructure() {
 }
 
 /**
- * Batch color coding using RangeList — ~25 API calls instead of ~500+.
+ * Color coding — batch RangeList API calls.
  *
- * Column A  : per-region color (14 contiguous range calls, one per region block)
- * Cols B-Q  : per-scenario color (one getRangeList per unique non-white color)
- * Column B  : segment badge (one getRangeList per segment type)
+ * Column A : per-region color (one call per region block)
+ * Column B : segment badge (one RangeList call per segment type)
+ * Cols D-P : status-based colors are handled by conditional format rules
  */
 function _applyColorCodingToSheet(sheet) {
-  var colA = columnToLetter(CONFIG.COLUMNS.REGION);
   var colB = columnToLetter(CONFIG.COLUMNS.SEGMENT);
-  var colQ = columnToLetter(CONFIG.COLUMNS.NOTES);
 
-  // ── 1. Column A: region colors (14 contiguous block calls) ───────────────
+  // ── Column A: region colors ───────────────────────────────────────────────
   CONFIG.REGIONS.forEach(function(region, r) {
     var firstRow = CONFIG.DATA_START_ROW + r * CONFIG.ROWS_PER_REGION;
     sheet.getRange(firstRow, CONFIG.COLUMNS.REGION, CONFIG.ROWS_PER_REGION, 1)
@@ -122,21 +120,7 @@ function _applyColorCodingToSheet(sheet) {
       .setFontColor('#333333');
   });
 
-  // ── 2. Cols B-Q: scenario row colors (one RangeList per unique color) ────
-  var scenarioColorGroups = {}; // color → [A1 range strings]
-  CONFIG.REGION_ROW_TEMPLATE.forEach(function(tpl, t) {
-    if (!tpl.color || tpl.color === '#FFFFFF') return; // white is the default, skip
-    if (!scenarioColorGroups[tpl.color]) scenarioColorGroups[tpl.color] = [];
-    CONFIG.REGIONS.forEach(function(region, r) {
-      var row = getRowForRegionAndOffset(r, t);
-      scenarioColorGroups[tpl.color].push(colB + row + ':' + colQ + row);
-    });
-  });
-  Object.keys(scenarioColorGroups).forEach(function(color) {
-    sheet.getRangeList(scenarioColorGroups[color]).setBackground(color);
-  });
-
-  // ── 3. Column B: segment badge (one RangeList per segment type) ───────────
+  // ── Column B: segment badge (one RangeList per segment type) ─────────────
   var segGroups = {}; // segment → { style, ranges[] }
   CONFIG.REGION_ROW_TEMPLATE.forEach(function(tpl, t) {
     if (!segGroups[tpl.segment]) {
@@ -171,7 +155,6 @@ function _applySheetFormatting(sheet) {
     [CONFIG.COLUMNS.DISCOUNT]:    75,
     [CONFIG.COLUMNS.PROMO_CODE]: 110,
     [CONFIG.COLUMNS.CONDITION]:  155,
-    [CONFIG.COLUMNS.CODE_EFFECT]:135,
     [CONFIG.COLUMNS.STATUS]:      80,
     [CONFIG.COLUMNS.START_DATE]:  95,
     [CONFIG.COLUMNS.END_DATE]:    95,
@@ -216,38 +199,69 @@ function _applySheetFormatting(sheet) {
 }
 
 /**
- * Conditional format rules (replaces all existing rules — this is a managed sheet).
+ * Conditional format rules — replaces all existing rules on every setup run.
  *
- * Rule 1: Status = "Active" but Discount % empty   → amber on col D
- * Rule 2: Status = "Active" but Promo Code empty   → amber on col E
- * Rule 3: End Date < Start Date                    → red   on col J
+ * Priority order (first match wins per cell):
+ *   1-2. Active + missing required field → amber warning on specific cell
+ *   3.   End Date < Start Date → red on End Date cell
+ *   4-8. Status value → pastel row color across all data columns (D-P)
+ *   9.   Completely empty row → very light grey
  *
- * The formula references the first data row; Sheets auto-adjusts it per row.
+ * Uses columnToLetter() so formulas stay correct after any column renumber.
  */
 function _applyConditionalFormats(sheet) {
-  var s = CONFIG.DATA_START_ROW;
-  var n = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
-  var D = CONFIG.COLUMNS.DISCOUNT,
-      E = CONFIG.COLUMNS.PROMO_CODE,
-      I = CONFIG.COLUMNS.START_DATE,
-      J = CONFIG.COLUMNS.END_DATE;
+  var s   = CONFIG.DATA_START_ROW;
+  var n   = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
+  var stL = columnToLetter(CONFIG.COLUMNS.STATUS);
+  var dL  = columnToLetter(CONFIG.COLUMNS.DISCOUNT);
+  var pL  = columnToLetter(CONFIG.COLUMNS.PROMO_CODE);
+  var sdL = columnToLetter(CONFIG.COLUMNS.START_DATE);
+  var edL = columnToLetter(CONFIG.COLUMNS.END_DATE);
 
-  sheet.setConditionalFormatRules([
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=AND($H' + s + '="Active",$D' + s + '="")')
-      .setBackground('#FFF3CD').setFontColor('#856404')
-      .setRanges([sheet.getRange(s, D, n, 1)]).build(),
+  // All data-entry columns (excludes A-C structure columns)
+  var rowRange = sheet.getRange(s, CONFIG.COLUMNS.DISCOUNT, n,
+    CONFIG.COLUMNS.NOTES - CONFIG.COLUMNS.DISCOUNT + 1);
 
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=AND($H' + s + '="Active",$E' + s + '="")')
-      .setBackground('#FFF3CD').setFontColor('#856404')
-      .setRanges([sheet.getRange(s, E, n, 1)]).build(),
+  var rules = [];
 
-    SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied('=AND($J' + s + '<>"",$I' + s + '<>"",$J' + s + '<$I' + s + ')')
-      .setBackground('#F8D7DA').setFontColor('#721C24')
-      .setRanges([sheet.getRange(s, J, n, 1)]).build()
-  ]);
+  // ── Required field alerts (highest priority) ──────────────────────────────
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=AND($' + stL + s + '="Active",$' + dL + s + '="")')
+    .setBackground('#FFC107').setFontColor('#000000')
+    .setRanges([sheet.getRange(s, CONFIG.COLUMNS.DISCOUNT, n, 1)]).build());
+
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=AND($' + stL + s + '="Active",$' + pL + s + '="")')
+    .setBackground('#FFC107').setFontColor('#000000')
+    .setRanges([sheet.getRange(s, CONFIG.COLUMNS.PROMO_CODE, n, 1)]).build());
+
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied(
+      '=AND($' + edL + s + '<>"",$' + sdL + s + '<>"",$' + edL + s + '<$' + sdL + s + ')')
+    .setBackground('#F8D7DA').setFontColor('#721C24')
+    .setRanges([sheet.getRange(s, CONFIG.COLUMNS.END_DATE, n, 1)]).build());
+
+  // ── Status-based row coloring (data cols D-P) ─────────────────────────────
+  [
+    { status: 'Active',   bg: '#D4EDDA' }, // light green
+    { status: 'Pending',  bg: '#FFF8E1' }, // light amber
+    { status: 'Inactive', bg: '#F0F0F0' }, // light grey
+    { status: 'Expired',  bg: '#FCE4E4' }, // light red
+    { status: 'Draft',    bg: '#E8EAF6' }  // light indigo
+  ].forEach(function(sr) {
+    rules.push(SpreadsheetApp.newConditionalFormatRule()
+      .whenFormulaSatisfied('=$' + stL + s + '="' + sr.status + '"')
+      .setBackground(sr.bg)
+      .setRanges([rowRange]).build());
+  });
+
+  // Empty row (no discount + no status) → very light grey
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenFormulaSatisfied('=AND($' + dL + s + '="",$' + stL + s + '="")')
+    .setBackground('#F5F5F5')
+    .setRanges([rowRange]).build());
+
+  sheet.setConditionalFormatRules(rules);
 }
 
 // ─── Public wrappers ──────────────────────────────────────────────────────────
@@ -312,15 +326,15 @@ function _setupFilterArea(sheet) {
   // This prevents the "can't freeze columns inside a merged cell" error.
   sheet.getRange(1, 1, CONFIG.HEADER_ROW - 1, CONFIG.COLUMNS.NOTES).breakApart();
 
-  // Row 1 – Title (left) + Last Saved indicator (right)
-  sheet.getRange(1, 1, 1, 13).merge();
+  // Row 1 – Title (cols 1-12) + Last Saved indicator (cols 13-16)
+  sheet.getRange(1, 1, 1, 12).merge();
   sheet.getRange(1, 1)
     .setValue('🗓️  MONTHLY DISCOUNT TRACKER')
     .setBackground('#2C3E6B').setFontColor('#FFFFFF')
     .setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
-  sheet.getRange(1, 14, 1, 4).merge();
-  sheet.getRange(1, 14)
+  sheet.getRange(1, 13, 1, 4).merge();
+  sheet.getRange(1, 13)
     .setValue('Last saved: —')
     .setBackground('#1E2A4A').setFontColor('#7788AA')
     .setFontSize(9).setHorizontalAlignment('right').setVerticalAlignment('middle');
@@ -405,22 +419,28 @@ function _setupFilterArea(sheet) {
   sheet.setRowHeight(13, 4);
 
   // Row 14 – column-group sub-header (directly above the data header)
+  // A-C: structure  |  D-F: campaign data  |  G-I: status & dates  |  J-O: channels  |  P: notes
   sheet.getRange(14, 1, 1, 3).merge()
     .setValue('STRUCTURE')
     .setBackground('#3A3A7A').setFontColor('#8888BB')
     .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
-  sheet.getRange(14, 4, 1, 7).merge()
+  sheet.getRange(14, 4, 1, 3).merge()
     .setValue('CAMPAIGN DETAILS')
     .setBackground('#3A3A7A').setFontColor('#AAAADD')
     .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
-  sheet.getRange(14, 11, 1, 6).merge()
+  sheet.getRange(14, 7, 1, 3).merge()
+    .setValue('STATUS & TIMELINE')
+    .setBackground('#3A3A7A').setFontColor('#AAAADD')
+    .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.getRange(14, 10, 1, 6).merge()
     .setValue('📢  CHANNELS')
     .setBackground('#B34700').setFontColor('#FFFFFF')
     .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
-  sheet.getRange(14, 17)
+  sheet.getRange(14, 16)
     .setValue('NOTES')
     .setBackground('#3A3A7A').setFontColor('#AAAADD')
     .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
@@ -450,23 +470,35 @@ function _writeButtonRow(sheet, labelRow, scriptRow, buttons, defaultBg, textCol
 
 // ─── Reference_Data ───────────────────────────────────────────────────────────
 
+/**
+ * Sets up Reference_Data with 6 sequential columns — no gaps.
+ * Layout: A=Regions | B=Discount% | C=Promo Codes | D=Conditions | E=Scenarios | F=Status
+ *
+ * Only writes data rows that are currently empty (preserves user edits).
+ * _applySheetConfig() reads Regions from A, Scenarios from E, Status from F.
+ */
 function setupReferenceData() {
   var sheet = getOrCreateSheet(CONFIG.SHEET_NAMES.REFERENCE);
 
   var sections = [
-    { col: 1, title: 'Regions',   data: CONFIG.REGIONS },
-    { col: 3, title: 'Segments',  data: ['Secondary MO', 'Secondary KO', 'PPC', 'CP', 'Paid in Advance'] },
-    { col: 5, title: 'Scenarios', data: CONFIG.SCENARIO_LIST },
-    { col: 7, title: 'Status',    data: CONFIG.STATUS_LIST }
+    { col: 1, title: 'Regions',     data: CONFIG.REGIONS },
+    { col: 2, title: 'Discount %',  data: ['10%','15%','20%','25%','26%','30%','33%','35%','40%','45%','50%','60%'] },
+    { col: 3, title: 'Promo Codes', data: [] },   // user fills
+    { col: 4, title: 'Conditions',  data: ['all subs','all sub 2+','all sub 3+','all sub 4+','24w 2N/NN','24w 3N/NN','24w 4N/NN','24w 2N/NN installments','24w 3N/NN installments','24w 4N/NN installments','48w 2N/NN','48w 3N/NN','48w 4N/NN','48w 2N/NN installments','48w 3N/NN installments','48w 4N/NN installments'] },
+    { col: 5, title: 'Scenarios',   data: CONFIG.SCENARIO_LIST },
+    { col: 6, title: 'Status',      data: CONFIG.STATUS_LIST }
   ];
 
-  sections.forEach(function(s) {
-    // Write header
-    sheet.getRange(1, s.col).setValue(s.title)
-      .setBackground('#4B4B9B').setFontColor('#FFFFFF').setFontWeight('bold');
+  // Style headers
+  sheet.getRange(1, 1, 1, 6)
+    .setBackground('#4B4B9B').setFontColor('#FFFFFF').setFontWeight('bold');
 
-    // Only populate data rows if the column is empty (preserve user edits)
-    var existingVals = sheet.getRange(2, s.col, s.data.length, 1).getValues()
+  sections.forEach(function(s) {
+    sheet.getRange(1, s.col).setValue(s.title);
+
+    if (s.data.length === 0) return; // user-maintained column
+
+    var existingVals = sheet.getRange(2, s.col, Math.max(s.data.length, 1), 1).getValues()
       .map(function(r) { return r[0]; });
     var alreadyFilled = existingVals.some(function(v) { return v !== ''; });
     if (!alreadyFilled) {
@@ -476,13 +508,15 @@ function setupReferenceData() {
     }
   });
 
-  // Tooltip on A1 explaining the sheet is editable
+  // Widen columns for readability
+  [1,2,3,4,5,6].forEach(function(c) { sheet.setColumnWidth(c, c <= 2 ? 90 : c === 4 ? 180 : 130); });
+
   try {
     sheet.getRange('A1').setNote(
-      'Edit these lists, then use:\n🎯 Discount Tracker → 🗃️ Maintenance → 🔄 Reload Config from Sheet\nto apply your changes to the script.'
+      'Edit any list here, then:\n🎯 Discount Tracker → 🗃️ Maintenance → 🔄 Reload Config from Sheet'
     );
   } catch (ignore) {}
 
   SpreadsheetApp.getActiveSpreadsheet()
-    .toast('Reference_Data ready — edit lists here, then Reload Config from Sheet', '📊 Done', 4);
+    .toast('Reference_Data ready — edit lists directly, then Reload Config', '📊 Done', 4);
 }

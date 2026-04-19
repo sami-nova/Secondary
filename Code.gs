@@ -62,21 +62,20 @@ var CONFIG = {
   COLUMNS: {
     REGION:     1,   // A
     SEGMENT:    2,   // B
-    SCENARIO:   3,   // C  ← NEW
+    SCENARIO:   3,   // C
     DISCOUNT:   4,   // D
     PROMO_CODE: 5,   // E
     CONDITION:  6,   // F
-    CODE_EFFECT:7,   // G
-    STATUS:     8,   // H
-    START_DATE: 9,   // I
-    END_DATE:   10,  // J
-    BANNER:     11,  // K
-    POPUP:      12,  // L
-    INAPP:      13,  // M
-    WA:         14,  // N
-    PUSH:       15,  // O
-    SMS:        16,  // P
-    NOTES:      17   // Q
+    STATUS:     7,   // G
+    START_DATE: 8,   // H
+    END_DATE:   9,   // I
+    BANNER:    10,   // J
+    POPUP:     11,   // K
+    INAPP:     12,   // L
+    WA:        13,   // M
+    PUSH:      14,   // N
+    SMS:       15,   // O
+    NOTES:     16    // P
   },
 
   SCENARIO_LIST: [
@@ -244,11 +243,18 @@ function _applySheetConfig() {
   var lastRow = sheet.getLastRow();
   if (lastRow < dataRow) return;
 
-  var data = sheet.getRange(dataRow, 1, lastRow - dataRow + 1, 7).getValues();
+  var data = sheet.getRange(dataRow, 1, lastRow - dataRow + 1, 6).getValues();
 
-  var regions   = data.map(function(r) { return r[0]; }).filter(Boolean);
+  // Col A: Regions — skip values that look like numbers or percentages
+  var regions = data.map(function(r) { return r[0]; }).filter(function(v) {
+    if (!v) return false;
+    var s = v.toString().trim();
+    return s && isNaN(parseFloat(s.replace('%', '')));
+  });
+  // Col E (index 4): Scenarios
   var scenarios = data.map(function(r) { return r[4]; }).filter(Boolean);
-  var statuses  = data.map(function(r) { return r[6]; }).filter(Boolean);
+  // Col F (index 5): Status
+  var statuses  = data.map(function(r) { return r[5]; }).filter(Boolean);
 
   if (regions.length   > 0) CONFIG.REGIONS       = regions;
   if (scenarios.length > 0) CONFIG.SCENARIO_LIST = scenarios;
