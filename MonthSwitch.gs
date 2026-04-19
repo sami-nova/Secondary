@@ -28,6 +28,8 @@ function showMonthSwitcher() {
 // ─── Core switch logic ────────────────────────────────────────────────────────
 
 function switchToMonth(targetMonth) {
+  var current = getCurrentMonthYear();
+
   // Always save current state first
   saveCurrentToDataStore();
 
@@ -47,6 +49,32 @@ function switchToMonth(targetMonth) {
         'Ready for ' + targetMonth + '!', '📅 New Month', 3
       );
     }
+  }
+
+  _auditLog('MONTH_SWITCH', current + ' → ' + targetMonth);
+
+  // Auto-archive: if Data_Store has grown beyond 6 distinct months, archive the oldest
+  _autoArchiveIfNeeded(6);
+}
+
+// ─── Auto-archive helper ──────────────────────────────────────────────────────
+
+function _autoArchiveIfNeeded(keepMonths) {
+  var dsSheet = getDataStore();
+  if (!dsSheet || dsSheet.getLastRow() < 2) return;
+
+  // Collect distinct month values from column B (index 1)
+  var monthCol = dsSheet.getRange(2, 2, dsSheet.getLastRow() - 1, 1).getValues();
+  var seen = {};
+  monthCol.forEach(function(r) { if (r[0]) seen[r[0]] = true; });
+  if (Object.keys(seen).length <= keepMonths) return;
+
+  var archived = archiveOldMonths(keepMonths);
+  if (archived > 0) {
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      'Auto-archived ' + archived + ' rows (kept last ' + keepMonths + ' months)',
+      '📦 Auto-Archive', 4
+    );
   }
 }
 

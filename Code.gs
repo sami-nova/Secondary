@@ -6,7 +6,7 @@
  * New: Per-region color on column A persists through filtering
  */
 
-const CONFIG = {
+var CONFIG = {
   SHEET_NAMES: {
     MAIN: 'Main_Input',
     DATA_STORE: 'Data_Store',
@@ -109,8 +109,9 @@ const CONFIG = {
 // ─── onOpen ──────────────────────────────────────────────────────────────────
 
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('🎯 Discount Tracker')
+  _applySheetConfig(); // patch CONFIG from Reference_Data before building menus
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('🎯 Discount Tracker')
     .addItem('📅 Switch Month', 'showMonthSwitcher')
     .addSeparator()
     .addItem('💾 Save Current Month', 'saveCurrentToDataStore')
@@ -121,18 +122,25 @@ function onOpen() {
     .addSeparator()
     .addItem('🔄 Update Dashboard', 'updateDashboard')
     .addSeparator()
-    .addSubMenu(SpreadsheetApp.getUi().createMenu('🔧 Setup & Tools')
-      .addItem('🏗️ Initialize Full Structure (196 rows)', 'setupSheetStructure')
+    .addSubMenu(ui.createMenu('🔧 Setup & Tools')
+      .addItem('🏗️ Initialize Full Structure', 'setupSheetStructure')
       .addItem('🔁 Restore Structure Columns (A-C)', 'populateStructure')
       .addItem('🎨 Re-apply Color Coding', 'applyColorCoding')
       .addItem('📋 Setup Dropdowns', 'setupDropdowns')
       .addItem('📊 Setup Reference Data', 'setupReferenceData')
+      .addSeparator()
+      .addItem('⏱️ Enable Auto-Save', 'setupAutoSaveTrigger')
+      .addItem('⏹️ Disable Auto-Save', 'removeAutoSaveTrigger')
+      .addSeparator()
       .addItem('📤 Export Current Month CSV', 'exportCurrentMonthCSV')
       .addItem('📤 Export All Data CSV', 'exportAllDataCSV')
     )
-    .addSubMenu(SpreadsheetApp.getUi().createMenu('🗃️ Maintenance')
+    .addSubMenu(ui.createMenu('🗃️ Maintenance')
       .addItem('📦 Archive Old Months', 'showArchiveDialog')
       .addItem('🧹 Clean Orphaned Keys', 'showCleanupDialog')
+      .addItem('📋 View Change Log', 'showChangeLog')
+      .addSeparator()
+      .addItem('🔄 Reload Config from Sheet', 'reloadConfigFromSheet')
     )
     .addToUi();
 }
@@ -215,4 +223,41 @@ function columnToLetter(col) {
   for (; col > 0; col = Math.floor((col - 1) / 26))
     s = String.fromCharCode(65 + (col - 1) % 26) + s;
   return s;
+}
+
+// ─── Config-driven regions & scenarios ───────────────────────────────────────
+
+/**
+ * Patch CONFIG.REGIONS, CONFIG.SCENARIO_LIST, and CONFIG.STATUS_LIST from the
+ * Reference_Data sheet so users can add/remove regions or scenarios without
+ * editing script code. Safe to call when the sheet doesn't exist yet.
+ */
+function _applySheetConfig() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet()
+    .getSheetByName(CONFIG.SHEET_NAMES.REFERENCE);
+  if (!sheet || sheet.getLastRow() < 2) return;
+
+  // Auto-detect data start row: new layout has an instruction header in row 1
+  var a1val = sheet.getRange('A1').getValue().toString();
+  var dataRow = (a1val === 'Regions' || a1val === '') ? 2 : 2; // both layouts start data at row 2
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < dataRow) return;
+
+  var data = sheet.getRange(dataRow, 1, lastRow - dataRow + 1, 7).getValues();
+
+  var regions   = data.map(function(r) { return r[0]; }).filter(Boolean);
+  var scenarios = data.map(function(r) { return r[4]; }).filter(Boolean);
+  var statuses  = data.map(function(r) { return r[6]; }).filter(Boolean);
+
+  if (regions.length   > 0) CONFIG.REGIONS       = regions;
+  if (scenarios.length > 0) CONFIG.SCENARIO_LIST = scenarios;
+  if (statuses.length  > 0) CONFIG.STATUS_LIST   = statuses;
+}
+
+/** Public menu item: reload config and confirm. */
+function reloadConfigFromSheet() {
+  _applySheetConfig();
+  SpreadsheetApp.getActiveSpreadsheet()
+    .toast('CONFIG reloaded from Reference_Data sheet', '🔄 Done', 3);
 }

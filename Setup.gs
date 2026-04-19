@@ -211,6 +211,43 @@ function _applySheetFormatting(sheet) {
       .setBorder(null, null, true, null, null, null,
                  '#555555', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
   });
+
+  _applyConditionalFormats(sheet);
+}
+
+/**
+ * Conditional format rules (replaces all existing rules — this is a managed sheet).
+ *
+ * Rule 1: Status = "Active" but Discount % empty   → amber on col D
+ * Rule 2: Status = "Active" but Promo Code empty   → amber on col E
+ * Rule 3: End Date < Start Date                    → red   on col J
+ *
+ * The formula references the first data row; Sheets auto-adjusts it per row.
+ */
+function _applyConditionalFormats(sheet) {
+  var s = CONFIG.DATA_START_ROW;
+  var n = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
+  var D = CONFIG.COLUMNS.DISCOUNT,
+      E = CONFIG.COLUMNS.PROMO_CODE,
+      I = CONFIG.COLUMNS.START_DATE,
+      J = CONFIG.COLUMNS.END_DATE;
+
+  sheet.setConditionalFormatRules([
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenFormulaSatisfied('=AND($H' + s + '="Active",$D' + s + '="")')
+      .setBackground('#FFF3CD').setFontColor('#856404')
+      .setRanges([sheet.getRange(s, D, n, 1)]).build(),
+
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenFormulaSatisfied('=AND($H' + s + '="Active",$E' + s + '="")')
+      .setBackground('#FFF3CD').setFontColor('#856404')
+      .setRanges([sheet.getRange(s, E, n, 1)]).build(),
+
+    SpreadsheetApp.newConditionalFormatRule()
+      .whenFormulaSatisfied('=AND($J' + s + '<>"",$I' + s + '<>"",$J' + s + '<$I' + s + ')')
+      .setBackground('#F8D7DA').setFontColor('#721C24')
+      .setRanges([sheet.getRange(s, J, n, 1)]).build()
+  ]);
 }
 
 // ─── Public wrappers ──────────────────────────────────────────────────────────
@@ -424,12 +461,28 @@ function setupReferenceData() {
   ];
 
   sections.forEach(function(s) {
+    // Write header
     sheet.getRange(1, s.col).setValue(s.title)
       .setBackground('#4B4B9B').setFontColor('#FFFFFF').setFontWeight('bold');
-    s.data.forEach(function(item, i) {
-      sheet.getRange(2 + i, s.col).setValue(item);
-    });
+
+    // Only populate data rows if the column is empty (preserve user edits)
+    var existingVals = sheet.getRange(2, s.col, s.data.length, 1).getValues()
+      .map(function(r) { return r[0]; });
+    var alreadyFilled = existingVals.some(function(v) { return v !== ''; });
+    if (!alreadyFilled) {
+      s.data.forEach(function(item, i) {
+        sheet.getRange(2 + i, s.col).setValue(item);
+      });
+    }
   });
 
-  SpreadsheetApp.getActiveSpreadsheet().toast('Reference_Data updated!', '📊 Done', 3);
+  // Tooltip on A1 explaining the sheet is editable
+  try {
+    sheet.getRange('A1').setNote(
+      'Edit these lists, then use:\n🎯 Discount Tracker → 🗃️ Maintenance → 🔄 Reload Config from Sheet\nto apply your changes to the script.'
+    );
+  } catch (ignore) {}
+
+  SpreadsheetApp.getActiveSpreadsheet()
+    .toast('Reference_Data ready — edit lists here, then Reload Config from Sheet', '📊 Done', 4);
 }

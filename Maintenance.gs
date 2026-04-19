@@ -122,26 +122,30 @@ function showCleanupDialog() {
 
 /**
  * Delete Data_Store rows whose Segment|Scenario pair is no longer in CONFIG.
- * Returns the number of rows deleted.
+ * Uses read → filter → rewrite (3 API calls) instead of one deleteRow per orphan.
+ * Returns the number of rows removed.
  */
 function cleanDataStore() {
   var dsSheet = getDataStore();
   if (!dsSheet || dsSheet.getLastRow() < 2) return 0;
 
-  var valid = _validCombos();
+  var valid   = _validCombos();
   var lastRow = dsSheet.getLastRow();
-  // Read columns A-E (Key, Month, Region, Segment, Scenario)
-  var data = dsSheet.getRange(2, 1, lastRow - 1, 5).getValues();
+  var data    = dsSheet.getRange(2, 1, lastRow - 1, ARCHIVE_COLS).getValues();
 
-  // Collect rows to delete (back-to-front to preserve indices)
-  var toDelete = [];
-  data.forEach(function(row, i) {
-    var key = row[3] + '||' + row[4]; // Segment || Scenario
-    if (!valid[key]) toDelete.push(i + 2);
+  var kept    = data.filter(function(row) {
+    return valid[row[3] + '||' + row[4]]; // Segment || Scenario
   });
 
-  toDelete.reverse().forEach(function(r) { dsSheet.deleteRow(r); });
-  return toDelete.length;
+  var removed = data.length - kept.length;
+  if (removed === 0) return 0;
+
+  dsSheet.getRange(2, 1, lastRow - 1, ARCHIVE_COLS).clearContent();
+  if (kept.length > 0) {
+    dsSheet.getRange(2, 1, kept.length, ARCHIVE_COLS).setValues(kept);
+  }
+
+  return removed;
 }
 
 function _countOrphanedKeys() {

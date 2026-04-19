@@ -7,12 +7,16 @@
 
 // ─── Save ─────────────────────────────────────────────────────────────────────
 
-function saveCurrentToDataStore() {
+/**
+ * @param {boolean=} opt_silent  When true (auto-save context) suppresses toasts
+ *   and UI alerts that would throw inside a time-based trigger.
+ */
+function saveCurrentToDataStore(opt_silent) {
   var mainSheet = getMainSheet();
   var dsSheet   = getDataStore();
 
   if (!mainSheet || !dsSheet) {
-    SpreadsheetApp.getUi().alert('Required sheets not found. Run Setup first.');
+    if (!opt_silent) SpreadsheetApp.getUi().alert('Required sheets not found. Run Setup first.');
     return;
   }
 
@@ -60,14 +64,23 @@ function saveCurrentToDataStore() {
     dsSheet.getRange(appendAt, 1, newRows.length, newRows[0].length).setValues(newRows);
   }
 
-  SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Saved ' + totalRows + ' rows for ' + currentMonth,
-    '💾 Saved', 4
-  );
+  if (!opt_silent) {
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      'Saved ' + totalRows + ' rows for ' + currentMonth, '💾 Saved', 4
+    );
+  }
 
-  // Update "Last saved" timestamp (N1 = start of the merged N1:Q1 band in the header)
+  // Always update the "Last saved" timestamp in the header (N1:Q1 band)
   var ts = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd MMM yyyy HH:mm');
   mainSheet.getRange(1, 14).setValue('Last saved: ' + ts);
+
+  // Audit log
+  _auditLog('SAVE', 'Saved ' + totalRows + ' rows');
+
+  // Auto-refresh Dashboard if the sheet already exists (don't create it implicitly)
+  if (SpreadsheetApp.getActiveSpreadsheet().getSheetByName(CONFIG.SHEET_NAMES.DASHBOARD)) {
+    try { updateDashboard(); } catch (ignore) {}
+  }
 }
 
 function _ensureDataStoreHeaders(dsSheet) {
@@ -150,9 +163,9 @@ function loadMonthFromDataStore(targetMonth) {
   setCurrentMonthYear(targetMonth);
 
   SpreadsheetApp.getActiveSpreadsheet().toast(
-    'Loaded ' + filled + ' rows for ' + targetMonth,
-    '📂 Loaded', 4
+    'Loaded ' + filled + ' rows for ' + targetMonth, '📂 Loaded', 4
   );
+  _auditLog('LOAD', targetMonth + ' — ' + filled + ' rows');
   return true;
 }
 
