@@ -323,8 +323,9 @@ function _setupDropdownsOnSheet(sheet) {
 
 function _setupFilterArea(sheet) {
   // Break apart any merged cells from a previous setup run before re-merging.
-  // This prevents the "can't freeze columns inside a merged cell" error.
-  sheet.getRange(1, 1, CONFIG.HEADER_ROW - 1, CONFIG.COLUMNS.NOTES).breakApart();
+  // Use a wider range (20 cols) than CONFIG.COLUMNS.NOTES so any old merged
+  // cells from before a column was removed are fully captured.
+  sheet.getRange(1, 1, CONFIG.HEADER_ROW - 1, 20).breakApart();
 
   // Row 1 – Title (cols 1-12) + Last Saved indicator (cols 13-16)
   sheet.getRange(1, 1, 1, 12).merge();
