@@ -123,6 +123,8 @@ function onOpen() {
     .addSeparator()
     .addSubMenu(ui.createMenu('🔧 Setup & Tools')
       .addItem('🏗️ Initialize Full Structure', 'setupSheetStructure')
+      .addItem('🎨 Update Design Only (keeps data)', 'updateDesignOnly')
+      .addSeparator()
       .addItem('🔁 Restore Structure Columns (A-C)', 'populateStructure')
       .addItem('🎨 Re-apply Color Coding', 'applyColorCoding')
       .addItem('📋 Setup Dropdowns', 'setupDropdowns')
@@ -266,4 +268,20 @@ function reloadConfigFromSheet() {
   _applySheetConfig();
   SpreadsheetApp.getActiveSpreadsheet()
     .toast('CONFIG reloaded from Reference_Data sheet', '🔄 Done', 3);
+}
+
+// ─── Dashboard refresh button ─────────────────────────────────────────────────
+
+/**
+ * Simple trigger — fires on every cell selection change.
+ * When the user clicks the "🔄 Refresh" button cell in the Dashboard sheet
+ * (row 1, col 10) the dashboard is regenerated immediately.
+ */
+function onSelectionChange(e) {
+  if (!e || !e.range) return;
+  var sheet = e.range.getSheet();
+  if (sheet.getName() !== CONFIG.SHEET_NAMES.DASHBOARD) return;
+  if (e.range.getRow() === 1 && e.range.getColumn() === 10) {
+    updateDashboard();
+  }
 }

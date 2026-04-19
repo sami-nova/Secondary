@@ -188,12 +188,30 @@ function _applySheetFormatting(sheet) {
     sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS[key], totalRows, 1).setNumberFormat('dd/mm/yyyy');
   });
 
-  // Thick bottom border after each region's last row for easy visual separation
+  // Borders at each segment-group boundary within every region.
+  // Placing the thick line on the LAST row of each segment group (not just the
+  // last row of the whole region) ensures the separator stays visible when a
+  // segment filter is active and those in-between rows are hidden.
+  var segBoundaryOffsets = [];
+  var prevSeg = null;
+  CONFIG.REGION_ROW_TEMPLATE.forEach(function(tpl, t) {
+    if (prevSeg !== null && tpl.segment !== prevSeg) {
+      segBoundaryOffsets.push(t - 1); // last row of the previous segment group
+    }
+    prevSeg = tpl.segment;
+  });
+  segBoundaryOffsets.push(CONFIG.ROWS_PER_REGION - 1); // always include last region row
+
   CONFIG.REGIONS.forEach(function(region, r) {
-    var lastRow = CONFIG.DATA_START_ROW + ((r + 1) * CONFIG.ROWS_PER_REGION) - 1;
-    sheet.getRange(lastRow, 1, 1, CONFIG.COLUMNS.NOTES)
-      .setBorder(null, null, true, null, null, null,
-                 '#555555', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    segBoundaryOffsets.forEach(function(offset) {
+      var borderRow  = CONFIG.DATA_START_ROW + r * CONFIG.ROWS_PER_REGION + offset;
+      var isRegionEnd = (offset === CONFIG.ROWS_PER_REGION - 1);
+      sheet.getRange(borderRow, 1, 1, CONFIG.COLUMNS.NOTES)
+        .setBorder(null, null, true, null, null, null,
+                   isRegionEnd ? '#555555' : '#999999',
+                   isRegionEnd ? SpreadsheetApp.BorderStyle.SOLID_MEDIUM
+                               : SpreadsheetApp.BorderStyle.SOLID);
+    });
   });
 
   _applyConditionalFormats(sheet);
@@ -294,6 +312,27 @@ function setupDropdowns() {
   if (!sheet) { SpreadsheetApp.getUi().alert('Main_Input not found. Run full setup first.'); return; }
   _setupDropdownsOnSheet(sheet);
   SpreadsheetApp.getActiveSpreadsheet().toast('Dropdowns applied!', '📋 Done', 3);
+}
+
+/**
+ * Re-apply all design/structure without touching data columns D-P.
+ * Safe to run on a sheet that already has campaign data filled in.
+ */
+function updateDesignOnly() {
+  var sheet = getMainSheet();
+  if (!sheet) {
+    SpreadsheetApp.getUi().alert('Main_Input not found. Run full setup first.');
+    return;
+  }
+  _setupHeaders(sheet);
+  _fillDataRows(sheet);            // only writes A-C (Region/Segment/Scenario)
+  _applyColorCodingToSheet(sheet);
+  _applySheetFormatting(sheet);    // includes conditional formats
+  _setupDropdownsOnSheet(sheet);   // preserves existing TRUE checkbox values
+  _setupFilterArea(sheet);
+  setupReferenceData();
+  SpreadsheetApp.getActiveSpreadsheet()
+    .toast('Design updated — data in columns D-P was not touched.', '🎨 Done', 4);
 }
 
 function _setupDropdownsOnSheet(sheet) {

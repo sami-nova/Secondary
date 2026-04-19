@@ -110,9 +110,11 @@ function _renderDashboard(sheet, m) {
   sheet.clearContents();
   sheet.clearFormats();
 
-  // ── Title
+  // ── Title + refresh button (col 10-11, rows 1-2)
   _mergeSet(sheet, 1, 1, 1, 9, '📊 Monthly Discount Tracker – Dashboard',
     { bg: '#4B4B9B', fg: '#FFFFFF', size: 16, bold: true, align: 'center' });
+  _mergeSet(sheet, 1, 10, 2, 2, '🔄 Refresh',
+    { bg: '#28A745', fg: '#FFFFFF', size: 11, bold: true, align: 'center' });
   sheet.setRowHeight(1, 40);
 
   _mergeSet(sheet, 2, 1, 1, 9, 'Month: ' + m.currentMonth,
@@ -214,7 +216,7 @@ function _renderDashboard(sheet, m) {
     .setValue('Updated: ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd MMM yyyy HH:mm'))
     .setFontSize(8).setFontColor('#999999').setHorizontalAlignment('right');
 
-  sheet.autoResizeColumns(1, 9);
+  sheet.autoResizeColumns(1, 11);
 }
 
 // ─── Channel heatmap ──────────────────────────────────────────────────────────
