@@ -115,6 +115,7 @@ function onOpen() {
     .addSeparator()
     .addItem('💾 Save Current Month', 'saveCurrentToDataStore')
     .addItem('📂 Load Month Data', 'showLoadMonthDialog')
+    .addItem('📋 Carry Forward Active Campaigns', 'showCarryForwardDialog')
     .addSeparator()
     .addItem('🔍 Filter Data', 'showFilterDialog')
     .addItem('✅ Show All Rows', 'filterShowAll')

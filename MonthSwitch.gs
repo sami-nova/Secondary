@@ -48,6 +48,8 @@ function switchToMonth(targetMonth) {
       SpreadsheetApp.getActiveSpreadsheet().toast(
         'Ready for ' + targetMonth + '!', '📅 New Month', 3
       );
+      // Offer to pre-fill rows whose end dates extend into this month
+      _offerCarryForward(targetMonth);
     }
   }
 
