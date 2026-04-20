@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Google Sans', Arial, sans-serif; font-size: 12px; color: #333; padding: 14px; background: #f8f9fa; }
+
+h3 { font-size: 14px; color: #4B4B9B; margin-bottom: 12px; }
+label { display: block; font-weight: bold; color: #555; margin: 10px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; }
+select { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; background: #fff; }
+
+.section { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+.section-title { font-weight: bold; font-size: 11px; color: #4B4B9B; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.region-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 8px; margin-top: 4px; }
+.region-item { display: flex; align-items: center; gap: 5px; padding: 2px 0; font-size: 11px; cursor: pointer; }
+.region-item input[type=checkbox] { cursor: pointer; }
+
+.toggle-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.toggle-btn { flex: 1; padding: 3px; font-size: 10px; border: 1px solid #ccc; border-radius: 3px; background: #f5f5f5; cursor: pointer; text-align: center; }
+.toggle-btn:hover { background: #e8e8f0; }
+
+.overwrite-row { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 11px; color: #555; cursor: pointer; }
+.overwrite-row input { cursor: pointer; }
+
+button.apply {
+  width: 100%; margin-top: 10px; padding: 9px;
+  background: #4B4B9B; color: #fff;
+  border: none; border-radius: 5px;
+  font-size: 13px; font-weight: bold; cursor: pointer;
+}
+button.apply:hover { background: #3a3a8a; }
+button.apply:disabled { background: #aaa; cursor: default; }
+
+.status { margin-top: 10px; padding: 8px 10px; border-radius: 4px; font-size: 11px; display: none; }
+.status.ok  { background: #eafaf1; border-left: 3px solid #2d7a47; color: #2d7a47; }
+.status.err { background: #fff0f0; border-left: 3px solid #e53935; color: #c62828; }
+.status.info{ background: #e8f0fe; border-left: 3px solid #4B4B9B; color: #4B4B9B; }
+
+.spinner { display: none; text-align: center; margin-top: 8px; font-size: 11px; color: #777; }
+</style>
+</head>
+<body>
+
+<h3>📋 Copy Campaign to Regions</h3>
+
+<div class="section">
+  <div class="section-title">Source</div>
+  <label>Region</label>
+  <select id="srcRegion"></select>
+  <label>Row</label>
+  <select id="srcRow"></select>
+</div>
+
+<div class="section">
+  <div class="section-title">Copy To</div>
+  <div class="toggle-row">
+    <div class="toggle-btn" onclick="selectAll(true)">Select all</div>
+    <div class="toggle-btn" onclick="selectAll(false)">Clear all</div>
+  </div>
+  <div class="region-grid" id="regionGrid"></div>
+  <label class="overwrite-row">
+    <input type="checkbox" id="overwrite">
+    Overwrite rows that already have data
+  </label>
+</div>
+
+<button class="apply" id="applyBtn" onclick="apply()" disabled>Apply</button>
+<div class="spinner" id="spinner">⏳ Copying…</div>
+<div class="status" id="status"></div>
+
+<script>
+var _regions = [];
+var _rows    = [];
+
+google.script.run
+  .withSuccessHandler(function(opts) {
+    _regions = opts.regions;
+    _rows    = opts.rows;
+    buildSourceRegion();
+    buildSourceRow();
+    buildRegionGrid();
+    document.getElementById('applyBtn').disabled = false;
+  })
+  .withFailureHandler(function(e) { showStatus('err', e.message); })
+  .getCopyToRegionsOptions();
+
+function buildSourceRegion() {
+  var sel = document.getElementById('srcRegion');
+  sel.innerHTML = _regions.map(function(r) {
+    return '<option value="' + r + '">' + r + '</option>';
+  }).join('');
+  sel.onchange = function() { buildRegionGrid(); };
+}
+
+function buildSourceRow() {
+  var sel = document.getElementById('srcRow');
+  sel.innerHTML = _rows.map(function(r) {
+    return '<option value="' + r.index + '">' + r.label + '</option>';
+  }).join('');
+}
+
+function buildRegionGrid() {
+  var src  = document.getElementById('srcRegion').value;
+  var grid = document.getElementById('regionGrid');
+  grid.innerHTML = _regions.map(function(r) {
+    var disabled = r === src ? 'disabled' : '';
+    var checked  = r !== src ? 'checked'  : '';
+    var style    = r === src ? 'opacity:0.35' : '';
+    return '<label class="region-item" style="' + style + '">' +
+      '<input type="checkbox" value="' + r + '" ' + checked + ' ' + disabled + '>' +
+      r + '</label>';
+  }).join('');
+}
+
+function selectAll(on) {
+  var src = document.getElementById('srcRegion').value;
+  document.querySelectorAll('#regionGrid input[type=checkbox]').forEach(function(cb) {
+    if (cb.value !== src) cb.checked = on;
+  });
+}
+
+function apply() {
+  var srcRegion = document.getElementById('srcRegion').value;
+  var rowIndex  = parseInt(document.getElementById('srcRow').value, 10);
+  var overwrite = document.getElementById('overwrite').checked;
+  var targets   = [];
+  document.querySelectorAll('#regionGrid input[type=checkbox]:checked').forEach(function(cb) {
+    targets.push(cb.value);
+  });
+
+  if (targets.length === 0) {
+    showStatus('info', 'Select at least one target region.');
+    return;
+  }
+
+  document.getElementById('applyBtn').disabled = true;
+  document.getElementById('spinner').style.display = 'block';
+  hideStatus();
+
+  google.script.run
+    .withSuccessHandler(function(res) {
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('applyBtn').disabled = false;
+      if (res.error) {
+        showStatus('err', res.error);
+      } else {
+        var msg = 'Filled ' + res.filled + ' region(s).';
+        if (res.skipped > 0) msg += ' Skipped ' + res.skipped + ' (already had data).';
+        showStatus('ok', msg);
+      }
+    })
+    .withFailureHandler(function(e) {
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('applyBtn').disabled = false;
+      showStatus('err', e.message);
+    })
+    .executeCopyToAllRegions(srcRegion, rowIndex, targets, overwrite);
+}
+
+function showStatus(type, msg) {
+  var el = document.getElementById('status');
+  el.className = 'status ' + type;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+function hideStatus() {
+  document.getElementById('status').style.display = 'none';
+}
+</script>
+</body>
+</html>

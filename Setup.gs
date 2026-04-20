@@ -315,8 +315,10 @@ function setupDropdowns() {
 }
 
 /**
- * Re-apply all design/structure without touching data columns D-P.
- * Safe to run on a sheet that already has campaign data filled in.
+ * Re-apply design to data rows (15+) WITHOUT touching rows 1-14.
+ * Rows 1-14 hold the user's drawing buttons — they must not be rebuilt here.
+ * Only data-area changes: headers, structure columns A-C, colors, formatting,
+ * conditional formats, and dropdowns. Data in columns D-P is never cleared.
  */
 function updateDesignOnly() {
   var sheet = getMainSheet();
@@ -324,20 +326,14 @@ function updateDesignOnly() {
     SpreadsheetApp.getUi().alert('Main_Input not found. Run full setup first.');
     return;
   }
-  _applySheetConfig();                      // ensure CONFIG is fresh from Reference_Data
-  var savedMonth = getCurrentMonthYear();   // _setupFilterArea resets A2 — preserve it first
-
-  _setupHeaders(sheet);
-  _fillDataRows(sheet);                     // only writes A-C (Region/Segment/Scenario)
+  _applySheetConfig();          // ensure CONFIG is fresh from Reference_Data
+  _setupHeaders(sheet);         // row 15 header bar
+  _fillDataRows(sheet);         // restore A-C structure labels (rows 16+)
   _applyColorCodingToSheet(sheet);
-  _applySheetFormatting(sheet);             // includes conditional formats
-  _setupDropdownsOnSheet(sheet);            // preserves existing TRUE checkbox values
-  _setupFilterArea(sheet);
-  setCurrentMonthYear(savedMonth);          // restore month header after _setupFilterArea reset it
-
-  setupReferenceData();
+  _applySheetFormatting(sheet); // column widths, row heights, borders, conditional formats
+  _setupDropdownsOnSheet(sheet);// scenario/status dropdowns + checkboxes (preserves TRUE values)
   SpreadsheetApp.getActiveSpreadsheet()
-    .toast('Design updated — data in columns D-P was not touched.', '🎨 Done', 4);
+    .toast('Design updated — nav area and data preserved.', '🎨 Done', 4);
 }
 
 function _setupDropdownsOnSheet(sheet) {
