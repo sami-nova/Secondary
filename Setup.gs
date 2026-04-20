@@ -324,12 +324,17 @@ function updateDesignOnly() {
     SpreadsheetApp.getUi().alert('Main_Input not found. Run full setup first.');
     return;
   }
+  _applySheetConfig();                      // ensure CONFIG is fresh from Reference_Data
+  var savedMonth = getCurrentMonthYear();   // _setupFilterArea resets A2 — preserve it first
+
   _setupHeaders(sheet);
-  _fillDataRows(sheet);            // only writes A-C (Region/Segment/Scenario)
+  _fillDataRows(sheet);                     // only writes A-C (Region/Segment/Scenario)
   _applyColorCodingToSheet(sheet);
-  _applySheetFormatting(sheet);    // includes conditional formats
-  _setupDropdownsOnSheet(sheet);   // preserves existing TRUE checkbox values
+  _applySheetFormatting(sheet);             // includes conditional formats
+  _setupDropdownsOnSheet(sheet);            // preserves existing TRUE checkbox values
   _setupFilterArea(sheet);
+  setCurrentMonthYear(savedMonth);          // restore month header after _setupFilterArea reset it
+
   setupReferenceData();
   SpreadsheetApp.getActiveSpreadsheet()
     .toast('Design updated — data in columns D-P was not touched.', '🎨 Done', 4);
