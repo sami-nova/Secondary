@@ -368,6 +368,26 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A110:G112").setValues(top3UpsellData);
 
   // ============================================
+  // SECTION 14: REACTIVATION RESULTS - TOP 5
+  // ============================================
+  sheet.getRange("A114").setValue("🔄 REACTIVATION RESULTS - TOP 5");
+  sheet.getRange("A114:D114").merge();
+  sheet.getRange("A114:D114").setBackground("#8E24AA").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const reactivationHeaders = ["Week", "Rank", "Manager Name", "Number of Returns", "Region"];
+  sheet.getRange("A115:E115").setValues([reactivationHeaders]);
+  sheet.getRange("A115:E115").setBackground("#E1BEE7").setFontWeight("bold");
+
+  const reactivationData = [
+    [currentWeek, 1, "Passant Elsayed", 22, "ARAB"],
+    [currentWeek, 2, "Marionela Albu", 14, "RO"],
+    [currentWeek, 3, "Al Abu", 11, "ARAB"],
+    [currentWeek, 4, "Raul Cimarras", 11, "ES"],
+    [currentWeek, 5, "Tugce Kalafat", 11, "TR"]
+  ];
+  sheet.getRange("A116:E120").setValues(reactivationData);
+
+  // ============================================
   // Formatting
   // ============================================
 
@@ -394,6 +414,7 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A97:F100").setBorder(true, true, true, true, true, true);  // Biggest ARPU Sale
   sheet.getRange("A103:G106").setBorder(true, true, true, true, true, true);  // Top 3 ARPU 20+ Payments
   sheet.getRange("A109:G112").setBorder(true, true, true, true, true, true);  // Top 3 Upsell Share 20+ Payments
+  sheet.getRange("A115:E120").setBorder(true, true, true, true, true, true);  // Reactivation Results Top 5
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -417,6 +438,7 @@ function createLeaderboardTemplateV2() {
     ["✓ Section 11: Biggest ARPU Sale of the Week (OPTIONAL - leave empty to skip)"],
     ["✓ Section 12: TOP 3 ARPU with 20+ Payments (OPTIONAL - leave empty to skip)"],
     ["✓ Section 13: TOP 3 Upsell Share with 20+ Payments (OPTIONAL - leave empty to skip)"],
+    ["✓ Section 14: Reactivation Results - TOP 5 Managers (shows number of returned customers)"],
     ["✓ NEW: WoW column in each leaderboard section (inline with sales)"],
     ["✓ NEW: Rising Stars (#4 and #5) shown as honorable mentions"],
     [""],
@@ -519,6 +541,7 @@ function createLeaderboardTemplateV2() {
     ["• Biggest ARPU Sale: A98:F100 (up to 3 entries, OPTIONAL)"],
     ["• Top 3 ARPU 20+ Payments: A104:G106 (3 managers, OPTIONAL)"],
     ["• Top 3 Upsell Share 20+ Payments: A110:G112 (3 managers, OPTIONAL)"],
+    ["• Reactivation Results: A116:E120 (5 managers, shows customer returns)"],
     [""],
     ["UPSELL METRICS SUMMARY (Section 0.75) - EDITABLE:"],
     ["• Row 1: Overall ARPU for CP, KB, and Overall + Top Manager"],
@@ -559,7 +582,15 @@ function createLeaderboardTemplateV2() {
     ["• Upsell Share: Percentage of upsells (e.g., 25%)"],
     ["• Total Payments: Total number of payments (e.g., 28)"],
     ["• ARPU: Average Revenue Per User (e.g., $52.30)"],
-    ["• Leave all 3 rows empty to skip section in Slack message"]
+    ["• Leave all 3 rows empty to skip section in Slack message"],
+    [""],
+    ["REACTIVATION RESULTS - TOP 5 (Section 14):"],
+    ["• Columns: Week | Rank | Manager Name | Number of Returns | Region"],
+    ["• Tracks managers who successfully reactivated churned customers"],
+    ["• Number of Returns: Count of customers who came back after churning"],
+    ["• Rank by highest number of returns (descending)"],
+    ["• Shows top 5 performers in customer reactivation"],
+    ["• Example: Passant Elsayed reactivated 22 customers in ARAB region"]
   ];
 
   instructionSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
@@ -581,7 +612,8 @@ function createLeaderboardTemplateV2() {
     '✓ KB Upsell Top 3 with ARPU & Upsell Share (optional - leave empty to skip)\n' +
     '✓ Biggest ARPU Sale of the Week (optional - leave empty to skip)\n' +
     '✓ TOP 3 ARPU with 20+ Payments (optional - leave empty to skip)\n' +
-    '✓ TOP 3 Upsell Share with 20+ Payments (optional - leave empty to skip)\n\n' +
+    '✓ TOP 3 Upsell Share with 20+ Payments (optional - leave empty to skip)\n' +
+    '✓ Reactivation Results - TOP 5 (customer returns tracking)\n\n' +
     'Next steps:\n' +
     '1. Review the sample data\n' +
     '2. Update Secondary Sales Plan (A3:C3) and Regional Champions (A7:C8)\n' +

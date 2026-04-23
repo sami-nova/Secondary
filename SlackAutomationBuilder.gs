@@ -1395,6 +1395,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const biggestArpuData = sheet.getRange("A98:F100").getValues(); // Biggest ARPU Sale (optional)
     const top3ArpuData = sheet.getRange("A104:G106").getValues();  // Top 3 ARPU with 20+ Payments (optional)
     const top3UpsellData = sheet.getRange("A110:G112").getValues(); // Top 3 Upsell Share with 20+ Payments (optional)
+    const reactivationData = sheet.getRange("A116:E120").getValues(); // Reactivation Results - Top 5
 
     const blocks = [];
 
@@ -2666,6 +2667,52 @@ function buildCombinedLeaderboardFromSheet(automation) {
         text: {
           type: "mrkdwn",
           text: top3UpsellText || "_No data available_"
+        }
+      });
+    }
+
+    // ============================================
+    // SECTION 14: REACTIVATION RESULTS - TOP 5
+    // ============================================
+    const hasReactivationData = reactivationData && reactivationData.some(row => row[1] && row[2] && row[3]);
+
+    if (hasReactivationData) {
+      blocks.push({ type: "divider" });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*🔄 REACTIVATION RESULTS - TOP 5*"
+        }
+      });
+
+      let reactivationText = "";
+      reactivationData.forEach((row) => {
+        // Row format: [Week, Rank, Manager Name, Number of Returns, Region]
+        const rank = row[1];
+        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
+        const numReturns = row[3];
+        const region = cleanSheetData(row[4]);
+
+        if (!rank || !managerName || !numReturns) return;
+
+        const rankEmoji = getRankEmoji(rank);
+        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
+
+        reactivationText += `${rankEmoji} *${managerName}*\n`;
+        reactivationText += `   └ Reactivated: *${numReturns} customers*`;
+        if (region) {
+          reactivationText += ` | ${regionEmoji} ${region}`;
+        }
+        reactivationText += `\n\n`;
+      });
+
+      blocks.push({
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: reactivationText || "_No data available_"
         }
       });
     }
