@@ -289,14 +289,275 @@ function autoCalculateWoW() {
 
 /**
  * ADD MENU ITEMS
- * Adds custom menu for archive functions
+ * Adds custom menu for all leaderboard and automation functions
  */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
+
   ui.createMenu('📊 Weekly Leaderboard')
-    .addItem('📦 Archive Current Week', 'archiveCurrentWeek')
-    .addItem('📈 Auto-Calculate WoW', 'autoCalculateWoW')
+    .addSubMenu(ui.createMenu('📦 Archive & History')
+      .addItem('📦 Archive Current Week', 'archiveCurrentWeek')
+      .addItem('📈 Auto-Calculate WoW', 'autoCalculateWoW')
+      .addItem('📊 View Archive Sheet', 'viewArchiveSheet'))
     .addSeparator()
-    .addItem('📋 Create New Leaderboard', 'createLeaderboardTemplateV2')
+    .addSubMenu(ui.createMenu('📋 Template & Setup')
+      .addItem('📋 Create New Leaderboard', 'createLeaderboardTemplateV2')
+      .addItem('🔧 Refresh Template', 'refreshLeaderboardTemplate'))
+    .addSeparator()
+    .addSubMenu(ui.createMenu('📤 Slack Automation')
+      .addItem('📤 Send to Slack Now', 'sendLeaderboardToSlackNow')
+      .addItem('🧪 Test Slack Message', 'testLeaderboardSlackMessage')
+      .addItem('⏰ Setup Schedule', 'showScheduleSetup')
+      .addItem('📋 View Automations', 'viewSlackAutomations'))
+    .addSeparator()
+    .addItem('ℹ️ Help & Instructions', 'showInstructions')
     .addToUi();
 }
+
+/**
+ * HELPER FUNCTIONS FOR MENU ITEMS
+ */
+
+function viewArchiveSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const archiveSheet = ss.getSheetByName("Weekly Archive");
+
+  if (archiveSheet) {
+    ss.setActiveSheet(archiveSheet);
+    SpreadsheetApp.getUi().alert(
+      "📊 Weekly Archive",
+      "Viewing the Weekly Archive sheet with historical data.",
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  } else {
+    SpreadsheetApp.getUi().alert(
+      "No Archive Found",
+      "No Weekly Archive sheet exists yet. Run 'Archive Current Week' first to create it.",
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+  }
+}
+
+function refreshLeaderboardTemplate() {
+  const ui = SpreadsheetApp.getUi();
+  const response = ui.alert(
+    '🔧 Refresh Template',
+    'This will update the Weekly Leaderboard template structure to the latest version.\n\n' +
+    'WARNING: This will NOT delete your data, but will update formatting and add any new sections.\n\n' +
+    'Continue?',
+    ui.ButtonSet.YES_NO
+  );
+
+  if (response === ui.Button.YES) {
+    createLeaderboardTemplateV2();
+  }
+}
+
+function sendLeaderboardToSlackNow() {
+  const ui = SpreadsheetApp.getUi();
+
+  // Check if automation exists
+  const automations = typeof getSlackAutomations === 'function' ? getSlackAutomations() : [];
+  const leaderboardAuto = automations.find(a =>
+    a.targetSheet === "Weekly Leaderboard" ||
+    a.name.toLowerCase().includes('leaderboard')
+  );
+
+  if (!leaderboardAuto) {
+    ui.alert(
+      "⚠️ No Automation Found",
+      "No Slack automation found for the Weekly Leaderboard.\n\n" +
+      "Please set up an automation first using 'Setup Schedule' or the Slack Automation Builder.",
+      ui.ButtonSet.OK
+    );
+    return;
+  }
+
+  // Send immediately
+  if (typeof buildCombinedLeaderboardFromSheet === 'function') {
+    try {
+      const message = buildCombinedLeaderboardFromSheet(leaderboardAuto);
+
+      // Send to Slack
+      const webhookUrl = leaderboardAuto.slackWebhookUrl;
+      if (webhookUrl) {
+        const options = {
+          method: 'post',
+          contentType: 'application/json',
+          payload: JSON.stringify(message),
+          muteHttpExceptions: true
+        };
+
+        const response = UrlFetchApp.fetch(webhookUrl, options);
+
+        if (response.getResponseCode() === 200) {
+          ui.alert(
+            "✅ Sent to Slack!",
+            "The Weekly Leaderboard has been sent to Slack successfully!",
+            ui.ButtonSet.OK
+          );
+        } else {
+          ui.alert(
+            "❌ Error Sending",
+            "Failed to send to Slack. Response: " + response.getContentText(),
+            ui.ButtonSet.OK
+          );
+        }
+      } else {
+        ui.alert(
+          "⚠️ No Webhook URL",
+          "No Slack webhook URL configured. Please set up your automation first.",
+          ui.ButtonSet.OK
+        );
+      }
+    } catch (error) {
+      ui.alert(
+        "❌ Error",
+        "Error sending to Slack: " + error.message,
+        ui.ButtonSet.OK
+      );
+    }
+  } else {
+    ui.alert(
+      "⚠️ Function Not Found",
+      "buildCombinedLeaderboardFromSheet function not found. Make sure SlackAutomationBuilder.gs is included.",
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+function testLeaderboardSlackMessage() {
+  const ui = SpreadsheetApp.getUi();
+
+  ui.alert(
+    "🧪 Test Message",
+    "This will generate a preview of how your Slack message will look.\n\n" +
+    "The message will be logged to Apps Script logs (View > Logs).\n\n" +
+    "Click OK to generate preview.",
+    ui.ButtonSet.OK
+  );
+
+  const automations = typeof getSlackAutomations === 'function' ? getSlackAutomations() : [];
+  const leaderboardAuto = automations.find(a =>
+    a.targetSheet === "Weekly Leaderboard" ||
+    a.name.toLowerCase().includes('leaderboard')
+  ) || { targetSheet: "Weekly Leaderboard", slackWebhookUrl: "" };
+
+  if (typeof buildCombinedLeaderboardFromSheet === 'function') {
+    const message = buildCombinedLeaderboardFromSheet(leaderboardAuto);
+    Logger.log("=== SLACK MESSAGE PREVIEW ===");
+    Logger.log(JSON.stringify(message, null, 2));
+
+    ui.alert(
+      "✅ Preview Generated",
+      "Message preview has been logged!\n\n" +
+      "Go to: View > Logs to see the message structure.\n\n" +
+      "Blocks count: " + (message.blocks ? message.blocks.length : 0),
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+function showScheduleSetup() {
+  const ui = SpreadsheetApp.getUi();
+
+  const html = `
+    <div style="padding: 20px; font-family: Arial;">
+      <h2>⏰ Schedule Setup</h2>
+      <p>To schedule automated Slack messages:</p>
+
+      <h3>Option 1: Time-Driven Trigger (Recommended)</h3>
+      <ol>
+        <li>Go to: <b>Extensions > Apps Script</b></li>
+        <li>Click the <b>clock icon ⏰</b> (Triggers) on the left</li>
+        <li>Click <b>+ Add Trigger</b></li>
+        <li>Choose function: <b>executeBulkSlackAutomation</b></li>
+        <li>Set event source: <b>Time-driven</b></li>
+        <li>Choose: <b>Week timer</b></li>
+        <li>Select day/time: e.g., <b>Monday 9-10am</b></li>
+        <li>Click <b>Save</b></li>
+      </ol>
+
+      <h3>Option 2: Use Existing Automation</h3>
+      <p>If you already have a Slack automation configured, make sure:</p>
+      <ul>
+        <li>Target Sheet: <b>Weekly Leaderboard</b></li>
+        <li>Webhook URL is set</li>
+        <li>Schedule is enabled</li>
+      </ul>
+
+      <p><b>Current Triggers:</b></p>
+      <p>Go to <b>Apps Script > Triggers</b> to view/manage.</p>
+    </div>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html)
+    .setWidth(500)
+    .setHeight(500);
+
+  ui.showModalDialog(htmlOutput, '⏰ Schedule Setup Guide');
+}
+
+function viewSlackAutomations() {
+  const ui = SpreadsheetApp.getUi();
+
+  if (typeof getSlackAutomations === 'function') {
+    const automations = getSlackAutomations();
+
+    let message = "📋 Configured Slack Automations:\n\n";
+
+    if (automations.length === 0) {
+      message += "No automations found.\n\n";
+      message += "To create an automation, you need to use the Slack Automation Builder functions.";
+    } else {
+      automations.forEach((auto, idx) => {
+        message += `${idx + 1}. ${auto.name || 'Unnamed'}\n`;
+        message += `   Sheet: ${auto.targetSheet}\n`;
+        message += `   Enabled: ${auto.enabled ? 'Yes' : 'No'}\n`;
+        message += `   Schedule: ${auto.schedule && auto.schedule.enabled ? 'Yes' : 'No'}\n`;
+        message += `\n`;
+      });
+    }
+
+    ui.alert("📋 Slack Automations", message, ui.ButtonSet.OK);
+  } else {
+    ui.alert(
+      "⚠️ Function Not Found",
+      "getSlackAutomations function not found. Make sure SlackAutomationBuilder.gs is included.",
+      ui.ButtonSet.OK
+    );
+  }
+}
+
+function showInstructions() {
+  const ui = SpreadsheetApp.getUi();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const instructionSheet = ss.getSheetByName("Leaderboard Instructions");
+
+  if (instructionSheet) {
+    ss.setActiveSheet(instructionSheet);
+    ui.alert(
+      "📖 Instructions",
+      "Viewing the Leaderboard Instructions sheet.",
+      ui.ButtonSet.OK
+    );
+  } else {
+    ui.alert(
+      "📖 Quick Help",
+      "WEEKLY WORKFLOW:\n\n" +
+      "1. 📦 Archive Current Week (before updating data)\n" +
+      "2. Update sales numbers in Weekly Leaderboard\n" +
+      "3. 📈 Auto-Calculate WoW (fills WoW column)\n" +
+      "4. 📤 Send to Slack Now (or wait for scheduled send)\n\n" +
+      "SETUP:\n" +
+      "• ⏰ Setup Schedule - Configure weekly automation\n" +
+      "• 📋 Create New Leaderboard - Generate template\n\n" +
+      "TIPS:\n" +
+      "• Update ARPU Plans monthly (Section 15)\n" +
+      "• Archive weekly for WoW calculations\n" +
+      "• Use Test Slack Message to preview",
+      ui.ButtonSet.OK
+    );
+  }
+}
+
