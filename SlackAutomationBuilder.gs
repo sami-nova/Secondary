@@ -2835,13 +2835,11 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     // Footer with stats from sheet (you can update these manually)
     // Note: totalsData[0] is Display Date, so actual totals start at index 1
-    const grandTotal = totalsData[1][1] || 0;
-    const churnTotal = totalsData[2][1] || 0;
-    const churnCurrent = totalsData[3][1] || 0;
-    const churnOld = totalsData[4][1] || 0;
-    const killerTotal = totalsData[5][1] || 0;
-    const killerCurrent = totalsData[6][1] || 0;
-    const killerOld = totalsData[7][1] || 0;
+    // Variables already declared in summary block above, just get additional ones
+    const churnCurrent = totalsData[3] ? totalsData[3][1] : 0;
+    const churnOld = totalsData[4] ? totalsData[4][1] : 0;
+    const killerCurrent = totalsData[6] ? totalsData[6][1] : 0;
+    const killerOld = totalsData[7] ? totalsData[7][1] : 0;
 
     blocks.push({ type: "divider" });
 
