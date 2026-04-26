@@ -388,6 +388,34 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A116:E120").setValues(reactivationData);
 
   // ============================================
+  // SECTION 15: ARPU PLANS BY REGION (EDITABLE - Update Monthly)
+  // ============================================
+  sheet.getRange("A122").setValue("📊 ARPU PLANS BY REGION");
+  sheet.getRange("A122:C122").merge();
+  sheet.getRange("A122:C122").setBackground("#673AB7").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const arpuPlansHeaders = ["Region", "ARPU Plan ($)", "Notes"];
+  sheet.getRange("A123:C123").setValues([arpuPlansHeaders]);
+  sheet.getRange("A123:C123").setBackground("#D1C4E9").setFontWeight("bold");
+
+  const arpuPlansData = [
+    ["TR", 45.00, "Turkey - Update monthly"],
+    ["ARAB", 50.00, "Arab regions - Update monthly"],
+    ["PL", 42.00, "Poland - Update monthly"],
+    ["RO", 40.00, "Romania - Update monthly"],
+    ["ES", 43.00, "Spain - Update monthly"],
+    ["FR", 46.00, "France - Update monthly"],
+    ["DE", 48.00, "Germany - Update monthly"],
+    ["IT", 44.00, "Italy - Update monthly"],
+    ["IL", 47.00, "Israel - Update monthly"],
+    ["RU", 38.00, "Russia - Update monthly"],
+    ["CZ", 41.00, "Czech Republic - Update monthly"],
+    ["OTHER", 40.00, "Default for unlisted regions"]
+  ];
+  sheet.getRange("A124:C135").setValues(arpuPlansData);
+  sheet.getRange("A123:C135").setBorder(true, true, true, true, true, true);
+
+  // ============================================
   // Formatting
   // ============================================
 
@@ -415,6 +443,7 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A103:G106").setBorder(true, true, true, true, true, true);  // Top 3 ARPU 20+ Payments
   sheet.getRange("A109:G112").setBorder(true, true, true, true, true, true);  // Top 3 Upsell Share 20+ Payments
   sheet.getRange("A115:E120").setBorder(true, true, true, true, true, true);  // Reactivation Results Top 5
+  sheet.getRange("A123:C135").setBorder(true, true, true, true, true, true);  // ARPU Plans by Region
 
   // Add instructions
   const instructionSheet = ss.getSheetByName("Leaderboard Instructions") || ss.insertSheet("Leaderboard Instructions");
@@ -542,6 +571,14 @@ function createLeaderboardTemplateV2() {
     ["• Top 3 ARPU 20+ Payments: A104:G106 (3 managers, OPTIONAL)"],
     ["• Top 3 Upsell Share 20+ Payments: A110:G112 (3 managers, OPTIONAL)"],
     ["• Reactivation Results: A116:E120 (5 managers, shows customer returns)"],
+    ["• ARPU Plans by Region: A124:C135 (regional ARPU targets, update monthly)"],
+    [""],
+    ["ARPU PLANS BY REGION (Section 15) - EDITABLE MONTHLY:"],
+    ["• Defines target ARPU for each region"],
+    ["• Update these values monthly based on regional performance goals"],
+    ["• Slack message will compare each manager's ARPU against their region's plan"],
+    ["• Shows ✅ if at or above plan, ⚠️ with % below if under plan"],
+    ["• Default 'OTHER' region applies to any unlisted regions"],
     [""],
     ["UPSELL METRICS SUMMARY (Section 0.75) - EDITABLE:"],
     ["• Row 1: Overall ARPU for CP, KB, and Overall + Top Manager"],
@@ -613,7 +650,8 @@ function createLeaderboardTemplateV2() {
     '✓ Biggest ARPU Sale of the Week (optional - leave empty to skip)\n' +
     '✓ TOP 3 ARPU with 20+ Payments (optional - leave empty to skip)\n' +
     '✓ TOP 3 Upsell Share with 20+ Payments (optional - leave empty to skip)\n' +
-    '✓ Reactivation Results - TOP 5 (customer returns tracking)\n\n' +
+    '✓ Reactivation Results - TOP 5 (customer returns tracking)\n' +
+    '✓ ARPU Plans by Region (update monthly - used for performance comparison)\n\n' +
     'Next steps:\n' +
     '1. Review the sample data\n' +
     '2. Update Secondary Sales Plan (A3:C3) and Regional Champions (A7:C8)\n' +

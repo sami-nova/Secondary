@@ -1363,6 +1363,34 @@ function getRegionSlackEmoji(region) {
 }
 
 /**
+ * FORMAT ARPU WITH PLAN COMPARISON
+ * Compares manager's ARPU against their region's plan and adds indicator
+ */
+function formatArpuWithPlan(arpu, region, arpuPlansByRegion) {
+  if (!arpu || !region) return arpu || "";
+
+  const regionKey = String(region).trim().toUpperCase();
+  const plan = arpuPlansByRegion[regionKey] || arpuPlansByRegion['OTHER'];
+
+  if (!plan) return arpu;
+
+  // Parse ARPU value
+  const arpuNum = parseFloat(String(arpu).replace(/[^0-9.]/g, ''));
+  const planNum = parseFloat(plan);
+
+  if (isNaN(arpuNum) || isNaN(planNum)) return arpu;
+
+  // Compare and add indicator
+  if (arpuNum >= planNum) {
+    return `${arpu} ✅`;
+  } else {
+    const diff = planNum - arpuNum;
+    const pct = ((diff / planNum) * 100).toFixed(0);
+    return `${arpu} ⚠️ (-${pct}%)`;
+  }
+}
+
+/**
  * BUILD COMBINED LEADERBOARD FROM SHEET
  * Reads all 3 sections from Weekly Leaderboard sheet and creates one combined message
  * This is the RECOMMENDED format for weekly leaderboards - no spamming with 3 messages!
@@ -1396,6 +1424,17 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const top3ArpuData = sheet.getRange("A104:G106").getValues();  // Top 3 ARPU with 20+ Payments (optional)
     const top3UpsellData = sheet.getRange("A110:G112").getValues(); // Top 3 Upsell Share with 20+ Payments (optional)
     const reactivationData = sheet.getRange("A116:E120").getValues(); // Reactivation Results - Top 5
+    const arpuPlansData = sheet.getRange("A124:C135").getValues();  // ARPU Plans by Region
+
+    // Build ARPU Plans lookup map
+    const arpuPlansByRegion = {};
+    arpuPlansData.forEach(row => {
+      const region = String(row[0]).trim().toUpperCase();
+      const plan = row[1];
+      if (region && plan) {
+        arpuPlansByRegion[region] = plan;
+      }
+    });
 
     const blocks = [];
 
@@ -1409,6 +1448,62 @@ function buildCombinedLeaderboardFromSheet(automation) {
         type: "plain_text",
         text: `🏆 WEEKLY PERFORMANCE LEADERBOARD - ${displayDate}`,
         emoji: true
+      }
+    });
+
+    blocks.push({ type: "divider" });
+
+    // ============================================
+    // COMPACT SUMMARY SNAPSHOT
+    // ============================================
+    const grandTotal = totalsData[1] ? totalsData[1][1] : 0;
+    const churnTotal = totalsData[2] ? totalsData[2][1] : 0;
+    const killerTotal = totalsData[5] ? totalsData[5][1] : 0;
+
+    // Get ARPU from secondary sales plan section
+    const arpuRow = teamPerfData.length > 3 ? teamPerfData[3] : null;
+    const arpuPlan = arpuRow && arpuRow[1] ? String(arpuRow[1]) : null;
+    const arpuToday = arpuRow && arpuRow[2] ? String(arpuRow[2]) : null;
+
+    // Calculate ARPU variance
+    let arpuVariance = "";
+    if (arpuPlan && arpuToday) {
+      const planNum = parseFloat(String(arpuPlan).replace(/[^0-9.]/g, ''));
+      const todayNum = parseFloat(String(arpuToday).replace(/[^0-9.]/g, ''));
+      if (!isNaN(planNum) && !isNaN(todayNum)) {
+        const diff = todayNum - planNum;
+        const pct = ((diff / planNum) * 100).toFixed(1);
+        const arrow = diff >= 0 ? '↑' : '↓';
+        const emoji = diff >= 0 ? '✅' : '⚠️';
+        arpuVariance = ` ${emoji} (${arrow}${Math.abs(parseFloat(pct))}%)`;
+      }
+    }
+
+    // Get reactivations count
+    let reactivationsCount = 0;
+    if (reactivationData && reactivationData.length > 0) {
+      reactivationData.forEach(row => {
+        if (row[3]) {
+          const num = parseInt(row[3]);
+          if (!isNaN(num)) reactivationsCount += num;
+        }
+      });
+    }
+
+    let summaryText = `📊 *${displayDate}*  |  Grand Total: *${grandTotal} sales*\n`;
+    summaryText += `🏆 CP: *${churnTotal}*  |  💪 KB: *${killerTotal}*\n`;
+    if (arpuPlan && arpuToday) {
+      summaryText += `📈 ARPU: *${arpuToday}* / Plan: ${arpuPlan}${arpuVariance}\n`;
+    }
+    if (reactivationsCount > 0) {
+      summaryText += `🔄 Reactivations: *${reactivationsCount} customers* returned`;
+    }
+
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: summaryText
       }
     });
 
@@ -1751,6 +1846,15 @@ function buildCombinedLeaderboardFromSheet(automation) {
       blocks.push({ type: "divider" });
     }
 
+    // ━━━━━━━━ LEADERBOARDS SECTION ━━━━━━━━
+    blocks.push({
+      type: "context",
+      elements: [{
+        type: "mrkdwn",
+        text: "━━━━━━━━ 🏆 *LEADERBOARDS* ━━━━━━━━"
+      }]
+    });
+
     // ============================================
     // SECTION 1: CHURN PREVENTION - CURRENT BASE - TOP 3 + RISING STARS
     // ============================================
@@ -1793,13 +1897,14 @@ function buildCombinedLeaderboardFromSheet(automation) {
                         !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
                         !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
                         !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
-        salesText += ` (${wowEmoji} ${wow} WoW)`;
+        salesText += `  ${wowEmoji} ${wow}`;
       }
 
       churnCurrentText += `${rankEmoji} *${managerName}*\n`;
       churnCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
       if (arpu) {
-        churnCurrentText += ` | ARPU: ${arpu}`;
+        const formattedArpu = formatArpuWithPlan(arpu, region, arpuPlansByRegion);
+        churnCurrentText += ` | ARPU: ${formattedArpu}`;
       }
       if (upsellShare) {
         churnCurrentText += ` | Upsell: ${upsellShare}`;
@@ -1843,10 +1948,12 @@ function buildCombinedLeaderboardFromSheet(automation) {
                           !isNaN(wowNum) && wowNum >= 10 ? '📈' :
                           !isNaN(wowNum) && wowNum >= 1 ? '➕' :
                           !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-          salesText += ` (${wowEmoji} ${wow} WoW)`;
+          salesText += ` ${wowEmoji} ${wow}`;
         }
 
-        risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
+        // Use consistent format with top 3
+        risingStarsText += `⭐ *${managerName}*  #${rank}\n`;
+        risingStarsText += `   └ ${salesText} | 💰 ${cashGenerated}`;
         if (arpu) {
           risingStarsText += ` | ARPU: ${arpu}`;
         }
@@ -1856,7 +1963,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         if (region) {
           risingStarsText += ` | ${regionEmoji} ${region}`;
         }
-        risingStarsText += `\n`;
+        risingStarsText += `\n\n`;
       });
 
       blocks.push({
@@ -1916,7 +2023,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
                           !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
                           !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
                           !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
-          salesText += ` (${wowEmoji} ${wow} WoW)`;
+          salesText += `  ${wowEmoji} ${wow}`;
         }
 
         churnOldText += `${rankEmoji} *${managerName}*\n`;
@@ -1966,7 +2073,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
                             !isNaN(wowNum) && wowNum >= 10 ? '📈' :
                             !isNaN(wowNum) && wowNum >= 1 ? '➕' :
                             !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-            salesText += ` (${wowEmoji} ${wow} WoW)`;
+            salesText += `  ${wowEmoji} ${wow}`;
           }
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
@@ -2039,7 +2146,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
                           !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
                           !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
                           !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
-          salesText += ` (${wowEmoji} ${wow} WoW)`;
+          salesText += `  ${wowEmoji} ${wow}`;
         }
 
         killerCurrentText += `${rankEmoji} *${managerName}*\n`;
@@ -2089,7 +2196,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
                             !isNaN(wowNum) && wowNum >= 10 ? '📈' :
                             !isNaN(wowNum) && wowNum >= 1 ? '➕' :
                             !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-            salesText += ` (${wowEmoji} ${wow} WoW)`;
+            salesText += `  ${wowEmoji} ${wow}`;
           }
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
@@ -2162,7 +2269,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
                           !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
                           !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
                           !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
-          salesText += ` (${wowEmoji} ${wow} WoW)`;
+          salesText += `  ${wowEmoji} ${wow}`;
         }
 
         killerOldText += `${rankEmoji} *${managerName}*\n`;
@@ -2212,7 +2319,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
                             !isNaN(wowNum) && wowNum >= 10 ? '📈' :
                             !isNaN(wowNum) && wowNum >= 1 ? '➕' :
                             !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-            salesText += ` (${wowEmoji} ${wow} WoW)`;
+            salesText += `  ${wowEmoji} ${wow}`;
           }
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
@@ -2239,6 +2346,15 @@ function buildCombinedLeaderboardFromSheet(automation) {
     }
 
     blocks.push({ type: "divider" });
+
+    // ━━━━━━━━ BONUS METRICS SECTION ━━━━━━━━
+    blocks.push({
+      type: "context",
+      elements: [{
+        type: "mrkdwn",
+        text: "━━━━━━━━ 📊 *BONUS METRICS* ━━━━━━━━"
+      }]
+    });
 
     // ============================================
     // SECTION 5: KB PAID RATE CONTACTED 14DAY - TOP 3 (OPTIONAL)
