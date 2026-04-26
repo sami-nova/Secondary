@@ -177,6 +177,43 @@ Then:
 
 ---
 
+## ⭐ NEW FEATURES - Complete Automation Management
+
+### ⚙️ Manage Automations
+**Full-featured Slack automation configuration UI**
+- Create new automations with visual interface
+- Edit existing automations (name, channel, schedule)
+- Choose target channel from dropdown
+- Configure message templates with placeholders
+- Set up conditional triggers and schedules
+- Test automations before enabling
+- Delete automations with confirmation
+
+### 💬 Manage Sent Messages  
+**View and manage your Slack message history**
+- See all messages sent via Bot Token
+- Delete individual messages from Slack
+- Bulk delete old messages by date
+- Track which automation sent which message
+- View message timestamps and channels
+
+### 📝 Edit Message Template
+**Customize your Slack message format**
+- Edit message templates visually
+- Use placeholders for dynamic content
+- Add emojis and Slack formatting
+- Configure @mentions and @channel notifications
+- Preview changes before sending
+
+### 🔧 Configure Channels
+**Easy channel setup**
+- Configure multiple Slack channels
+- View current configuration
+- Step-by-step setup guide
+- Support for channel names (#weekly) and IDs (C01234)
+
+---
+
 ## 🎯 What You'll Get After Installing
 
 ### Slack Messages Will Show:
@@ -210,10 +247,17 @@ Then:
   │   └─ Refresh Template
   ├─ ────────────
   ├─ 📤 Slack Automation
-  │   ├─ Send to Slack Now ⭐
+  │   ├─ ⚙️ Manage Automations ⭐ NEW!
+  │   ├─ Send to Slack Now
   │   ├─ Test Slack Message
+  │   ├─ ────────────
+  │   ├─ 📝 Edit Message Template ⭐ NEW!
+  │   ├─ 💬 Manage Sent Messages ⭐ NEW!
+  │   ├─ ────────────
   │   ├─ Setup Schedule
-  │   └─ View Automations
+  │   ├─ View Automations
+  │   ├─ ────────────
+  │   └─ 🔧 Configure Channels ⭐ NEW!
   └─ ℹ️ Help & Instructions
 ```
 

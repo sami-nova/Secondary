@@ -305,10 +305,17 @@ function onOpen() {
       .addItem('🔧 Refresh Template', 'refreshLeaderboardTemplate'))
     .addSeparator()
     .addSubMenu(ui.createMenu('📤 Slack Automation')
+      .addItem('⚙️ Manage Automations', 'openSlackAutomationUI')
       .addItem('📤 Send to Slack Now', 'sendLeaderboardToSlackNow')
       .addItem('🧪 Test Slack Message', 'testLeaderboardSlackMessage')
+      .addSeparator()
+      .addItem('📝 Edit Message Template', 'editMessageTemplate')
+      .addItem('💬 Manage Sent Messages', 'openMessageManager')
+      .addSeparator()
       .addItem('⏰ Setup Schedule', 'showScheduleSetup')
-      .addItem('📋 View Automations', 'viewSlackAutomations'))
+      .addItem('📋 View Automations', 'viewSlackAutomations')
+      .addSeparator()
+      .addItem('🔧 Configure Channels', 'configureSlackChannels'))
     .addSeparator()
     .addItem('ℹ️ Help & Instructions', 'showInstructions')
     .addToUi();
@@ -561,3 +568,307 @@ function showInstructions() {
   }
 }
 
+/**
+ * ═══════════════════════════════════════════════════════════════════════════
+ * SLACK AUTOMATION UI FUNCTIONS
+ * ═══════════════════════════════════════════════════════════════════════════
+ */
+
+/**
+ * OPEN SLACK AUTOMATION UI
+ * Opens the comprehensive Slack automation configuration interface
+ */
+function openSlackAutomationUI() {
+  const html = HtmlService.createHtmlOutputFromFile('SlackAutomationScheduler')
+    .setWidth(1200)
+    .setHeight(800)
+    .setTitle('📤 Slack Automation Manager');
+
+  SpreadsheetApp.getUi().showModalDialog(html, '📤 Slack Automation Manager');
+}
+
+/**
+ * GET SLACK CONFIGURATION
+ * Returns Slack bot token status and available channels for the UI
+ */
+function getSlackConfiguration() {
+  const props = PropertiesService.getScriptProperties();
+  const botToken = props.getProperty('SLACK_BOT_TOKEN');
+  const channelsStr = props.getProperty('SLACK_CHANNELS');
+  const defaultChannel = props.getProperty('SLACK_CHANNEL');
+
+  let channels = [];
+
+  // Parse SLACK_CHANNELS (comma-separated)
+  if (channelsStr) {
+    channels = channelsStr.split(',').map(ch => ch.trim()).filter(ch => ch);
+  }
+
+  // Add default channel if exists
+  if (defaultChannel && !channels.includes(defaultChannel)) {
+    channels.push(defaultChannel);
+  }
+
+  // Add example channels if none configured
+  if (channels.length === 0) {
+    channels = ['#weekly-updates', '#daily-reports', '#alerts'];
+  }
+
+  return {
+    hasBotToken: !!botToken,
+    channels: channels,
+    defaultChannel: defaultChannel || channels[0] || '#weekly-updates'
+  };
+}
+
+/**
+ * GET DATA FOR SLACK AUTOMATION FORM
+ * Returns all data needed by the SlackAutomationScheduler UI
+ */
+function getDataForSlackAutomationForm() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  const sheetNames = sheets.map(sheet => sheet.getName());
+
+  // Get existing automations
+  const existingAutomations = getSlackAutomations();
+
+  // Get sample sheet data for the first sheet
+  let sampleData = [];
+  let headerRow = [];
+  if (sheets.length > 0) {
+    const firstSheet = sheets[0];
+    const lastRow = Math.min(firstSheet.getLastRow(), 10);
+    const lastCol = firstSheet.getLastColumn();
+
+    if (lastRow > 0 && lastCol > 0) {
+      headerRow = firstSheet.getRange(1, 1, 1, lastCol).getValues()[0];
+      if (lastRow > 1) {
+        sampleData = firstSheet.getRange(2, 1, Math.min(lastRow - 1, 5), lastCol).getValues();
+      }
+    }
+  }
+
+  return {
+    sheets: sheetNames,
+    existingAutomations: existingAutomations,
+    sampleData: sampleData,
+    headerRow: headerRow
+  };
+}
+
+/**
+ * GET WEB APP URL
+ * Returns the web app URL for templates (if deployed)
+ */
+function getWebAppUrl() {
+  return ScriptApp.getService().getUrl();
+}
+
+/**
+ * GET USE CASES
+ * Returns template/use case examples for the UI
+ */
+function getUseCases() {
+  return {
+    templates: [
+      {
+        title: "Weekly Leaderboard",
+        description: "Send weekly performance leaderboard to Slack",
+        triggerType: "bulkCriteria",
+        schedule: {enabled: true, days: ["Monday"], hour: 9}
+      },
+      {
+        title: "Daily Sales Report",
+        description: "Send daily sales summary",
+        triggerType: "bulkCriteria",
+        schedule: {enabled: true, days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], hour: 8}
+      },
+      {
+        title: "New Row Alert",
+        description: "Send notification when new row is added",
+        triggerType: "onNewRow"
+      }
+    ]
+  };
+}
+
+/**
+ * DELETE AUTOMATION
+ * Deletes a Slack automation by ID
+ */
+function deleteAutomation(automationId) {
+  try {
+    const automations = getSlackAutomations();
+    const updatedAutomations = automations.filter(a => a.id !== automationId);
+
+    // Delete associated triggers
+    deleteSlackTriggers(automationId);
+
+    // Save updated list
+    PropertiesService.getScriptProperties().setProperty(
+      'slackAutomations',
+      JSON.stringify(updatedAutomations)
+    );
+
+    return {success: true, message: 'Automation deleted successfully'};
+  } catch (e) {
+    return {success: false, error: e.message};
+  }
+}
+
+/**
+ * OPEN MESSAGE MANAGER
+ * Opens the message management interface
+ */
+function openMessageManager() {
+  const ui = SpreadsheetApp.getUi();
+  const html = `
+    <div style="padding: 20px; font-family: Arial;">
+      <h2>💬 Message Manager</h2>
+      <p>To manage sent Slack messages, use the main <b>Slack Automation Manager</b>:</p>
+      <ol>
+        <li>Go to: <b>📊 Weekly Leaderboard > 📤 Slack Automation > ⚙️ Manage Automations</b></li>
+        <li>Click the <b>"Manage Messages"</b> button in the header</li>
+        <li>You can view, edit, and delete sent messages</li>
+      </ol>
+
+      <h3>Requirements:</h3>
+      <ul>
+        <li>✅ <b>SLACK_BOT_TOKEN</b> must be configured in Script Properties</li>
+        <li>✅ Only messages sent with Bot Token can be managed</li>
+        <li>✅ Messages sent with webhooks cannot be deleted</li>
+      </ul>
+
+      <h3>Quick Actions:</h3>
+      <p><b>Delete a message:</b> Find it in Message Manager and click Delete</p>
+      <p><b>Edit a message:</b> Use the Edit Message Template option</p>
+      <p><b>Bulk delete old messages:</b> Use the "Clear Old Messages" button</p>
+    </div>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html)
+    .setWidth(500)
+    .setHeight(450);
+
+  ui.showModalDialog(htmlOutput, '💬 Message Manager Guide');
+}
+
+/**
+ * EDIT MESSAGE TEMPLATE
+ * Opens interface to edit message template for automations
+ */
+function editMessageTemplate() {
+  const ui = SpreadsheetApp.getUi();
+  const html = `
+    <div style="padding: 20px; font-family: Arial;">
+      <h2>📝 Edit Message Template</h2>
+      <p>To edit your Slack message template:</p>
+
+      <h3>Option 1: Use Automation Manager (Recommended)</h3>
+      <ol>
+        <li>Go to: <b>📊 Weekly Leaderboard > 📤 Slack Automation > ⚙️ Manage Automations</b></li>
+        <li>Click on an existing automation to edit it</li>
+        <li>Update the message template in the "Message Template" field</li>
+        <li>Use placeholders like <code>{{Column Name}}</code> for dynamic content</li>
+        <li>Click Save</li>
+      </ol>
+
+      <h3>Option 2: Edit Code Directly</h3>
+      <ol>
+        <li>Go to: <b>Extensions > Apps Script</b></li>
+        <li>Find <b>SlackAutomationBuilder.gs</b></li>
+        <li>Locate the <code>buildCombinedLeaderboardFromSheet</code> function</li>
+        <li>Edit the message formatting code</li>
+        <li>Save and test with <b>🧪 Test Slack Message</b></li>
+      </ol>
+
+      <h3>Available Placeholders:</h3>
+      <ul>
+        <li><code>{{Column Name}}</code> - Insert value from specific column</li>
+        <li><code>{{Row Number}}</code> - Current row number</li>
+        <li><b>Emojis:</b> Use any emoji directly (✅, 🏆, 📊, etc.)</li>
+        <li><b>Formatting:</b> Use Slack markdown (*bold*, _italic_)</li>
+        <li><b>Mentions:</b> Use <code>&lt;@USER_ID&gt;</code> or <code>&lt;!channel&gt;</code></li>
+      </ul>
+    </div>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html)
+    .setWidth(600)
+    .setHeight(500);
+
+  ui.showModalDialog(htmlOutput, '📝 Edit Message Template');
+}
+
+/**
+ * CONFIGURE SLACK CHANNELS
+ * Opens interface to configure Slack channels
+ */
+function configureSlackChannels() {
+  const ui = SpreadsheetApp.getUi();
+  const props = PropertiesService.getScriptProperties();
+  const currentChannels = props.getProperty('SLACK_CHANNELS') || '';
+  const botToken = props.getProperty('SLACK_BOT_TOKEN') || '';
+
+  const html = `
+    <div style="padding: 20px; font-family: Arial;">
+      <h2>🔧 Configure Slack Channels</h2>
+
+      <h3>Current Configuration:</h3>
+      <div style="background: #f5f5f5; padding: 10px; border-radius: 4px; margin: 10px 0;">
+        <p><b>Bot Token:</b> ${botToken ? '✅ Configured' : '❌ Not configured'}</p>
+        <p><b>Channels:</b> ${currentChannels || '❌ Not configured'}</p>
+      </div>
+
+      <h3>Setup Instructions:</h3>
+      <ol>
+        <li>Go to: <b>Extensions → Apps Script</b></li>
+        <li>Click <b>Project Settings ⚙️</b> (gear icon on left)</li>
+        <li>Scroll to <b>Script Properties</b></li>
+        <li>Add/Edit the following properties:</li>
+      </ol>
+
+      <h4>Required Properties:</h4>
+      <table style="width: 100%; border-collapse: collapse; margin: 10px 0;">
+        <tr style="background: #e3f2fd;">
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Property</th>
+          <th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Value</th>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;"><code>SLACK_BOT_TOKEN</code></td>
+          <td style="border: 1px solid #ddd; padding: 8px;">Your bot token (starts with <code>xoxb-</code>)</td>
+        </tr>
+        <tr>
+          <td style="border: 1px solid #ddd; padding: 8px;"><code>SLACK_CHANNELS</code></td>
+          <td style="border: 1px solid #ddd; padding: 8px;">Comma-separated list: <code>#weekly-updates,#daily-reports,#alerts</code></td>
+        </tr>
+      </table>
+
+      <h3>Channel Formats:</h3>
+      <ul>
+        <li><b>Channel name:</b> <code>#weekly-updates</code></li>
+        <li><b>Channel ID:</b> <code>C01234ABCD</code></li>
+        <li><b>Multiple channels:</b> <code>#weekly-updates,#daily-reports,C01234ABCD</code></li>
+      </ul>
+
+      <h3>After Configuring:</h3>
+      <ol>
+        <li>Refresh your Google Sheet (close and reopen)</li>
+        <li>Go to <b>⚙️ Manage Automations</b></li>
+        <li>Create or edit an automation</li>
+        <li>You'll see your channels in the dropdown!</li>
+      </ol>
+
+      <p style="background: #fff3cd; padding: 10px; border-radius: 4px; border-left: 4px solid #ffc107;">
+        <b>💡 Tip:</b> If you don't have a bot token yet, see the documentation for how to create one in your Slack workspace settings.
+      </p>
+    </div>
+  `;
+
+  const htmlOutput = HtmlService.createHtmlOutput(html)
+    .setWidth(700)
+    .setHeight(600);
+
+  ui.showModalDialog(htmlOutput, '🔧 Configure Slack Channels');
+}
