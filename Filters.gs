@@ -171,7 +171,7 @@ function showFilterDialog() {
   }
 
   var regionOpts   = opts(CONFIG.REGIONS, current.region);
-  var segmentOpts  = opts(['Secondary MO','Secondary KO','PPC','CP','Paid in Advance'], current.segment);
+  var segmentOpts  = opts(['Secondary MO','Secondary KO','PPC','CP','Paid in Advance','Active Users'], current.segment);
   var scenarioOpts = opts(CONFIG.SCENARIO_LIST, current.scenario);
 
   var html =

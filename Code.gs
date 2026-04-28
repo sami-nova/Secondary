@@ -16,7 +16,7 @@ var CONFIG = {
 
   DATA_START_ROW: 16,
   HEADER_ROW: 15,
-  ROWS_PER_REGION: 12,
+  ROWS_PER_REGION: 13,
 
   REGIONS: [
     'Poland', 'Italy', 'Spain', 'France', 'Germany',
@@ -24,7 +24,7 @@ var CONFIG = {
     'Israel', 'Korea', 'Japan', 'GLOBAL'
   ],
 
-  // 12 rows per region: 4 MO + 4 KO + 1 PPC + 1 CP + 2 Paid
+  // 13 rows per region: 4 MO + 4 KO + 1 PPC + 1 CP + 2 Paid + 1 Active Users
   REGION_ROW_TEMPLATE: [
     { segment: 'Secondary MO',    scenario: 'CHURN PREVENTION (14-30 days)', color: '#D4EDDA' },
     { segment: 'Secondary MO',    scenario: 'CHURN (180-30 days)',            color: '#FFF3CD' },
@@ -37,7 +37,8 @@ var CONFIG = {
     { segment: 'PPC',             scenario: 'Regular Campaign',               color: '#FFFFFF' },
     { segment: 'CP',              scenario: 'Regular Campaign',               color: '#FFFFFF' },
     { segment: 'Paid in Advance', scenario: 'Regular Campaign',               color: '#FFFFFF' },
-    { segment: 'Paid in Advance', scenario: '',                                color: '#FFFFFF' }
+    { segment: 'Paid in Advance', scenario: '',                                color: '#FFFFFF' },
+    { segment: 'Active Users',    scenario: 'Regular Campaign',               color: '#FFFFFF' }
   ],
 
   // Unique background color per region – applied to column A only, persists after filtering
@@ -60,23 +61,22 @@ var CONFIG = {
 
   // Column positions (1-indexed)
   COLUMNS: {
-    REGION:       1,   // A
-    SEGMENT:      2,   // B
-    SCENARIO:     3,   // C
-    ACTIVE_USERS: 4,   // D  ← active user count per segment row
-    DISCOUNT:     5,   // E
-    PROMO_CODE:   6,   // F
-    CONDITION:    7,   // G
-    STATUS:       8,   // H
-    START_DATE:   9,   // I
-    END_DATE:    10,   // J
-    BANNER:      11,   // K
-    POPUP:       12,   // L
-    INAPP:       13,   // M
-    WA:          14,   // N
-    PUSH:        15,   // O
-    SMS:         16,   // P
-    NOTES:       17    // Q
+    REGION:      1,   // A
+    SEGMENT:     2,   // B
+    SCENARIO:    3,   // C
+    DISCOUNT:    4,   // D
+    PROMO_CODE:  5,   // E
+    CONDITION:   6,   // F
+    STATUS:      7,   // G
+    START_DATE:  8,   // H
+    END_DATE:    9,   // I
+    BANNER:     10,   // J
+    POPUP:      11,   // K
+    INAPP:      12,   // L
+    WA:         13,   // M
+    PUSH:       14,   // N
+    SMS:        15,   // O
+    NOTES:      16    // P
   },
 
   SCENARIO_LIST: [
@@ -102,7 +102,8 @@ var CONFIG = {
     'Secondary KO':    { bg: '#4ECDC4', text: '#FFFFFF' },
     'PPC':             { bg: '#FFB300', text: '#FFFFFF' },
     'CP':              { bg: '#66BB6A', text: '#FFFFFF' },
-    'Paid in Advance': { bg: '#FF8A65', text: '#FFFFFF' }
+    'Paid in Advance': { bg: '#FF8A65', text: '#FFFFFF' },
+    'Active Users':    { bg: '#42A5F5', text: '#FFFFFF' }
   }
 };
 
@@ -118,7 +119,7 @@ function onOpen() {
     .addItem('📂 Load Month Data', 'showLoadMonthDialog')
     .addItem('📋 Carry Forward Active Campaigns', 'showCarryForwardDialog')
     .addItem('📋 Copy Campaign to All Regions', 'showCopyToAllRegionsDialog')
-    .addItem('👥 Active Users', 'focusActiveUsers')
+    .addItem('👥 Active Users', 'filterActiveUsers')
     .addSeparator()
     .addItem('🔍 Filter Data', 'showFilterDialog')
     .addItem('✅ Show All Rows', 'filterShowAll')
@@ -134,7 +135,7 @@ function onOpen() {
       .addItem('📋 Setup Dropdowns', 'setupDropdowns')
       .addItem('📊 Setup Reference Data', 'setupReferenceData')
       .addItem('⚙️ Setup Segment Config', 'setupSegmentConfig')
-      .addItem('👥 Insert Active Users Column (run once)', 'migrateInsertActiveUsersColumn')
+      .addItem('👥 Insert Active Users Rows (run once)', 'migrateInsertActiveUsersRows')
       .addSeparator()
       .addItem('⏱️ Enable Auto-Save', 'setupAutoSaveTrigger')
       .addItem('⏹️ Disable Auto-Save', 'removeAutoSaveTrigger')

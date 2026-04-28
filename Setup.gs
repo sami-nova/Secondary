@@ -59,7 +59,7 @@ function _clearDataArea(sheet) {
 
 function _setupHeaders(sheet) {
   var headers = [
-    'Region', 'Segment', 'Scenario', 'Active Users',
+    'Region', 'Segment', 'Scenario',
     'Discount %', 'Promo Code', 'Condition', 'Status', 'Start Date', 'End Date',
     'Banner', 'PopUp', 'InApp', 'WA', 'Push', 'SMS', 'Notes'
   ];
@@ -150,23 +150,22 @@ function _applySheetFormatting(sheet) {
 
   // Column widths
   var widths = {
-    [CONFIG.COLUMNS.REGION]:       80,
-    [CONFIG.COLUMNS.SEGMENT]:     125,
-    [CONFIG.COLUMNS.SCENARIO]:    215,
-    [CONFIG.COLUMNS.ACTIVE_USERS]: 85,
-    [CONFIG.COLUMNS.DISCOUNT]:     75,
-    [CONFIG.COLUMNS.PROMO_CODE]:  110,
-    [CONFIG.COLUMNS.CONDITION]:   155,
-    [CONFIG.COLUMNS.STATUS]:       80,
-    [CONFIG.COLUMNS.START_DATE]:   95,
-    [CONFIG.COLUMNS.END_DATE]:     95,
-    [CONFIG.COLUMNS.BANNER]:       60,
-    [CONFIG.COLUMNS.POPUP]:        60,
-    [CONFIG.COLUMNS.INAPP]:        60,
-    [CONFIG.COLUMNS.WA]:           50,
-    [CONFIG.COLUMNS.PUSH]:         50,
-    [CONFIG.COLUMNS.SMS]:          50,
-    [CONFIG.COLUMNS.NOTES]:       200
+    [CONFIG.COLUMNS.REGION]:      80,
+    [CONFIG.COLUMNS.SEGMENT]:    125,
+    [CONFIG.COLUMNS.SCENARIO]:   215,
+    [CONFIG.COLUMNS.DISCOUNT]:    75,
+    [CONFIG.COLUMNS.PROMO_CODE]: 110,
+    [CONFIG.COLUMNS.CONDITION]:  155,
+    [CONFIG.COLUMNS.STATUS]:      80,
+    [CONFIG.COLUMNS.START_DATE]:  95,
+    [CONFIG.COLUMNS.END_DATE]:    95,
+    [CONFIG.COLUMNS.BANNER]:      60,
+    [CONFIG.COLUMNS.POPUP]:       60,
+    [CONFIG.COLUMNS.INAPP]:       60,
+    [CONFIG.COLUMNS.WA]:          50,
+    [CONFIG.COLUMNS.PUSH]:        50,
+    [CONFIG.COLUMNS.SMS]:         50,
+    [CONFIG.COLUMNS.NOTES]:      200
   };
   Object.keys(widths).forEach(function(col) {
     sheet.setColumnWidth(parseInt(col), widths[col]);
@@ -180,10 +179,6 @@ function _applySheetFormatting(sheet) {
   for (var i = 0; i < totalRows; i++) {
     sheet.setRowHeight(CONFIG.DATA_START_ROW + i, 25);
   }
-
-  // Active Users column – number format, centre-aligned
-  sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS.ACTIVE_USERS, totalRows, 1)
-    .setNumberFormat('#,##0').setHorizontalAlignment('center');
 
   // Discount column – centre-aligned
   sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS.DISCOUNT, totalRows, 1).setHorizontalAlignment('center');
@@ -395,7 +390,7 @@ function _setupFilterArea(sheet) {
     .setBackground('#2C3E6B').setFontColor('#FFFFFF')
     .setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
-  sheet.getRange(1, 13, 1, 5).merge();
+  sheet.getRange(1, 13, 1, 4).merge();
   sheet.getRange(1, 13)
     .setValue('Last saved: —')
     .setBackground('#1E2A4A').setFontColor('#7788AA')
@@ -445,7 +440,8 @@ function _setupFilterArea(sheet) {
     { col: 4,  label: 'MO',       fn: 'filterSecondaryMO',    bg: '#4ECDC4' },
     { col: 6,  label: 'PPC',      fn: 'filterPPC',            bg: '#FFB300' },
     { col: 9,  label: 'CP',       fn: 'filterCP',             bg: '#66BB6A' },
-    { col: 11, label: 'PAID',     fn: 'filterPaidInAdvance',  bg: '#FF8A65' }
+    { col: 11, label: 'PAID',     fn: 'filterPaidInAdvance',  bg: '#FF8A65' },
+    { col: 13, label: 'USERS',    fn: 'filterActiveUsers',    bg: '#42A5F5' }
   ];
   _writeButtonRow(sheet, 7, 8, segBtns, null, '#FFFFFF'); // bg from each item
 
@@ -481,28 +477,28 @@ function _setupFilterArea(sheet) {
   sheet.setRowHeight(13, 4);
 
   // Row 14 – column-group sub-header (directly above the data header)
-  // A-D: structure  |  E-G: campaign data  |  H-J: status & dates  |  K-P: channels  |  Q: notes
-  sheet.getRange(14, 1, 1, 4).merge()
+  // A-C: structure  |  D-F: campaign data  |  G-I: status & dates  |  J-O: channels  |  P: notes
+  sheet.getRange(14, 1, 1, 3).merge()
     .setValue('STRUCTURE')
     .setBackground('#3A3A7A').setFontColor('#8888BB')
     .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
-  sheet.getRange(14, 5, 1, 3).merge()
+  sheet.getRange(14, 4, 1, 3).merge()
     .setValue('CAMPAIGN DETAILS')
     .setBackground('#3A3A7A').setFontColor('#AAAADD')
     .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
-  sheet.getRange(14, 8, 1, 3).merge()
+  sheet.getRange(14, 7, 1, 3).merge()
     .setValue('STATUS & TIMELINE')
     .setBackground('#3A3A7A').setFontColor('#AAAADD')
     .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
-  sheet.getRange(14, 11, 1, 6).merge()
+  sheet.getRange(14, 10, 1, 6).merge()
     .setValue('📢  CHANNELS')
     .setBackground('#B34700').setFontColor('#FFFFFF')
     .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')
     .setVerticalAlignment('middle');
-  sheet.getRange(14, 17)
+  sheet.getRange(14, 16)
     .setValue('NOTES')
     .setBackground('#3A3A7A').setFontColor('#AAAADD')
     .setFontSize(8).setFontWeight('bold').setHorizontalAlignment('center')

@@ -1,39 +1,42 @@
 /**
- * Active Users column for Monthly Discount Tracker v2.0
+ * Active Users segment for Monthly Discount Tracker v2.0
  *
- * Active Users (col D) lives directly in Main_Input alongside each segment row.
- * Values persist across month switches because the column sits BEFORE the data
- * columns that get cleared on load (clearing starts at COLUMNS.DISCOUNT = col E).
+ * "Active Users" is a regular segment row in REGION_ROW_TEMPLATE (the 13th slot),
+ * filled monthly alongside PPC, CP, and other segments.
+ * Use Segment_Config to add, remove, or reorder segments without code changes.
  *
- * One-time migration:
- *   Run migrateInsertActiveUsersColumn() ONCE to physically insert col D
- *   and shift existing campaign data (was D-P) right to E-Q.
+ * One-time migration for existing sheets (already set up with 12 rows/region):
+ *   Run migrateInsertActiveUsersRows() ONCE to physically insert the 13th row
+ *   at the end of each region block.
  *
  * Button script:
- *   Assign focusActiveUsers to a drawing button in Main_Input.
- *   It selects the entire Active Users column so the team can tab through and fill.
+ *   Assign filterActiveUsers to a drawing button to jump to Active Users rows.
  */
 
 // ─── One-time migration ───────────────────────────────────────────────────────
 
 /**
- * Inserts a blank column at position D in Main_Input, shifting existing data
- * columns (was Discount %…Notes at D-P) right to E-Q.
- * Safe to call multiple times — checks whether the migration already happened.
+ * Inserts 1 blank row at the end of each region block (backwards, last region
+ * first) then writes the Active Users structure values and refreshes formatting.
+ * Safe to call multiple times — aborts early if Active Users already exists.
  */
-function migrateInsertActiveUsersColumn() {
+function migrateInsertActiveUsersRows() {
   var sheet = getMainSheet();
   if (!sheet) {
     SpreadsheetApp.getUi().alert('Main_Input not found. Run full setup first.');
     return;
   }
 
-  // Guard: already migrated if col D header = 'Active Users'
-  var headerD = sheet.getRange(CONFIG.HEADER_ROW, 4).getValue().toString().trim();
-  if (headerD === 'Active Users') {
+  _applySheetConfig();
+
+  // Guard: if last slot of first region is already 'Active Users', we're done.
+  var lastOffsetInRegion = CONFIG.ROWS_PER_REGION - 1;
+  var checkRow = CONFIG.DATA_START_ROW + lastOffsetInRegion;
+  var lastSeg  = sheet.getRange(checkRow, CONFIG.COLUMNS.SEGMENT).getValue().toString().trim();
+  if (lastSeg === 'Active Users') {
     SpreadsheetApp.getUi().alert(
       'ℹ️ Already done',
-      '"Active Users" column already exists at column D. No changes made.',
+      '"Active Users" row already exists in each region. No changes made.',
       SpreadsheetApp.getUi().ButtonSet.OK
     );
     return;
@@ -41,52 +44,47 @@ function migrateInsertActiveUsersColumn() {
 
   var ui       = SpreadsheetApp.getUi();
   var response = ui.alert(
-    '➕ Insert Active Users Column',
-    'This inserts a blank "Active Users" column at column D.\n' +
-    'Your existing Discount %, Promo Code, and all other data\n' +
-    'will shift one column to the right (D→E, E→F, … P→Q).\n\n' +
-    'Run this ONCE. Your data will be preserved.\n\nContinue?',
+    '➕ Insert Active Users Rows',
+    'This inserts one "Active Users" row at the end of each of the ' +
+    CONFIG.REGIONS.length + ' region blocks.\n\n' +
+    'All existing campaign data is preserved.\n\n' +
+    'Run this ONCE. Continue?',
     ui.ButtonSet.YES_NO
   );
   if (response !== ui.Button.YES) return;
 
-  // Physically insert a blank column at position 4 (shifts cols 4+ right by 1)
-  sheet.insertColumns(4, 1);
+  // The sheet currently has ROWS_PER_REGION-1 rows per region (12 before migration).
+  // Insert backwards so earlier region offsets stay valid.
+  var oldRowsPerRegion = CONFIG.ROWS_PER_REGION - 1; // 12
+  for (var r = CONFIG.REGIONS.length - 1; r >= 0; r--) {
+    var lastRowOfRegion = CONFIG.DATA_START_ROW + r * oldRowsPerRegion + oldRowsPerRegion - 1;
+    sheet.insertRowAfter(lastRowOfRegion);
+  }
 
-  // Now apply the updated headers and formatting (CONFIG already has ACTIVE_USERS=4)
-  _applySheetConfig();
-  _setupHeaders(sheet);
+  // CONFIG.ROWS_PER_REGION is already 13, so _fillDataRows writes the full 13-row
+  // structure including the new Active Users slot.
+  _fillDataRows(sheet);
+  _applyColorCodingToSheet(sheet);
   _applySheetFormatting(sheet);
   _setupDropdownsOnSheet(sheet);
 
   ui.alert(
     '✅ Migration complete',
-    '"Active Users" is now column D.\n' +
-    'All previous data has shifted one column right.\n\n' +
-    'Fill in user counts for each segment row,\n' +
-    'or assign focusActiveUsers to a button for quick access.',
+    '"Active Users" row added to every region.\n\n' +
+    'Fill in monthly user counts per region like any other segment,\n' +
+    'or assign filterActiveUsers to a button for quick access.',
     ui.ButtonSet.OK
   );
-  _auditLog('MIGRATE', 'Inserted Active Users column at D; data cols shifted to E-Q');
+  _auditLog('MIGRATE', 'Inserted Active Users segment row at end of each region block');
 }
 
-// ─── Button-assignable script ─────────────────────────────────────────────────
+// ─── Button-assignable filter ─────────────────────────────────────────────────
 
 /**
  * Assign this function name to a drawing button in Main_Input.
- * Selects the entire Active Users column so the team can tab through and fill.
+ * Filters to show only Active Users rows across all regions.
  */
-function focusActiveUsers() {
-  var sheet = getMainSheet();
-  if (!sheet) return;
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  ss.setActiveSheet(sheet);
-  var totalRows = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
-  sheet.setActiveRange(
-    sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS.ACTIVE_USERS, totalRows, 1)
-  );
-  ss.toast(
-    'Column D — enter active user counts per segment. Values stay when you switch months.',
-    '👥 Active Users', 5
-  );
+function filterActiveUsers() {
+  _setFilter('segment', 'Active Users');
+  _applyFilters();
 }
