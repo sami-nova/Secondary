@@ -117,6 +117,7 @@ function onOpen() {
     .addItem('📂 Load Month Data', 'showLoadMonthDialog')
     .addItem('📋 Carry Forward Active Campaigns', 'showCarryForwardDialog')
     .addItem('📋 Copy Campaign to All Regions', 'showCopyToAllRegionsDialog')
+    .addItem('👥 Active Users', 'showActiveUsersSheet')
     .addSeparator()
     .addItem('🔍 Filter Data', 'showFilterDialog')
     .addItem('✅ Show All Rows', 'filterShowAll')
@@ -131,6 +132,8 @@ function onOpen() {
       .addItem('🎨 Re-apply Color Coding', 'applyColorCoding')
       .addItem('📋 Setup Dropdowns', 'setupDropdowns')
       .addItem('📊 Setup Reference Data', 'setupReferenceData')
+      .addItem('⚙️ Setup Segment Config', 'setupSegmentConfig')
+      .addItem('👥 Setup Active Users Sheet', 'setupActiveUsersSheet')
       .addSeparator()
       .addItem('⏱️ Enable Auto-Save', 'setupAutoSaveTrigger')
       .addItem('⏹️ Disable Auto-Save', 'removeAutoSaveTrigger')
@@ -264,6 +267,24 @@ function _applySheetConfig() {
   if (regions.length   > 0) CONFIG.REGIONS       = regions;
   if (scenarios.length > 0) CONFIG.SCENARIO_LIST = scenarios;
   if (statuses.length  > 0) CONFIG.STATUS_LIST   = statuses;
+
+  // ── Segment_Config sheet: rebuild REGION_ROW_TEMPLATE + ROWS_PER_REGION ──────
+  // Each row: Segment (col A) | Scenario (col B). Blank Scenario = spacer row.
+  var segSheet = SpreadsheetApp.getActiveSpreadsheet()
+    .getSheetByName(SEGMENT_CONFIG_SHEET);
+  if (segSheet && segSheet.getLastRow() >= 2) {
+    var segData = segSheet.getRange(2, 1, segSheet.getLastRow() - 1, 2).getValues();
+    var template = [];
+    segData.forEach(function(row) {
+      var seg = row[0] ? row[0].toString().trim() : '';
+      var scn = row[1] ? row[1].toString().trim() : '';
+      if (seg) template.push({ segment: seg, scenario: scn, color: '#FFFFFF' });
+    });
+    if (template.length > 0) {
+      CONFIG.REGION_ROW_TEMPLATE = template;
+      CONFIG.ROWS_PER_REGION     = template.length;
+    }
+  }
 }
 
 /** Public menu item: reload config and confirm. */
