@@ -60,22 +60,23 @@ var CONFIG = {
 
   // Column positions (1-indexed)
   COLUMNS: {
-    REGION:     1,   // A
-    SEGMENT:    2,   // B
-    SCENARIO:   3,   // C
-    DISCOUNT:   4,   // D
-    PROMO_CODE: 5,   // E
-    CONDITION:  6,   // F
-    STATUS:     7,   // G
-    START_DATE: 8,   // H
-    END_DATE:   9,   // I
-    BANNER:    10,   // J
-    POPUP:     11,   // K
-    INAPP:     12,   // L
-    WA:        13,   // M
-    PUSH:      14,   // N
-    SMS:       15,   // O
-    NOTES:     16    // P
+    REGION:       1,   // A
+    SEGMENT:      2,   // B
+    SCENARIO:     3,   // C
+    ACTIVE_USERS: 4,   // D  ← active user count per segment row
+    DISCOUNT:     5,   // E
+    PROMO_CODE:   6,   // F
+    CONDITION:    7,   // G
+    STATUS:       8,   // H
+    START_DATE:   9,   // I
+    END_DATE:    10,   // J
+    BANNER:      11,   // K
+    POPUP:       12,   // L
+    INAPP:       13,   // M
+    WA:          14,   // N
+    PUSH:        15,   // O
+    SMS:         16,   // P
+    NOTES:       17    // Q
   },
 
   SCENARIO_LIST: [
@@ -117,7 +118,7 @@ function onOpen() {
     .addItem('📂 Load Month Data', 'showLoadMonthDialog')
     .addItem('📋 Carry Forward Active Campaigns', 'showCarryForwardDialog')
     .addItem('📋 Copy Campaign to All Regions', 'showCopyToAllRegionsDialog')
-    .addItem('👥 Active Users', 'showActiveUsersSheet')
+    .addItem('👥 Active Users', 'focusActiveUsers')
     .addSeparator()
     .addItem('🔍 Filter Data', 'showFilterDialog')
     .addItem('✅ Show All Rows', 'filterShowAll')
@@ -133,7 +134,7 @@ function onOpen() {
       .addItem('📋 Setup Dropdowns', 'setupDropdowns')
       .addItem('📊 Setup Reference Data', 'setupReferenceData')
       .addItem('⚙️ Setup Segment Config', 'setupSegmentConfig')
-      .addItem('👥 Setup Active Users Sheet', 'setupActiveUsersSheet')
+      .addItem('👥 Insert Active Users Column (run once)', 'migrateInsertActiveUsersColumn')
       .addSeparator()
       .addItem('⏱️ Enable Auto-Save', 'setupAutoSaveTrigger')
       .addItem('⏹️ Disable Auto-Save', 'removeAutoSaveTrigger')

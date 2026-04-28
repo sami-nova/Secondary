@@ -1,138 +1,92 @@
 /**
- * Active Users sheet for Monthly Discount Tracker v2.0
+ * Active Users column for Monthly Discount Tracker v2.0
  *
- * A Region × Segment matrix the team fills in manually to track
- * how many active users belong to each segment per region.
- * Values are reference-only and do not affect campaign data.
+ * Active Users (col D) lives directly in Main_Input alongside each segment row.
+ * Values persist across month switches because the column sits BEFORE the data
+ * columns that get cleared on load (clearing starts at COLUMNS.DISCOUNT = col E).
  *
- * Public:
- *   showActiveUsersSheet()   — navigate to the sheet; assign THIS to a button
- *   setupActiveUsersSheet()  — create or fully refresh the sheet layout
+ * One-time migration:
+ *   Run migrateInsertActiveUsersColumn() ONCE to physically insert col D
+ *   and shift existing campaign data (was D-P) right to E-Q.
+ *
+ * Button script:
+ *   Assign focusActiveUsers to a drawing button in Main_Input.
+ *   It selects the entire Active Users column so the team can tab through and fill.
  */
 
-var ACTIVE_USERS_SHEET = 'Active_Users';
-
-// ─── Button-assignable navigation function ────────────────────────────────────
+// ─── One-time migration ───────────────────────────────────────────────────────
 
 /**
- * Assign this function to a drawing button in Main_Input to jump directly
- * to the Active_Users sheet. If the sheet doesn't exist yet it offers to
- * create it on the spot.
+ * Inserts a blank column at position D in Main_Input, shifting existing data
+ * columns (was Discount %…Notes at D-P) right to E-Q.
+ * Safe to call multiple times — checks whether the migration already happened.
  */
-function showActiveUsersSheet() {
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = ss.getSheetByName(ACTIVE_USERS_SHEET);
+function migrateInsertActiveUsersColumn() {
+  var sheet = getMainSheet();
   if (!sheet) {
-    var resp = SpreadsheetApp.getUi().alert(
-      '👥 Active Users',
-      'The Active_Users sheet hasn\'t been set up yet.\nCreate it now?',
-      SpreadsheetApp.getUi().ButtonSet.YES_NO
-    );
-    if (resp === SpreadsheetApp.getUi().Button.YES) setupActiveUsersSheet();
+    SpreadsheetApp.getUi().alert('Main_Input not found. Run full setup first.');
     return;
   }
-  ss.setActiveSheet(sheet);
-}
 
-// ─── Setup / refresh ─────────────────────────────────────────────────────────
-
-function setupActiveUsersSheet() {
-  _applySheetConfig();
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = getOrCreateSheet(ACTIVE_USERS_SHEET);
-
-  // Build unique ordered segment list from the current template
-  var uniqueSegments = [];
-  CONFIG.REGION_ROW_TEMPLATE.forEach(function(tpl) {
-    if (tpl.segment && uniqueSegments.indexOf(tpl.segment) < 0) {
-      uniqueSegments.push(tpl.segment);
-    }
-  });
-
-  var colCount = uniqueSegments.length + 1; // +1 for the Region label column
-
-  // Snapshot existing values before clearing (preserve data user already entered)
-  var existingVals = {};
-  if (sheet.getLastRow() >= 4) {
-    var snapshot = sheet.getRange(4, 1, Math.max(sheet.getLastRow() - 3, 1), colCount).getValues();
-    snapshot.forEach(function(row) {
-      var region = row[0] ? row[0].toString().trim() : '';
-      if (!region) return;
-      uniqueSegments.forEach(function(seg, s) {
-        var key = region + '||' + seg;
-        if (row[s + 1] !== '' && row[s + 1] !== 0) existingVals[key] = row[s + 1];
-      });
-    });
+  // Guard: already migrated if col D header = 'Active Users'
+  var headerD = sheet.getRange(CONFIG.HEADER_ROW, 4).getValue().toString().trim();
+  if (headerD === 'Active Users') {
+    SpreadsheetApp.getUi().alert(
+      'ℹ️ Already done',
+      '"Active Users" column already exists at column D. No changes made.',
+      SpreadsheetApp.getUi().ButtonSet.OK
+    );
+    return;
   }
 
-  sheet.clearContents();
-  sheet.clearFormats();
+  var ui       = SpreadsheetApp.getUi();
+  var response = ui.alert(
+    '➕ Insert Active Users Column',
+    'This inserts a blank "Active Users" column at column D.\n' +
+    'Your existing Discount %, Promo Code, and all other data\n' +
+    'will shift one column to the right (D→E, E→F, … P→Q).\n\n' +
+    'Run this ONCE. Your data will be preserved.\n\nContinue?',
+    ui.ButtonSet.YES_NO
+  );
+  if (response !== ui.Button.YES) return;
 
-  // ── Row 1: title
-  sheet.getRange(1, 1, 1, colCount).merge()
-    .setValue('👥  ACTIVE USERS BY REGION & SEGMENT')
-    .setBackground('#4B4B9B').setFontColor('#FFFFFF')
-    .setFontSize(13).setFontWeight('bold')
-    .setHorizontalAlignment('center').setVerticalAlignment('middle');
-  sheet.setRowHeight(1, 36);
+  // Physically insert a blank column at position 4 (shifts cols 4+ right by 1)
+  sheet.insertColumns(4, 1);
 
-  // ── Row 2: instruction strip
-  sheet.getRange(2, 1, 1, colCount).merge()
-    .setValue('Enter active user counts per region & segment — used for reference only, does not affect campaign data.')
-    .setBackground('#E8EAF6').setFontColor('#555').setFontSize(9)
-    .setHorizontalAlignment('center').setVerticalAlignment('middle');
-  sheet.setRowHeight(2, 22);
+  // Now apply the updated headers and formatting (CONFIG already has ACTIVE_USERS=4)
+  _applySheetConfig();
+  _setupHeaders(sheet);
+  _applySheetFormatting(sheet);
+  _setupDropdownsOnSheet(sheet);
 
-  // ── Row 3: column headers (Region + one per segment)
-  var headers = ['Region'].concat(uniqueSegments);
-  var hdrRange = sheet.getRange(3, 1, 1, colCount);
-  hdrRange.setValues([headers])
-    .setBackground('#6B6BBB').setFontColor('#FFFFFF')
-    .setFontWeight('bold').setHorizontalAlignment('center')
-    .setFontSize(10).setVerticalAlignment('middle');
-  sheet.setRowHeight(3, 30);
+  ui.alert(
+    '✅ Migration complete',
+    '"Active Users" is now column D.\n' +
+    'All previous data has shifted one column right.\n\n' +
+    'Fill in user counts for each segment row,\n' +
+    'or assign focusActiveUsers to a button for quick access.',
+    ui.ButtonSet.OK
+  );
+  _auditLog('MIGRATE', 'Inserted Active Users column at D; data cols shifted to E-Q');
+}
 
-  // Apply segment badge colour to each header cell
-  uniqueSegments.forEach(function(seg, s) {
-    var style = CONFIG.SEGMENT_COLORS[seg] || { bg: '#7B7BBB', text: '#FFFFFF' };
-    sheet.getRange(3, s + 2).setBackground(style.bg).setFontColor(style.text);
-  });
+// ─── Button-assignable script ─────────────────────────────────────────────────
 
-  // ── Rows 4+: one row per region
-  CONFIG.REGIONS.forEach(function(region, r) {
-    var rowNum = r + 4;
-    var regionBg = CONFIG.REGION_COLORS[region] || '#FFFFFF';
-
-    sheet.getRange(rowNum, 1)
-      .setValue(region)
-      .setBackground(regionBg).setFontWeight('bold').setFontSize(10)
-      .setHorizontalAlignment('center').setVerticalAlignment('middle');
-    sheet.setRowHeight(rowNum, 28);
-
-    uniqueSegments.forEach(function(seg, s) {
-      var cell     = sheet.getRange(rowNum, s + 2);
-      var key      = region + '||' + seg;
-      var val      = existingVals[key] !== undefined ? existingVals[key] : 0;
-      var cellBg   = r % 2 === 0 ? '#FFFFFF' : '#F0F0F8';
-      cell.setValue(val)
-        .setHorizontalAlignment('center').setVerticalAlignment('middle')
-        .setNumberFormat('#,##0').setFontSize(11)
-        .setBackground(cellBg);
-    });
-  });
-
-  // ── Column widths
-  sheet.setColumnWidth(1, 90);
-  uniqueSegments.forEach(function(seg, s) {
-    sheet.setColumnWidth(s + 2, Math.max(90, Math.round(seg.length * 7.5)));
-  });
-
-  // ── Freeze header rows
-  sheet.setFrozenRows(3);
-
+/**
+ * Assign this function name to a drawing button in Main_Input.
+ * Selects the entire Active Users column so the team can tab through and fill.
+ */
+function focusActiveUsers() {
+  var sheet = getMainSheet();
+  if (!sheet) return;
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
   ss.setActiveSheet(sheet);
+  var totalRows = CONFIG.REGIONS.length * CONFIG.ROWS_PER_REGION;
+  sheet.setActiveRange(
+    sheet.getRange(CONFIG.DATA_START_ROW, CONFIG.COLUMNS.ACTIVE_USERS, totalRows, 1)
+  );
   ss.toast(
-    'Active_Users sheet ready — fill in user counts. Assign showActiveUsersSheet to your button.',
-    '👥 Done', 6
+    'Column D — enter active user counts per segment. Values stay when you switch months.',
+    '👥 Active Users', 5
   );
 }
