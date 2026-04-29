@@ -1,75 +1,84 @@
 // ============================================================
-//  DAILY MANAGER SCHEDULE TRACKER  v2.0
+//  MANAGER SCHEDULE TRACKER  — Command Center  v4.0
 //  Single-file Google Apps Script
-//  – Dropdown editing  – Vibrant CF  – Vacation status
-//  – All functions in one file (fixes "function not found")
 // ============================================================
 
-// ─── CONFIG ──────────────────────────────────────────────────
+// ─── CONFIGURATION ───────────────────────────────────────────
 var CFG = {
   SHEET_NAME    : 'Schedule',
   SLACK_WEBHOOK : 'YOUR_SLACK_WEBHOOK_URL_HERE',
+  SHEET_URL     : '',           // optional: paste your sheet URL for Slack button
   POST_HOUR     : 8,
-  FROZEN_COLS   : 4,
+  FROZEN_COLS   : 7,            // Name·Region·Procedure·ID·Working·Off·Vac/Sick
   HEADER_ROW    : 2,
   DATA_START_ROW: 3,
+  DAY_COL_START : 8,            // day columns begin at col 8 (H)
 };
 
-// ─── DROPDOWN OPTIONS (shown in every day cell) ───────────────
-var OPTS = [
-  '09:00-18:00',
-  '10:00-19:00',
-  '08:00-17:00',
-  '07:00-16:00',
-  '12:00-21:00',
-  '14:00-23:00',
-  'Half Day',
-  'DO',
-  'Vacation',
-  'Sick',
-];
+// ─── SCHEDULE OPTIONS (dropdown in every day cell) ────────────
+var OPTS = ['09:00-18:00','10:00-19:00','08:00-17:00','07:00-16:00',
+            '12:00-21:00','14:00-23:00','Half Day','DO','Vacation','Sick'];
 var DEFAULT_HOURS = '09:00-18:00';
-var DAY_OFF       = 'DO';
-var VACATION      = 'Vacation';
-var SICK          = 'Sick';
-var HALF_DAY      = 'Half Day';
+var DAY_OFF  = 'DO';
+var VACATION = 'Vacation';
+var SICK     = 'Sick';
+var HALF_DAY = 'Half Day';
 
-// ─── COLOURS ─────────────────────────────────────────────────
+// ─── COLOUR PALETTE ──────────────────────────────────────────
 var C = {
-  TITLE_BG : '#0D47A1', TITLE_FG : '#FFFFFF',
-  LEGEND_BG: '#E3F2FD', LEGEND_FG: '#0D47A1',
-  HDR_BG   : '#1565C0', HDR_FG   : '#FFFFFF',
-  WKND_BG  : '#37474F', WKND_FG  : '#FFFFFF',
-  RGN_BG   : '#1976D2', RGN_FG   : '#FFFFFF',
-  WORK_BG  : '#A5D6A7', WORK_FG  : '#1B5E20',
-  OFF_BG   : '#EF9A9A', OFF_FG   : '#B71C1C',
-  VAC_BG   : '#CE93D8', VAC_FG   : '#4A148C',
-  SICK_BG  : '#FFAB91', SICK_FG  : '#BF360C',
-  HALF_BG  : '#FFF59D', HALF_FG  : '#F57F17',
-  HOL_BG   : '#FFD54F', HOL_FG   : '#E65100',
-  TODAY_BG : '#FF6F00', TODAY_FG : '#FFFFFF',
-  ODD_BG   : '#F5F9FF', EVN_BG   : '#FFFFFF',
-  BORDER   : '#90CAF9',
-  // Procedure tints (column C accent)
-  PROC_CHURN : '#E1F5FE',  // light blue
-  PROC_KILL  : '#FFF3E0',  // light orange
-  PROC_RETEN : '#E0F2F1',  // light teal
+  TITLE_BG  : '#0D47A1', TITLE_FG  : '#FFFFFF',
+  LEGEND_BG : '#E8EAF6', LEGEND_FG : '#283593',
+  HDR_BG    : '#1565C0', HDR_FG    : '#FFFFFF',
+  SUMHDR_BG : '#283593', SUMHDR_FG : '#FFFFFF',
+  WKND_BG   : '#37474F', WKND_FG   : '#ECEFF1',
+  WORK_BG   : '#A5D6A7', WORK_FG   : '#1B5E20',
+  OFF_BG    : '#EF9A9A', OFF_FG    : '#B71C1C',
+  VAC_BG    : '#CE93D8', VAC_FG    : '#4A148C',
+  SICK_BG   : '#FFAB91', SICK_FG   : '#BF360C',
+  HALF_BG   : '#FFF59D', HALF_FG   : '#F57F17',
+  HOL_BG    : '#FFD54F', HOL_FG    : '#E65100',
+  TODAY_BG  : '#FF6F00', TODAY_FG  : '#FFFFFF',
+  TODAY_COL : '#FFF8E1',        // day-cell tint for today column
+  BORDER_OUT: '#0D47A1',
+  BORDER_IN : '#90CAF9',
+  PROC_CHURN: '#E1F5FE',        // procedure tints
+  PROC_KILL : '#FFF3E0',
+  PROC_RETEN: '#E0F2F1',
 };
 
-// ─── PROCEDURE → TINT COLOUR ─────────────────────────────────
-function procColour_(procedure) {
-  if (procedure === 'Churn Prevention') return C.PROC_CHURN;
-  if (procedure === 'Killer Base')      return C.PROC_KILL;
-  if (procedure === 'Active Retention') return C.PROC_RETEN;
-  return null;
-}
+// ─── PER-REGION ACCENT COLOURS ────────────────────────────────
+var REGION_COLORS = {
+  'TR'        : {hdr:'#1B5E20', hdrFg:'#FFFFFF', odd:'#F1F8E9', even:'#DCEDC8'},
+  'ES'        : {hdr:'#E65100', hdrFg:'#FFFFFF', odd:'#FFF3E0', even:'#FFE0B2'},
+  'IL'        : {hdr:'#0D47A1', hdrFg:'#FFFFFF', odd:'#E3F2FD', even:'#BBDEFB'},
+  'RU'        : {hdr:'#B71C1C', hdrFg:'#FFFFFF', odd:'#FFEBEE', even:'#FFCDD2'},
+  'IT'        : {hdr:'#4E342E', hdrFg:'#FFFFFF', odd:'#EFEBE9', even:'#D7CCC8'},
+  'CZ/SK'     : {hdr:'#283593', hdrFg:'#FFFFFF', odd:'#E8EAF6', even:'#C5CAE9'},
+  'AE/ARAB/SA': {hdr:'#F57F17', hdrFg:'#FFFFFF', odd:'#FFFDE7', even:'#FFF9C4'},
+  'FR'        : {hdr:'#1565C0', hdrFg:'#FFFFFF', odd:'#E3F2FD', even:'#BBDEFB'},
+  'PL'        : {hdr:'#880E4F', hdrFg:'#FFFFFF', odd:'#FCE4EC', even:'#F8BBD0'},
+  'RO'        : {hdr:'#4A148C', hdrFg:'#FFFFFF', odd:'#F3E5F5', even:'#E1BEE7'},
+};
+
+// ─── REGIONAL FLAGS ───────────────────────────────────────────
+var REGION_EMOJIS = {
+  'TR':'🇹🇷','ES':'🇪🇸','IL':'🇮🇱','RU':'🇷🇺','IT':'🇮🇹',
+  'CZ/SK':'🇨🇿','AE/ARAB/SA':'🇦🇪','FR':'🇫🇷','PL':'🇵🇱','RO':'🇷🇴'
+};
 
 // ─── SORT ORDERS ─────────────────────────────────────────────
 var REGION_ORDER    = ['TR','ES','IL','RU','IT','CZ/SK','AE/ARAB/SA','FR','PL','RO'];
 var PROCEDURE_ORDER = ['Churn Prevention','Killer Base','Active Retention'];
 var DAY_ABBR        = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-// ─── MANAGER ROSTER (28 managers) ────────────────────────────
+// ─── PUBLIC HOLIDAYS ('YYYY-MM-DD') ──────────────────────────
+var PUBLIC_HOLIDAYS = [
+  // '2026-05-01',
+];
+
+// ─── DEFAULT MANAGER ROSTER (28 managers) ────────────────────
+// These seed the hidden _Managers_ sheet on first run.
+// Use  Schedule Management → Add New Manager  to add more.
 var MANAGERS = [
   {name:'Ahmet Yilmaz',      region:'TR',         procedure:'Churn Prevention', id:'MGR-TR-001'},
   {name:'Fatma Kaya',        region:'TR',         procedure:'Killer Base',       id:'MGR-TR-002'},
@@ -85,7 +94,7 @@ var MANAGERS = [
   {name:'Marco Rossi',       region:'IT',         procedure:'Churn Prevention', id:'MGR-IT-001'},
   {name:'Giulia Ferrari',    region:'IT',         procedure:'Active Retention',  id:'MGR-IT-002'},
   {name:'Hans Mueller',      region:'IT',         procedure:'Killer Base',       id:'MGR-IT-003'},
-  {name:'Jan Novák',         region:'CZ/SK',      procedure:'Killer Base',       id:'MGR-CZ-001'},
+  {name:'Jan Novak',         region:'CZ/SK',      procedure:'Killer Base',       id:'MGR-CZ-001'},
   {name:'Eva Svoboda',       region:'CZ/SK',      procedure:'Churn Prevention', id:'MGR-CZ-002'},
   {name:'Omar Al-Rashid',    region:'AE/ARAB/SA', procedure:'Active Retention',  id:'MGR-AE-001'},
   {name:'Layla Khalid',      region:'AE/ARAB/SA', procedure:'Churn Prevention', id:'MGR-AE-002'},
@@ -100,28 +109,50 @@ var MANAGERS = [
   {name:'Elena Ionescu',     region:'RO',         procedure:'Active Retention',  id:'MGR-RO-002'},
   {name:'Mihai Constantin',  region:'RO',         procedure:'Killer Base',       id:'MGR-RO-003'},
 ];
+// ─── UTILITY HELPERS ─────────────────────────────────────────
 
-// ─── PUBLIC HOLIDAYS ('YYYY-MM-DD') ──────────────────────────
-var PUBLIC_HOLIDAYS = [
-  // '2026-05-01',
-];
+// Returns the spreadsheet whether called interactively or from a trigger.
+function getSpreadsheet_() {
+  try { return SpreadsheetApp.getActiveSpreadsheet(); } catch(e) {}
+  var id = PropertiesService.getScriptProperties().getProperty('SHEET_ID');
+  return id ? SpreadsheetApp.openById(id) : null;
+}
+
+// Converts a 1-based column number to a letter string (1→A, 27→AA, etc.)
+function colLetter_(n) {
+  var s = '';
+  while (n > 0) { s = String.fromCharCode(64 + (n - 1) % 26 + 1) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+
+// Returns the procedure-tint colour or null.
+function procBg_(procedure) {
+  if (procedure === 'Churn Prevention') return C.PROC_CHURN;
+  if (procedure === 'Killer Base')      return C.PROC_KILL;
+  if (procedure === 'Active Retention') return C.PROC_RETEN;
+  return null;
+}
 
 // ─── MENU ────────────────────────────────────────────────────
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Schedule Management')
-    .addItem('Build / Rebuild This Month', 'buildScheduleSheet')
-    .addItem('Update to Next Month',       'updateMonth')
+    .addItem('Build / Rebuild This Month',  'buildScheduleSheet')
+    .addItem('Update to Next Month',        'updateMonth')
+    .addItem('Reset Day Cells Only',        'resetSheet')
     .addSeparator()
-    .addItem('Post Today to Slack',        'postScheduleToSlack')
+    .addItem('Add New Manager',             'addNewManager')
     .addSeparator()
-    .addItem('Set Up Daily 8AM Trigger',   'createTimeDrivenTrigger')
-    .addItem('Remove All Triggers',        'deleteAllTriggers')
+    .addItem('Post Today to Slack',         'postScheduleToSlack')
+    .addSeparator()
+    .addItem('Set Up Daily 8AM Trigger',    'createTimeDrivenTrigger')
+    .addItem('Remove All Triggers',         'deleteAllTriggers')
     .addToUi();
 }
-// ─── BUILD SCHEDULE SHEET ────────────────────────────────────
+
+// ─── MAIN BUILD ──────────────────────────────────────────────
 function buildScheduleSheet(targetDate) {
-  var ss   = SpreadsheetApp.getActiveSpreadsheet();
+  var ss   = getSpreadsheet_();
   var tz   = Session.getScriptTimeZone();
   var date = (targetDate instanceof Date) ? targetDate : new Date();
   var year        = date.getFullYear();
@@ -130,25 +161,27 @@ function buildScheduleSheet(targetDate) {
   var monthLabel  = Utilities.formatDate(date, tz, 'MMMM yyyy');
   var totalCols   = CFG.FROZEN_COLS + daysInMonth;
 
-  // Build holiday lookup
+  // Store ID for trigger-context access
+  PropertiesService.getScriptProperties().setProperty('SHEET_ID', ss.getId());
+
+  // Holiday lookup
   var holidays = {};
-  for (var h = 0; h < PUBLIC_HOLIDAYS.length; h++) {
-    holidays[PUBLIC_HOLIDAYS[h]] = true;
-  }
+  for (var h = 0; h < PUBLIC_HOLIDAYS.length; h++) holidays[PUBLIC_HOLIDAYS[h]] = true;
 
   // Get or reset sheet
   var sheet = ss.getSheetByName(CFG.SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(CFG.SHEET_NAME, 0);
-  } else {
+  if (!sheet) { sheet = ss.insertSheet(CFG.SHEET_NAME, 0); }
+  else {
     sheet.clearConditionalFormatRules();
-    var f = sheet.getFilter();
-    if (f) f.remove();
+    var ef = sheet.getFilter(); if (ef) ef.remove();
     sheet.clear();
   }
 
-  // Sort managers by region then procedure
-  var sorted = MANAGERS.slice().sort(function(a, b) {
+  // Load manager list (from _Managers_ sheet, or seed from defaults)
+  var managers = getManagersList_(ss);
+
+  // Sort by region order then procedure order
+  var sorted = managers.slice().sort(function(a, b) {
     var ri = REGION_ORDER.indexOf(a.region) - REGION_ORDER.indexOf(b.region);
     return ri !== 0 ? ri : PROCEDURE_ORDER.indexOf(a.procedure) - PROCEDURE_ORDER.indexOf(b.procedure);
   });
@@ -158,190 +191,232 @@ function buildScheduleSheet(targetDate) {
     if (byRegion[sorted[i].region]) byRegion[sorted[i].region].push(sorted[i]);
   }
 
-  // ── ROW 1: Title (frozen pane A:D) + Legend (scrollable pane) ─
-  // IMPORTANT: merges must NOT cross the freeze boundary at col 4,
-  // otherwise setFrozenColumns() throws. We split row 1 into two
-  // independent merges, one per pane.
+  // ── ROW 1: Title (frozen pane A:G) + Legend (scrollable H:end) ──
+  // Each merge stays within one pane so setFrozenColumns(7) succeeds.
   sheet.getRange(1, 1, 1, CFG.FROZEN_COLS).merge()
-    .setValue('📋   SCHEDULE TRACKER   ·   ' + monthLabel.toUpperCase())
+    .setValue('MANAGER SCHEDULE COMMAND CENTER   ·   ' + monthLabel.toUpperCase())
     .setBackground(C.TITLE_BG).setFontColor(C.TITLE_FG)
     .setFontSize(13).setFontWeight('bold')
     .setHorizontalAlignment('center').setVerticalAlignment('middle');
-
-  sheet.getRange(1, CFG.FROZEN_COLS + 1, 1, daysInMonth).merge()
-    .setValue('LEGEND   🟢 Working   🔴 Day Off   🟣 Vacation   🟠 Sick   🟡 Half Day   🟧 Holiday   ◆ Today')
+  sheet.getRange(1, CFG.DAY_COL_START, 1, daysInMonth).merge()
+    .setValue('LEGEND:   🟢 Working   🔴 Day Off   🟣 Vacation   🟠 Sick   🟡 Half Day   🟧 Holiday   ◆ Today Column')
     .setBackground(C.LEGEND_BG).setFontColor(C.LEGEND_FG)
     .setFontSize(10).setFontWeight('bold')
     .setHorizontalAlignment('center').setVerticalAlignment('middle');
-
   sheet.setRowHeight(1, 42);
 
   // ── ROW 2: Column headers ─────────────────────────────────
+  var fixedHdrs = [['MANAGER NAME','REGION','PROCEDURE','MANAGER ID','📊 WORKING','🔴 OFF','🟣 VAC/SICK']];
   sheet.getRange(CFG.HEADER_ROW, 1, 1, CFG.FROZEN_COLS)
-    .setValues([['MANAGER NAME','REGION','PROCEDURE','MANAGER ID']])
+    .setValues(fixedHdrs)
     .setBackground(C.HDR_BG).setFontColor(C.HDR_FG)
     .setFontWeight('bold').setFontSize(10)
-    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+    .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
+  // Summary header columns get a darker shade
+  sheet.getRange(CFG.HEADER_ROW, 5, 1, 3)
+    .setBackground(C.SUMHDR_BG).setFontColor(C.SUMHDR_FG);
 
+  // Day-of-month headers
   var dayLabels = [];
   for (var d = 1; d <= daysInMonth; d++) {
     var dow = new Date(year, month, d).getDay();
-    dayLabels.push(DAY_ABBR[dow] + '\n' + (d < 10 ? '0' + d : '' + d));
+    dayLabels.push(DAY_ABBR[dow] + '\n' + (d < 10 ? '0'+d : ''+d));
   }
-  sheet.getRange(CFG.HEADER_ROW, CFG.FROZEN_COLS + 1, 1, daysInMonth)
+  sheet.getRange(CFG.HEADER_ROW, CFG.DAY_COL_START, 1, daysInMonth)
     .setValues([dayLabels])
     .setBackground(C.HDR_BG).setFontColor(C.HDR_FG)
     .setFontWeight('bold').setFontSize(10)
     .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
-  sheet.setRowHeight(CFG.HEADER_ROW, 52);
+  sheet.setRowHeight(CFG.HEADER_ROW, 54);
 
-  // Weekend headers: blue-grey
+  // Weekend day-header tint
   for (var d = 1; d <= daysInMonth; d++) {
     var dow = new Date(year, month, d).getDay();
-    if (dow === 0 || dow === 6) {
-      sheet.getRange(CFG.HEADER_ROW, CFG.FROZEN_COLS + d)
+    if (dow === 0 || dow === 6)
+      sheet.getRange(CFG.HEADER_ROW, CFG.DAY_COL_START + d - 1)
         .setBackground(C.WKND_BG).setFontColor(C.WKND_FG);
-    }
   }
-
   // ── DATA ROWS ────────────────────────────────────────────
   var currentRow  = CFG.DATA_START_ROW;
-  var managerRows = []; // track for data validation
+  var managerRows = [];   // track for data validation
+  var dayStartLtr = colLetter_(CFG.DAY_COL_START);
+  var dayEndLtr   = colLetter_(CFG.DAY_COL_START + daysInMonth - 1);
 
   for (var ri = 0; ri < REGION_ORDER.length; ri++) {
     var region = REGION_ORDER[ri];
     var mgrs   = byRegion[region];
     if (!mgrs || mgrs.length === 0) continue;
+    var rc = REGION_COLORS[region] || {hdr:'#455A64',hdrFg:'#FFFFFF',odd:'#F5F5F5',even:'#EEEEEE'};
 
-    // Region separator row
+    // ── Region separator row ─────────────────────────────
+    var rEmoji = REGION_EMOJIS[region] || '';
     sheet.getRange(currentRow, 1)
-      .setValue('  ' + region)
-      .setBackground(C.RGN_BG).setFontColor(C.RGN_FG)
-      .setFontWeight('bold').setFontSize(11)
+      .setValue('  ' + rEmoji + '  ' + region)
+      .setBackground(rc.hdr).setFontColor(rc.hdrFg)
+      .setFontWeight('bold').setFontSize(12)
       .setHorizontalAlignment('left').setVerticalAlignment('middle');
     sheet.getRange(currentRow, 2)
       .setValue(region)
-      .setBackground(C.RGN_BG).setFontColor(C.RGN_FG)
+      .setBackground(rc.hdr).setFontColor(rc.hdrFg)
       .setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
-    sheet.getRange(currentRow, 3, 1, CFG.FROZEN_COLS - 2 + daysInMonth)
-      .setBackground(C.RGN_BG);
-    // Show region member count in column C of the separator row
     sheet.getRange(currentRow, 3)
-      .setValue(mgrs.length + ' manager' + (mgrs.length !== 1 ? 's' : ''))
-      .setFontColor(C.RGN_FG).setFontStyle('italic').setFontSize(10)
-      .setHorizontalAlignment('left');
+      .setValue(mgrs.length + ' managers')
+      .setBackground(rc.hdr).setFontColor(rc.hdrFg)
+      .setFontStyle('italic').setFontSize(10)
+      .setHorizontalAlignment('left').setVerticalAlignment('middle');
+    sheet.getRange(currentRow, 4, 1, CFG.FROZEN_COLS - 3 + daysInMonth)
+      .setBackground(rc.hdr);
+    // Thick border top + bottom on separator
     sheet.getRange(currentRow, 1, 1, totalCols)
-      .setBorder(true, false, true, false, false, false,
-                 C.RGN_FG, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+      .setBorder(true, true, true, true, false, false,
+                 rc.hdr, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
     sheet.setRowHeight(currentRow, 30);
     currentRow++;
 
-    // Manager rows
+    // ── Manager rows ─────────────────────────────────────
     for (var mi = 0; mi < mgrs.length; mi++) {
-      var mgr     = mgrs[mi];
-      var rowBg   = (mi % 2 === 0) ? C.ODD_BG : C.EVN_BG;
-      var procBg  = procColour_(mgr.procedure) || rowBg;
+      var mgr    = mgrs[mi];
+      var rowBg  = (mi % 2 === 0) ? rc.odd : rc.even;
+      var pBg    = procBg_(mgr.procedure) || rowBg;
       managerRows.push(currentRow);
 
-      // Cols A, B, D get the row tint
-      sheet.getRange(currentRow, 1, 1, CFG.FROZEN_COLS)
-        .setValues([[mgr.name, mgr.region, mgr.procedure, mgr.id]])
-        .setBackground(rowBg).setVerticalAlignment('middle').setFontSize(11);
-      // Col C gets the procedure tint
-      sheet.getRange(currentRow, 3).setBackground(procBg).setFontWeight('bold');
+      // Fixed cols A-D
+      var rowR   = currentRow;
+      sheet.getRange(rowR, 1).setValue(mgr.name)
+        .setBackground(rowBg).setFontWeight('bold').setFontSize(11)
+        .setHorizontalAlignment('left').setVerticalAlignment('middle');
+      sheet.getRange(rowR, 2).setValue(mgr.region)
+        .setBackground(rowBg).setFontSize(10)
+        .setHorizontalAlignment('center').setVerticalAlignment('middle');
+      sheet.getRange(rowR, 3).setValue(mgr.procedure)
+        .setBackground(pBg).setFontSize(10)
+        .setHorizontalAlignment('center').setVerticalAlignment('middle');
+      sheet.getRange(rowR, 4).setValue(mgr.id)
+        .setBackground(rowBg).setFontSize(9).setFontColor('#607D8B')
+        .setHorizontalAlignment('center').setVerticalAlignment('middle');
 
-      sheet.getRange(currentRow, 1)
-        .setFontWeight('bold').setHorizontalAlignment('left');
-      sheet.getRange(currentRow, 2, 1, 3)
-        .setHorizontalAlignment('center');
-      sheet.getRange(currentRow, 4)
-        .setFontSize(9).setFontColor('#607D8B');
+      // Summary formula cols (E, F, G) — dynamic, update as cells change
+      var rng = dayStartLtr + rowR + ':' + dayEndLtr + rowR;
+      sheet.getRange(rowR, 5)
+        .setFormula('=COUNTIF(' + rng + ',"*:*")+COUNTIF(' + rng + ',"Half Day")')
+        .setBackground(rowBg).setFontWeight('bold').setFontSize(10)
+        .setHorizontalAlignment('center').setVerticalAlignment('middle');
+      sheet.getRange(rowR, 6)
+        .setFormula('=COUNTIF(' + rng + ',"DO")')
+        .setBackground(rowBg).setFontWeight('bold').setFontSize(10)
+        .setHorizontalAlignment('center').setVerticalAlignment('middle');
+      sheet.getRange(rowR, 7)
+        .setFormula('=COUNTIF(' + rng + ',"Vacation")+COUNTIF(' + rng + ',"Sick")')
+        .setBackground(rowBg).setFontWeight('bold').setFontSize(10)
+        .setHorizontalAlignment('center').setVerticalAlignment('middle');
 
-      // Day cells: default to working hours; weekends & holidays → DO
+      // Day cells
       var dayVals = [];
       for (var d = 1; d <= daysInMonth; d++) {
-        var dayDate = new Date(year, month, d);
-        var dow2    = dayDate.getDay();
-        var ds      = Utilities.formatDate(dayDate, tz, 'yyyy-MM-dd');
-        dayVals.push((dow2 === 0 || dow2 === 6 || holidays[ds]) ? DAY_OFF : DEFAULT_HOURS);
+        var dd  = new Date(year, month, d);
+        var dow2 = dd.getDay();
+        var ds  = Utilities.formatDate(dd, tz, 'yyyy-MM-dd');
+        dayVals.push((dow2===0||dow2===6||holidays[ds]) ? DAY_OFF : DEFAULT_HOURS);
       }
-      sheet.getRange(currentRow, CFG.FROZEN_COLS + 1, 1, daysInMonth)
+      sheet.getRange(rowR, CFG.DAY_COL_START, 1, daysInMonth)
         .setValues([dayVals])
         .setBackground(rowBg).setFontSize(9)
         .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(false);
 
-      sheet.setRowHeight(currentRow, 32);
+      sheet.setRowHeight(rowR, 32);
       currentRow++;
     }
   }
-
   var lastDataRow = currentRow - 1;
 
   // ── Column widths ─────────────────────────────────────────
-  sheet.setColumnWidth(1, 200);   // Manager Name
-  sheet.setColumnWidth(2, 90);    // Region
+  sheet.setColumnWidth(1, 200);   // Name
+  sheet.setColumnWidth(2, 88);    // Region
   sheet.setColumnWidth(3, 165);   // Procedure
-  sheet.setColumnWidth(4, 115);   // Manager ID
-  for (var c = CFG.FROZEN_COLS + 1; c <= totalCols; c++) sheet.setColumnWidth(c, 76);
+  sheet.setColumnWidth(4, 115);   // ID
+  sheet.setColumnWidth(5, 78);    // Working days
+  sheet.setColumnWidth(6, 68);    // Off days
+  sheet.setColumnWidth(7, 80);    // Vac/Sick
+  for (var c = CFG.DAY_COL_START; c <= totalCols; c++) sheet.setColumnWidth(c, 74);
 
-  // ── Borders ───────────────────────────────────────────────
-  sheet.getRange(CFG.HEADER_ROW, 1, lastDataRow - CFG.HEADER_ROW + 1, totalCols)
-    .setBorder(true, true, true, true, true, true,
-               C.BORDER, SpreadsheetApp.BorderStyle.SOLID);
+  // ── Data validation: day cells (dropdown) ─────────────────
+  var dayRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(OPTS, true).setAllowInvalid(true)
+    .setHelpText('Choose a shift, DO, Vacation, Sick, or Half Day').build();
+  for (var i = 0; i < managerRows.length; i++)
+    sheet.getRange(managerRows[i], CFG.DAY_COL_START, 1, daysInMonth).setDataValidation(dayRule);
 
-  // ── Freeze panes ─────────────────────────────────────────
+  // ── Data validation: Region column (col B) ────────────────
+  var regionRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(REGION_ORDER, true).setAllowInvalid(false).build();
+  for (var i = 0; i < managerRows.length; i++)
+    sheet.getRange(managerRows[i], 2).setDataValidation(regionRule);
+
+  // ── Data validation: Procedure column (col C) ────────────
+  var procRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(PROCEDURE_ORDER, true).setAllowInvalid(false).build();
+  for (var i = 0; i < managerRows.length; i++)
+    sheet.getRange(managerRows[i], 3).setDataValidation(procRule);
+  // ── Borders: thick outer frame, thin inner grid ───────────
+  var fullBlock = sheet.getRange(CFG.HEADER_ROW, 1, lastDataRow - CFG.HEADER_ROW + 1, totalCols);
+  // Inner thin grid first
+  fullBlock.setBorder(false, false, false, false, true, true,
+                      C.BORDER_IN, SpreadsheetApp.BorderStyle.SOLID);
+  // Outer thick frame on top (overrides edges only)
+  fullBlock.setBorder(true, true, true, true, false, false,
+                      C.BORDER_OUT, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+
+  // ── Freeze panes (no merge crosses col 7) ─────────────────
   sheet.setFrozenRows(CFG.HEADER_ROW);
   sheet.setFrozenColumns(CFG.FROZEN_COLS);
 
-  // ── Data validation (dropdown) on manager day cells ───────
-  var rule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(OPTS, true)
-    .setAllowInvalid(true)
-    .setHelpText('Choose: shift hours, DO (Day Off), or Vacation')
-    .build();
-  for (var i = 0; i < managerRows.length; i++) {
-    sheet.getRange(managerRows[i], CFG.FROZEN_COLS + 1, 1, daysInMonth)
-      .setDataValidation(rule);
-  }
-
-  // ── Conditional formatting ────────────────────────────────
+  // ── Conditional formatting (setBold fixes the TypeError) ──
   applyCF_(sheet, lastDataRow, daysInMonth, year, month, holidays);
 
-  // ── Filter on fixed columns ───────────────────────────────
+  // ── Filter on fixed columns (Region + Procedure dropdowns) ─
   sheet.getRange(CFG.HEADER_ROW, 1, lastDataRow - CFG.HEADER_ROW + 1, CFG.FROZEN_COLS)
     .createFilter();
 
-  // ── Today column highlight ────────────────────────────────
+  // ── Today column glow ─────────────────────────────────────
   var today = new Date();
   if (today.getFullYear() === year && today.getMonth() === month) {
-    var tc = CFG.FROZEN_COLS + today.getDate();
+    var tc = CFG.DAY_COL_START + today.getDate() - 1;
     if (tc <= totalCols) {
+      // Header: amber background + bold + thick border
       sheet.getRange(CFG.HEADER_ROW, tc)
         .setBackground(C.TODAY_BG).setFontColor(C.TODAY_FG).setFontWeight('bold')
         .setBorder(true, true, true, true, false, false,
-                   '#E65100', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+                   '#BF360C', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+      // Data column: light-amber tint on every manager row
+      for (var i = 0; i < managerRows.length; i++) {
+        sheet.getRange(managerRows[i], tc)
+          .setBackground(C.TODAY_COL)
+          .setBorder(null, true, null, true, false, false,
+                     '#FF6F00', SpreadsheetApp.BorderStyle.SOLID);
+      }
     }
   }
 
-  sheet.setTabColor('#1565C0');
-  SpreadsheetApp.flush();
+  // ── Tab colour ────────────────────────────────────────────
+  sheet.setTabColor('#0D47A1');
+
+  SpreadsheetApp.flush();   // ensure all formatting renders before function exits
   ss.setActiveSheet(sheet);
   sheet.setActiveSelection('A1');
-  Logger.log('Schedule built: ' + monthLabel + ' | ' + sorted.length + ' managers | rows 3-' + lastDataRow);
-}
+  Logger.log('✅ Built: ' + monthLabel + ' | ' + sorted.length + ' managers | rows 3-' + lastDataRow);
+} // END buildScheduleSheet
+
+
 // ─── CONDITIONAL FORMATTING ──────────────────────────────────
-// Priority (rules[0] = highest):
-//   Holiday columns  → amber
-//   Vacation text    → purple
-//   DO text          → red
-//   Any text with ':' → green (catches all shift strings)
+// KEY FIX: use .setBold(true) — NOT .setFontWeight('bold')
+// setFontWeight() does not exist on ConditionalFormatRuleBuilder.
 function applyCF_(sheet, lastDataRow, daysInMonth, year, month, holidays) {
   var startRow    = CFG.DATA_START_ROW;
   var numRows     = lastDataRow - startRow + 1;
   if (numRows <= 0) return;
-
-  var dayColStart = CFG.FROZEN_COLS + 1;
+  var dayColStart = CFG.DAY_COL_START;
   var fullRange   = sheet.getRange(startRow, dayColStart, numRows, daysInMonth);
+  var tz          = Session.getScriptTimeZone();
   var rules       = [];
 
   // Working hours (any cell containing ':') → green
@@ -353,28 +428,28 @@ function applyCF_(sheet, lastDataRow, daysInMonth, year, month, holidays) {
   // Day Off → red + bold
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextEqualTo(DAY_OFF)
-    .setBackground(C.OFF_BG).setFontColor(C.OFF_FG).setFontWeight('bold')
+    .setBackground(C.OFF_BG).setFontColor(C.OFF_FG).setBold(true)
     .setRanges([fullRange]).build());
 
   // Vacation → purple + bold
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextEqualTo(VACATION)
-    .setBackground(C.VAC_BG).setFontColor(C.VAC_FG).setFontWeight('bold')
+    .setBackground(C.VAC_BG).setFontColor(C.VAC_FG).setBold(true)
     .setRanges([fullRange]).build());
 
   // Sick → coral + bold
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextEqualTo(SICK)
-    .setBackground(C.SICK_BG).setFontColor(C.SICK_FG).setFontWeight('bold')
+    .setBackground(C.SICK_BG).setFontColor(C.SICK_FG).setBold(true)
     .setRanges([fullRange]).build());
 
   // Half Day → yellow + bold
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextEqualTo(HALF_DAY)
-    .setBackground(C.HALF_BG).setFontColor(C.HALF_FG).setFontWeight('bold')
+    .setBackground(C.HALF_BG).setFontColor(C.HALF_FG).setBold(true)
     .setRanges([fullRange]).build());
 
-  // Holiday columns → amber override (prepended = highest priority)
+  // Public holidays → amber override (prepended = highest priority)
   for (var h = 0; h < PUBLIC_HOLIDAYS.length; h++) {
     var hd = new Date(PUBLIC_HOLIDAYS[h] + 'T00:00:00');
     if (hd.getFullYear() !== year || hd.getMonth() !== month) continue;
@@ -384,143 +459,180 @@ function applyCF_(sheet, lastDataRow, daysInMonth, year, month, holidays) {
       .setBackground(C.HOL_BG).setFontColor(C.HOL_FG)
       .setRanges([sheet.getRange(startRow, col, numRows, 1)]).build());
     sheet.getRange(CFG.HEADER_ROW, col)
-      .setBackground(C.HOL_BG).setFontColor(C.HOL_FG).setFontWeight('bold');
+      .setBackground(C.HOL_BG).setFontColor(C.HOL_FG).setBold(true);
   }
 
   sheet.setConditionalFormatRules(rules);
 }
+// ─── MANAGER DATA PERSISTENCE ────────────────────────────────
+// Managers are stored in a hidden sheet '_Managers_' so you can
+// add / remove people without touching the script code.
+
+function getManagersList_(ss) {
+  var ms = ss.getSheetByName('_Managers_');
+  if (!ms || ms.getLastRow() < 2) return initManagersSheet_(ss);
+  var data = ms.getRange(2, 1, ms.getLastRow() - 1, 5).getValues();
+  return data.filter(function(r){return String(r[0]).trim();}).map(function(r){
+    return {name:String(r[0]),region:String(r[1]),procedure:String(r[2]),id:String(r[3]),slackId:String(r[4])};
+  });
+}
+
+function initManagersSheet_(ss) {
+  var ms = ss.getSheetByName('_Managers_') || ss.insertSheet('_Managers_');
+  ms.hideSheet();
+  ms.clearContents();
+  ms.appendRow(['Name','Region','Procedure','ID','SlackID']);
+  var rows = MANAGERS.map(function(m){return [m.name,m.region,m.procedure,m.id,''];});
+  if (rows.length) ms.getRange(2,1,rows.length,5).setValues(rows);
+  return MANAGERS;
+}
+
+// ─── ADD NEW MANAGER ─────────────────────────────────────────
+function addNewManager() {
+  var ui = SpreadsheetApp.getUi();
+  var r1 = ui.prompt('New Manager (1/4)','Full name:',ui.ButtonSet.OK_CANCEL);
+  if (r1.getSelectedButton()!==ui.Button.OK) return;
+  var name = r1.getResponseText().trim(); if (!name) return;
+
+  var r2 = ui.prompt('New Manager (2/4)','Region:\n'+REGION_ORDER.join(' / '),ui.ButtonSet.OK_CANCEL);
+  if (r2.getSelectedButton()!==ui.Button.OK) return;
+  var region = r2.getResponseText().trim().toUpperCase();
+  if (REGION_ORDER.indexOf(region)<0){ui.alert('Invalid region: '+region); return;}
+
+  var r3 = ui.prompt('New Manager (3/4)','Procedure:\n1. Churn Prevention\n2. Killer Base\n3. Active Retention',ui.ButtonSet.OK_CANCEL);
+  if (r3.getSelectedButton()!==ui.Button.OK) return;
+  var pt = r3.getResponseText().trim();
+  var procedure = pt==='1'?'Churn Prevention':pt==='2'?'Killer Base':pt==='3'?'Active Retention':pt;
+  if (PROCEDURE_ORDER.indexOf(procedure)<0){ui.alert('Invalid procedure: '+procedure); return;}
+
+  var r4 = ui.prompt('New Manager (4/4)','Manager ID (e.g. MGR-TR-004):',ui.ButtonSet.OK_CANCEL);
+  if (r4.getSelectedButton()!==ui.Button.OK) return;
+  var id = r4.getResponseText().trim(); if (!id) return;
+
+  var ss = getSpreadsheet_();
+  var ms = ss.getSheetByName('_Managers_') || (initManagersSheet_(ss), ss.getSheetByName('_Managers_'));
+  ms.appendRow([name,region,procedure,id,'']);
+
+  var rebuild = ui.alert('Manager Added!',name+' ('+region+') added.\nRebuild schedule now?',ui.ButtonSet.YES_NO);
+  if (rebuild===ui.Button.YES) buildScheduleSheet();
+}
+
+// ─── RESET DAY CELLS ONLY ────────────────────────────────────
+// Clears day-cell values back to defaults; manager info is preserved.
+function resetSheet() {
+  var ui  = SpreadsheetApp.getUi();
+  var res = ui.alert('Reset Day Cells?','Resets all day cells to defaults (working hours / DO for weekends). Manager names stay. Continue?',ui.ButtonSet.YES_NO);
+  if (res!==ui.Button.YES) return;
+  // Rebuild is the cleanest reset — it regenerates everything from scratch.
+  buildScheduleSheet();
+  ui.alert('Done','Sheet has been reset to defaults.',ui.ButtonSet.OK);
+}
 
 // ─── UPDATE MONTH ─────────────────────────────────────────────
 function updateMonth() {
-  var ui   = SpreadsheetApp.getUi();
-  var next = new Date();
-  next.setDate(1);
-  next.setMonth(next.getMonth() + 1);
-  var label = Utilities.formatDate(next, Session.getScriptTimeZone(), 'MMMM yyyy');
-  var res = ui.alert('Rebuild for Next Month?',
-    'Clear all data and rebuild for ' + label + '?', ui.ButtonSet.YES_NO);
-  if (res !== ui.Button.YES) return;
+  var ui = SpreadsheetApp.getUi();
+  var next = new Date(); next.setDate(1); next.setMonth(next.getMonth()+1);
+  var label = Utilities.formatDate(next,Session.getScriptTimeZone(),'MMMM yyyy');
+  var r = ui.alert('Next Month?','Clear all data and build for '+label+'?',ui.ButtonSet.YES_NO);
+  if (r!==ui.Button.YES) return;
   buildScheduleSheet(next);
-  ui.alert('Done', 'Schedule rebuilt for ' + label + '.', ui.ButtonSet.OK);
 }
-// ─── POST SCHEDULE TO SLACK ───────────────────────────────────
+
+// ─── POST TO SLACK ────────────────────────────────────────────
 function postScheduleToSlack() {
-  if (CFG.SLACK_WEBHOOK === 'YOUR_SLACK_WEBHOOK_URL_HERE') {
-    SpreadsheetApp.getUi().alert('Setup Required',
-      'Replace CFG.SLACK_WEBHOOK with your Slack Incoming Webhook URL.',
-      SpreadsheetApp.getUi().ButtonSet.OK);
+  if (CFG.SLACK_WEBHOOK==='YOUR_SLACK_WEBHOOK_URL_HERE') {
+    SpreadsheetApp.getUi().alert('Setup Required','Set CFG.SLACK_WEBHOOK to your Slack Incoming Webhook URL.',SpreadsheetApp.getUi().ButtonSet.OK);
     return;
   }
-  var ss    = SpreadsheetApp.getActiveSpreadsheet();
+  var ss    = getSpreadsheet_();
   var sheet = ss.getSheetByName(CFG.SHEET_NAME);
-  if (!sheet) { ss.toast('Sheet not found. Run Build first.', 'Error', 5); return; }
+  if (!sheet) { ss.toast('Sheet not found.','Error',4); return; }
 
   var tz          = Session.getScriptTimeZone();
   var today       = new Date();
-  var displayDate = Utilities.formatDate(today, tz, 'EEEE, MMMM dd yyyy');
-  var todayCol    = CFG.FROZEN_COLS + today.getDate();
-  if (todayCol > sheet.getLastColumn()) {
-    ss.toast('Today is outside the current schedule month.', 'Warning', 5); return;
-  }
+  var displayDate = Utilities.formatDate(today,tz,'EEEE, MMMM dd yyyy');
+  var todayCol    = CFG.DAY_COL_START + today.getDate() - 1;
+  if (todayCol > sheet.getLastColumn()) { ss.toast('Today outside current month.','Warning',5); return; }
 
   var lastRow = sheet.getLastRow();
-  var data    = sheet.getRange(1, 1, lastRow, sheet.getLastColumn()).getValues();
+  var data    = sheet.getRange(1,1,lastRow,sheet.getLastColumn()).getValues();
 
-  // Build per-region status buckets
   var status = {};
-  for (var i = 0; i < REGION_ORDER.length; i++) {
-    status[REGION_ORDER[i]] = {working:[], off:[], vacation:[], sick:[], half:[]};
-  }
-  for (var r = CFG.DATA_START_ROW - 1; r < lastRow; r++) {
-    var row  = data[r];
-    var name = String(row[0]||'').trim();
-    var reg  = String(row[1]||'').trim();
-    var proc = String(row[2]||'').trim();
-    var id   = String(row[3]||'').trim();
-    if (!name || !id || REGION_ORDER.indexOf(reg) < 0) continue;
-    var val  = String(row[todayCol - 1]||'').trim();
-    var tag  = '*' + name + '*  _(' + proc + ')_';
-    if      (val === DAY_OFF)   status[reg].off.push('• ' + tag);
-    else if (val === VACATION)  status[reg].vacation.push('• ' + tag);
-    else if (val === SICK)      status[reg].sick.push('• ' + tag);
-    else if (val === HALF_DAY)  status[reg].half.push('• ' + tag);
-    else if (val !== '')        status[reg].working.push('• ' + tag + '  `' + val + '`');
+  for (var i=0;i<REGION_ORDER.length;i++) status[REGION_ORDER[i]]={w:[],o:[],v:[],s:[],h:[]};
+
+  for (var r=CFG.DATA_START_ROW-1;r<lastRow;r++) {
+    var row=data[r], name=String(row[0]||'').trim(), reg=String(row[1]||'').trim();
+    var proc=String(row[2]||'').trim(), id=String(row[3]||'').trim();
+    if (!name||!id||REGION_ORDER.indexOf(reg)<0) continue;
+    var val=String(row[todayCol-1]||'').trim();
+    var tag='*'+name+'*  _('+proc+')_';
+    if (val===DAY_OFF) status[reg].o.push('• '+tag);
+    else if (val===VACATION) status[reg].v.push('• '+tag);
+    else if (val===SICK) status[reg].s.push('• '+tag);
+    else if (val===HALF_DAY) status[reg].h.push('• '+tag);
+    else if (val) status[reg].w.push('• '+tag+'  `'+val+'`');
   }
 
-  // Totals
-  var tw = 0, to = 0, tv = 0, ts = 0, th = 0;
-  for (var i = 0; i < REGION_ORDER.length; i++) {
-    var s = status[REGION_ORDER[i]];
-    tw += s.working.length; to += s.off.length; tv += s.vacation.length;
-    ts += s.sick.length;    th += s.half.length;
-  }
+  var tw=0,to=0,tv=0,ts=0,th=0;
+  for (var i=0;i<REGION_ORDER.length;i++){var s=status[REGION_ORDER[i]];tw+=s.w.length;to+=s.o.length;tv+=s.v.length;ts+=s.s.length;th+=s.h.length;}
+  var total=tw+to+tv+ts+th;
 
-  // Build Block Kit blocks
-  var blocks = [];
-  blocks.push({type:'header',
-    text:{type:'plain_text', text:'Manager Daily Schedule  —  ' + displayDate, emoji:true}});
+  // Capacity bar (20 chars wide)
+  var filled=total>0?Math.round(tw/total*20):0;
+  var bar='`'+repeat_('█',filled)+repeat_('░',20-filled)+'`  '+tw+'/'+total+' active';
+
+  var blocks=[];
+  blocks.push({type:'header',text:{type:'plain_text',text:'📋  Manager Schedule  —  '+displayDate,emoji:true}});
   blocks.push({type:'divider'});
-  blocks.push({type:'section', fields:[
-    {type:'mrkdwn', text:'*Working*\n✅  ' + tw},
-    {type:'mrkdwn', text:'*Day Off*\n🔴  ' + to},
-    {type:'mrkdwn', text:'*Vacation*\n🟣  ' + tv},
-    {type:'mrkdwn', text:'*Sick*\n🟠  ' + ts},
-    {type:'mrkdwn', text:'*Half Day*\n🟡  ' + th}
+  blocks.push({type:'section',text:{type:'mrkdwn',text:'*Capacity Today:*\n'+bar}});
+  blocks.push({type:'section',fields:[
+    {type:'mrkdwn',text:'✅ *Working*\n'+tw},
+    {type:'mrkdwn',text:'🔴 *Day Off*\n'+to},
+    {type:'mrkdwn',text:'🟣 *Vacation*\n'+tv},
+    {type:'mrkdwn',text:'🟠 *Sick*\n'+ts},
+    {type:'mrkdwn',text:'🟡 *Half Day*\n'+th}
   ]});
   blocks.push({type:'divider'});
 
-  for (var i = 0; i < REGION_ORDER.length; i++) {
-    var region = REGION_ORDER[i];
-    var s      = status[region];
-    if (s.working.length + s.off.length + s.vacation.length + s.sick.length + s.half.length === 0) continue;
-    blocks.push({type:'section', text:{type:'mrkdwn', text:'*🌍  ' + region + '*'}});
-    if (s.working.length)
-      blocks.push({type:'section', text:{type:'mrkdwn', text:'✅  *Working:*\n' + s.working.join('\n')}});
-    if (s.off.length)
-      blocks.push({type:'section', text:{type:'mrkdwn', text:'🔴  *Day Off:*\n' + s.off.join('\n')}});
-    if (s.vacation.length)
-      blocks.push({type:'section', text:{type:'mrkdwn', text:'🟣  *Vacation:*\n' + s.vacation.join('\n')}});
-    if (s.sick.length)
-      blocks.push({type:'section', text:{type:'mrkdwn', text:'🟠  *Sick:*\n' + s.sick.join('\n')}});
-    if (s.half.length)
-      blocks.push({type:'section', text:{type:'mrkdwn', text:'🟡  *Half Day:*\n' + s.half.join('\n')}});
+  for (var i=0;i<REGION_ORDER.length;i++){
+    var reg=REGION_ORDER[i],s=status[reg];
+    if (s.w.length+s.o.length+s.v.length+s.s.length+s.h.length===0) continue;
+    var emoji=REGION_EMOJIS[reg]||'🌍';
+    blocks.push({type:'section',text:{type:'mrkdwn',text:emoji+'  *'+reg+'*'}});
+    if (s.w.length) blocks.push({type:'section',text:{type:'mrkdwn',text:'✅ *Working:*\n'+s.w.join('\n')}});
+    if (s.o.length) blocks.push({type:'section',text:{type:'mrkdwn',text:'🔴 *Day Off:*\n'+s.o.join('\n')}});
+    if (s.v.length) blocks.push({type:'section',text:{type:'mrkdwn',text:'🟣 *Vacation:*\n'+s.v.join('\n')}});
+    if (s.s.length) blocks.push({type:'section',text:{type:'mrkdwn',text:'🟠 *Sick:*\n'+s.s.join('\n')}});
+    if (s.h.length) blocks.push({type:'section',text:{type:'mrkdwn',text:'🟡 *Half Day:*\n'+s.h.join('\n')}});
     blocks.push({type:'divider'});
   }
-  blocks.push({type:'context', elements:[
-    {type:'mrkdwn', text:'_Auto-posted from Google Sheets · ' + displayDate + '_'}
-  ]});
 
-  // Send (chunk to ≤50 blocks per request)
-  var ok = true;
-  for (var i = 0; i < blocks.length; i += 50) {
-    var resp = UrlFetchApp.fetch(CFG.SLACK_WEBHOOK, {
-      method:'post', contentType:'application/json',
-      payload: JSON.stringify({blocks: blocks.slice(i, i + 50)}),
-      muteHttpExceptions: true
-    });
-    Logger.log('Slack ' + resp.getResponseCode() + ': ' + resp.getContentText());
-    if (resp.getResponseCode() !== 200) ok = false;
+  // Action button: open the sheet
+  var sheetUrl = CFG.SHEET_URL || ss.getUrl();
+  if (sheetUrl) blocks.push({type:'actions',elements:[{type:'button',text:{type:'plain_text',text:'📊 Open Schedule Sheet',emoji:true},url:sheetUrl,style:'primary'}]});
+  blocks.push({type:'context',elements:[{type:'mrkdwn',text:'_Auto-posted · '+displayDate+'_'}]});
+
+  // Send (chunk at 50-block Slack limit)
+  var ok=true;
+  for (var i=0;i<blocks.length;i+=50){
+    var resp=UrlFetchApp.fetch(CFG.SLACK_WEBHOOK,{method:'post',contentType:'application/json',payload:JSON.stringify({blocks:blocks.slice(i,i+50)}),muteHttpExceptions:true});
+    Logger.log('Slack '+resp.getResponseCode()+': '+resp.getContentText());
+    if (resp.getResponseCode()!==200) ok=false;
   }
-  ss.toast(ok ? 'Posted to Slack!' : 'Slack error — check logs.', ok ? 'Success' : 'Error', 5);
+  ss.toast(ok?'Posted to Slack!':'Slack error — check logs.',ok?'Success':'Error',5);
 }
+
+function repeat_(ch,n){var s='';for(var i=0;i<n;i++)s+=ch;return s;}
 
 // ─── TRIGGERS ─────────────────────────────────────────────────
 function createTimeDrivenTrigger() {
-  // Remove any existing postScheduleToSlack triggers first
-  var triggers = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < triggers.length; i++) {
-    if (triggers[i].getHandlerFunction() === 'postScheduleToSlack')
-      ScriptApp.deleteTrigger(triggers[i]);
-  }
-  ScriptApp.newTrigger('postScheduleToSlack')
-    .timeBased().everyDays(1).atHour(CFG.POST_HOUR).create();
-  SpreadsheetApp.getActiveSpreadsheet()
-    .toast('Daily trigger set: ' + CFG.POST_HOUR + ':00 AM every day.', 'Trigger Created', 6);
+  var triggers=ScriptApp.getProjectTriggers();
+  for(var i=0;i<triggers.length;i++) if(triggers[i].getHandlerFunction()==='postScheduleToSlack') ScriptApp.deleteTrigger(triggers[i]);
+  ScriptApp.newTrigger('postScheduleToSlack').timeBased().everyDays(1).atHour(CFG.POST_HOUR).create();
+  getSpreadsheet_().toast('Daily trigger set for '+CFG.POST_HOUR+':00 AM.','Trigger Created',6);
 }
-
 function deleteAllTriggers() {
-  var triggers = ScriptApp.getProjectTriggers();
-  for (var i = 0; i < triggers.length; i++) ScriptApp.deleteTrigger(triggers[i]);
-  SpreadsheetApp.getActiveSpreadsheet()
-    .toast(triggers.length + ' trigger(s) removed.', 'Done', 4);
+  var triggers=ScriptApp.getProjectTriggers();
+  for(var i=0;i<triggers.length;i++) ScriptApp.deleteTrigger(triggers[i]);
+  getSpreadsheet_().toast(triggers.length+' trigger(s) removed.','Done',4);
 }
