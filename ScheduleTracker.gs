@@ -16,25 +16,53 @@ var CFG = {
 };
 
 // ─── DROPDOWN OPTIONS (shown in every day cell) ───────────────
-var OPTS = ['09:00-18:00','10:00-19:00','08:00-17:00','07:00-16:00','12:00-21:00','DO','Vacation'];
+var OPTS = [
+  '09:00-18:00',
+  '10:00-19:00',
+  '08:00-17:00',
+  '07:00-16:00',
+  '12:00-21:00',
+  '14:00-23:00',
+  'Half Day',
+  'DO',
+  'Vacation',
+  'Sick',
+];
 var DEFAULT_HOURS = '09:00-18:00';
 var DAY_OFF       = 'DO';
 var VACATION      = 'Vacation';
+var SICK          = 'Sick';
+var HALF_DAY      = 'Half Day';
 
 // ─── COLOURS ─────────────────────────────────────────────────
 var C = {
-  TITLE_BG : '#1565C0', TITLE_FG : '#FFFFFF',
-  HDR_BG   : '#1976D2', HDR_FG   : '#FFFFFF',
-  WKND_BG  : '#455A64', WKND_FG  : '#FFFFFF',
+  TITLE_BG : '#0D47A1', TITLE_FG : '#FFFFFF',
+  LEGEND_BG: '#E3F2FD', LEGEND_FG: '#0D47A1',
+  HDR_BG   : '#1565C0', HDR_FG   : '#FFFFFF',
+  WKND_BG  : '#37474F', WKND_FG  : '#FFFFFF',
   RGN_BG   : '#1976D2', RGN_FG   : '#FFFFFF',
-  WORK_BG  : '#C8E6C9', WORK_FG  : '#1B5E20',
-  OFF_BG   : '#FFCDD2', OFF_FG   : '#B71C1C',
-  VAC_BG   : '#E1BEE7', VAC_FG   : '#6A1B9A',
-  HOL_BG   : '#FFE082', HOL_FG   : '#E65100',
-  TODAY_BG : '#FFA000', TODAY_FG : '#FFFFFF',
-  ODD_BG   : '#F5F7FF', EVN_BG   : '#FFFFFF',
-  BORDER   : '#BBDEFB',
+  WORK_BG  : '#A5D6A7', WORK_FG  : '#1B5E20',
+  OFF_BG   : '#EF9A9A', OFF_FG   : '#B71C1C',
+  VAC_BG   : '#CE93D8', VAC_FG   : '#4A148C',
+  SICK_BG  : '#FFAB91', SICK_FG  : '#BF360C',
+  HALF_BG  : '#FFF59D', HALF_FG  : '#F57F17',
+  HOL_BG   : '#FFD54F', HOL_FG   : '#E65100',
+  TODAY_BG : '#FF6F00', TODAY_FG : '#FFFFFF',
+  ODD_BG   : '#F5F9FF', EVN_BG   : '#FFFFFF',
+  BORDER   : '#90CAF9',
+  // Procedure tints (column C accent)
+  PROC_CHURN : '#E1F5FE',  // light blue
+  PROC_KILL  : '#FFF3E0',  // light orange
+  PROC_RETEN : '#E0F2F1',  // light teal
 };
+
+// ─── PROCEDURE → TINT COLOUR ─────────────────────────────────
+function procColour_(procedure) {
+  if (procedure === 'Churn Prevention') return C.PROC_CHURN;
+  if (procedure === 'Killer Base')      return C.PROC_KILL;
+  if (procedure === 'Active Retention') return C.PROC_RETEN;
+  return null;
+}
 
 // ─── SORT ORDERS ─────────────────────────────────────────────
 var REGION_ORDER    = ['TR','ES','IL','RU','IT','CZ/SK','AE/ARAB/SA','FR','PL','RO'];
@@ -130,17 +158,27 @@ function buildScheduleSheet(targetDate) {
     if (byRegion[sorted[i].region]) byRegion[sorted[i].region].push(sorted[i]);
   }
 
-  // ── ROW 1: Title ─────────────────────────────────────────
-  sheet.getRange(1, 1, 1, totalCols).merge()
-    .setValue('Daily Manager Schedule Tracker  —  ' + monthLabel)
+  // ── ROW 1: Title (frozen pane A:D) + Legend (scrollable pane) ─
+  // IMPORTANT: merges must NOT cross the freeze boundary at col 4,
+  // otherwise setFrozenColumns() throws. We split row 1 into two
+  // independent merges, one per pane.
+  sheet.getRange(1, 1, 1, CFG.FROZEN_COLS).merge()
+    .setValue('📋   SCHEDULE TRACKER   ·   ' + monthLabel.toUpperCase())
     .setBackground(C.TITLE_BG).setFontColor(C.TITLE_FG)
-    .setFontSize(15).setFontWeight('bold')
+    .setFontSize(13).setFontWeight('bold')
     .setHorizontalAlignment('center').setVerticalAlignment('middle');
-  sheet.setRowHeight(1, 46);
+
+  sheet.getRange(1, CFG.FROZEN_COLS + 1, 1, daysInMonth).merge()
+    .setValue('LEGEND   🟢 Working   🔴 Day Off   🟣 Vacation   🟠 Sick   🟡 Half Day   🟧 Holiday   ◆ Today')
+    .setBackground(C.LEGEND_BG).setFontColor(C.LEGEND_FG)
+    .setFontSize(10).setFontWeight('bold')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+
+  sheet.setRowHeight(1, 42);
 
   // ── ROW 2: Column headers ─────────────────────────────────
   sheet.getRange(CFG.HEADER_ROW, 1, 1, CFG.FROZEN_COLS)
-    .setValues([['Manager Name','Region','Procedure','Manager ID']])
+    .setValues([['MANAGER NAME','REGION','PROCEDURE','MANAGER ID']])
     .setBackground(C.HDR_BG).setFontColor(C.HDR_FG)
     .setFontWeight('bold').setFontSize(10)
     .setHorizontalAlignment('center').setVerticalAlignment('middle');
@@ -153,9 +191,9 @@ function buildScheduleSheet(targetDate) {
   sheet.getRange(CFG.HEADER_ROW, CFG.FROZEN_COLS + 1, 1, daysInMonth)
     .setValues([dayLabels])
     .setBackground(C.HDR_BG).setFontColor(C.HDR_FG)
-    .setFontWeight('bold').setFontSize(9)
+    .setFontWeight('bold').setFontSize(10)
     .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
-  sheet.setRowHeight(CFG.HEADER_ROW, 50);
+  sheet.setRowHeight(CFG.HEADER_ROW, 52);
 
   // Weekend headers: blue-grey
   for (var d = 1; d <= daysInMonth; d++) {
@@ -187,29 +225,39 @@ function buildScheduleSheet(targetDate) {
       .setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
     sheet.getRange(currentRow, 3, 1, CFG.FROZEN_COLS - 2 + daysInMonth)
       .setBackground(C.RGN_BG);
+    // Show region member count in column C of the separator row
+    sheet.getRange(currentRow, 3)
+      .setValue(mgrs.length + ' manager' + (mgrs.length !== 1 ? 's' : ''))
+      .setFontColor(C.RGN_FG).setFontStyle('italic').setFontSize(10)
+      .setHorizontalAlignment('left');
     sheet.getRange(currentRow, 1, 1, totalCols)
       .setBorder(true, false, true, false, false, false,
                  C.RGN_FG, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-    sheet.setRowHeight(currentRow, 28);
+    sheet.setRowHeight(currentRow, 30);
     currentRow++;
 
     // Manager rows
     for (var mi = 0; mi < mgrs.length; mi++) {
-      var mgr   = mgrs[mi];
-      var rowBg = (mi % 2 === 0) ? C.ODD_BG : C.EVN_BG;
+      var mgr     = mgrs[mi];
+      var rowBg   = (mi % 2 === 0) ? C.ODD_BG : C.EVN_BG;
+      var procBg  = procColour_(mgr.procedure) || rowBg;
       managerRows.push(currentRow);
 
+      // Cols A, B, D get the row tint
       sheet.getRange(currentRow, 1, 1, CFG.FROZEN_COLS)
         .setValues([[mgr.name, mgr.region, mgr.procedure, mgr.id]])
-        .setBackground(rowBg).setVerticalAlignment('middle').setFontSize(10);
+        .setBackground(rowBg).setVerticalAlignment('middle').setFontSize(11);
+      // Col C gets the procedure tint
+      sheet.getRange(currentRow, 3).setBackground(procBg).setFontWeight('bold');
+
       sheet.getRange(currentRow, 1)
         .setFontWeight('bold').setHorizontalAlignment('left');
       sheet.getRange(currentRow, 2, 1, 3)
         .setHorizontalAlignment('center');
       sheet.getRange(currentRow, 4)
-        .setFontSize(8).setFontColor('#78909C');
+        .setFontSize(9).setFontColor('#607D8B');
 
-      // Day cells
+      // Day cells: default to working hours; weekends & holidays → DO
       var dayVals = [];
       for (var d = 1; d <= daysInMonth; d++) {
         var dayDate = new Date(year, month, d);
@@ -219,10 +267,10 @@ function buildScheduleSheet(targetDate) {
       }
       sheet.getRange(currentRow, CFG.FROZEN_COLS + 1, 1, daysInMonth)
         .setValues([dayVals])
-        .setBackground(rowBg).setFontSize(8)
+        .setBackground(rowBg).setFontSize(9)
         .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(false);
 
-      sheet.setRowHeight(currentRow, 28);
+      sheet.setRowHeight(currentRow, 32);
       currentRow++;
     }
   }
@@ -230,11 +278,11 @@ function buildScheduleSheet(targetDate) {
   var lastDataRow = currentRow - 1;
 
   // ── Column widths ─────────────────────────────────────────
-  sheet.setColumnWidth(1, 175);
-  sheet.setColumnWidth(2, 80);
-  sheet.setColumnWidth(3, 140);
-  sheet.setColumnWidth(4, 105);
-  for (var c = CFG.FROZEN_COLS + 1; c <= totalCols; c++) sheet.setColumnWidth(c, 66);
+  sheet.setColumnWidth(1, 200);   // Manager Name
+  sheet.setColumnWidth(2, 90);    // Region
+  sheet.setColumnWidth(3, 165);   // Procedure
+  sheet.setColumnWidth(4, 115);   // Manager ID
+  for (var c = CFG.FROZEN_COLS + 1; c <= totalCols; c++) sheet.setColumnWidth(c, 76);
 
   // ── Borders ───────────────────────────────────────────────
   sheet.getRange(CFG.HEADER_ROW, 1, lastDataRow - CFG.HEADER_ROW + 1, totalCols)
@@ -314,6 +362,18 @@ function applyCF_(sheet, lastDataRow, daysInMonth, year, month, holidays) {
     .setBackground(C.VAC_BG).setFontColor(C.VAC_FG).setFontWeight('bold')
     .setRanges([fullRange]).build());
 
+  // Sick → coral + bold
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenTextEqualTo(SICK)
+    .setBackground(C.SICK_BG).setFontColor(C.SICK_FG).setFontWeight('bold')
+    .setRanges([fullRange]).build());
+
+  // Half Day → yellow + bold
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenTextEqualTo(HALF_DAY)
+    .setBackground(C.HALF_BG).setFontColor(C.HALF_FG).setFontWeight('bold')
+    .setRanges([fullRange]).build());
+
   // Holiday columns → amber override (prepended = highest priority)
   for (var h = 0; h < PUBLIC_HOLIDAYS.length; h++) {
     var hd = new Date(PUBLIC_HOLIDAYS[h] + 'T00:00:00');
@@ -369,7 +429,7 @@ function postScheduleToSlack() {
   // Build per-region status buckets
   var status = {};
   for (var i = 0; i < REGION_ORDER.length; i++) {
-    status[REGION_ORDER[i]] = {working:[], off:[], vacation:[]};
+    status[REGION_ORDER[i]] = {working:[], off:[], vacation:[], sick:[], half:[]};
   }
   for (var r = CFG.DATA_START_ROW - 1; r < lastRow; r++) {
     var row  = data[r];
@@ -382,14 +442,17 @@ function postScheduleToSlack() {
     var tag  = '*' + name + '*  _(' + proc + ')_';
     if      (val === DAY_OFF)   status[reg].off.push('• ' + tag);
     else if (val === VACATION)  status[reg].vacation.push('• ' + tag);
+    else if (val === SICK)      status[reg].sick.push('• ' + tag);
+    else if (val === HALF_DAY)  status[reg].half.push('• ' + tag);
     else if (val !== '')        status[reg].working.push('• ' + tag + '  `' + val + '`');
   }
 
   // Totals
-  var tw = 0, to = 0, tv = 0;
+  var tw = 0, to = 0, tv = 0, ts = 0, th = 0;
   for (var i = 0; i < REGION_ORDER.length; i++) {
     var s = status[REGION_ORDER[i]];
     tw += s.working.length; to += s.off.length; tv += s.vacation.length;
+    ts += s.sick.length;    th += s.half.length;
   }
 
   // Build Block Kit blocks
@@ -398,23 +461,29 @@ function postScheduleToSlack() {
     text:{type:'plain_text', text:'Manager Daily Schedule  —  ' + displayDate, emoji:true}});
   blocks.push({type:'divider'});
   blocks.push({type:'section', fields:[
-    {type:'mrkdwn', text:'*Working today*\n✅  ' + tw + ' manager' + (tw!==1?'s':'')},
-    {type:'mrkdwn', text:'*Day Off*\n🔴  ' + to  + ' manager' + (to!==1?'s':'')},
-    {type:'mrkdwn', text:'*Vacation*\n🏖️  '  + tv + ' manager' + (tv!==1?'s':'')}
+    {type:'mrkdwn', text:'*Working*\n✅  ' + tw},
+    {type:'mrkdwn', text:'*Day Off*\n🔴  ' + to},
+    {type:'mrkdwn', text:'*Vacation*\n🟣  ' + tv},
+    {type:'mrkdwn', text:'*Sick*\n🟠  ' + ts},
+    {type:'mrkdwn', text:'*Half Day*\n🟡  ' + th}
   ]});
   blocks.push({type:'divider'});
 
   for (var i = 0; i < REGION_ORDER.length; i++) {
     var region = REGION_ORDER[i];
     var s      = status[region];
-    if (s.working.length + s.off.length + s.vacation.length === 0) continue;
+    if (s.working.length + s.off.length + s.vacation.length + s.sick.length + s.half.length === 0) continue;
     blocks.push({type:'section', text:{type:'mrkdwn', text:'*🌍  ' + region + '*'}});
     if (s.working.length)
       blocks.push({type:'section', text:{type:'mrkdwn', text:'✅  *Working:*\n' + s.working.join('\n')}});
     if (s.off.length)
       blocks.push({type:'section', text:{type:'mrkdwn', text:'🔴  *Day Off:*\n' + s.off.join('\n')}});
     if (s.vacation.length)
-      blocks.push({type:'section', text:{type:'mrkdwn', text:'🏖️  *Vacation:*\n' + s.vacation.join('\n')}});
+      blocks.push({type:'section', text:{type:'mrkdwn', text:'🟣  *Vacation:*\n' + s.vacation.join('\n')}});
+    if (s.sick.length)
+      blocks.push({type:'section', text:{type:'mrkdwn', text:'🟠  *Sick:*\n' + s.sick.join('\n')}});
+    if (s.half.length)
+      blocks.push({type:'section', text:{type:'mrkdwn', text:'🟡  *Half Day:*\n' + s.half.join('\n')}});
     blocks.push({type:'divider'});
   }
   blocks.push({type:'context', elements:[
