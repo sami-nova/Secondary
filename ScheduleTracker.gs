@@ -9,10 +9,10 @@ var CFG = {
   SLACK_WEBHOOK : 'YOUR_SLACK_WEBHOOK_URL_HERE',
   SHEET_URL     : '',           // optional: paste your sheet URL for Slack button
   POST_HOUR     : 8,
-  FROZEN_COLS   : 7,            // Name·Region·Procedure·ID·Working·Off·Vac/Sick
+  FROZEN_COLS   : 6,            // Name·Region·Procedure·Working·Off·Vac/Sick
   HEADER_ROW    : 2,
   DATA_START_ROW: 3,
-  DAY_COL_START : 8,            // day columns begin at col 8 (H)
+  DAY_COL_START : 7,            // day columns begin at col 7 (G)
 };
 
 // ─── SCHEDULE OPTIONS (dropdown in every day cell) ────────────
@@ -76,38 +76,46 @@ var PUBLIC_HOLIDAYS = [
   // '2026-05-01',
 ];
 
-// ─── DEFAULT MANAGER ROSTER (28 managers) ────────────────────
-// These seed the hidden _Managers_ sheet on first run.
+// ─── DEFAULT MANAGER ROSTER (26 managers) ────────────────────
+// Seeds the hidden _Managers_ sheet on first run.
 // Use  Schedule Management → Add New Manager  to add more.
 var MANAGERS = [
-  {name:'Ahmet Yilmaz',      region:'TR',         procedure:'Churn Prevention', id:'MGR-TR-001'},
-  {name:'Fatma Kaya',        region:'TR',         procedure:'Killer Base',       id:'MGR-TR-002'},
-  {name:'Mehmet Demir',      region:'TR',         procedure:'Active Retention',  id:'MGR-TR-003'},
-  {name:'Carlos García',     region:'ES',         procedure:'Churn Prevention', id:'MGR-ES-001'},
-  {name:'María López',       region:'ES',         procedure:'Active Retention',  id:'MGR-ES-002'},
-  {name:'Rodrigo Silva',     region:'ES',         procedure:'Killer Base',       id:'MGR-ES-003'},
-  {name:'Avi Cohen',         region:'IL',         procedure:'Killer Base',       id:'MGR-IL-001'},
-  {name:'Noa Levi',          region:'IL',         procedure:'Active Retention',  id:'MGR-IL-002'},
-  {name:'Ivan Petrov',       region:'RU',         procedure:'Churn Prevention', id:'MGR-RU-001'},
-  {name:'Anna Smirnova',     region:'RU',         procedure:'Active Retention',  id:'MGR-RU-002'},
-  {name:'Dmitri Volkov',     region:'RU',         procedure:'Killer Base',       id:'MGR-RU-003'},
-  {name:'Marco Rossi',       region:'IT',         procedure:'Churn Prevention', id:'MGR-IT-001'},
-  {name:'Giulia Ferrari',    region:'IT',         procedure:'Active Retention',  id:'MGR-IT-002'},
-  {name:'Hans Mueller',      region:'IT',         procedure:'Killer Base',       id:'MGR-IT-003'},
-  {name:'Jan Novak',         region:'CZ/SK',      procedure:'Killer Base',       id:'MGR-CZ-001'},
-  {name:'Eva Svoboda',       region:'CZ/SK',      procedure:'Churn Prevention', id:'MGR-CZ-002'},
-  {name:'Omar Al-Rashid',    region:'AE/ARAB/SA', procedure:'Active Retention',  id:'MGR-AE-001'},
-  {name:'Layla Khalid',      region:'AE/ARAB/SA', procedure:'Churn Prevention', id:'MGR-AE-002'},
-  {name:'Yusuf Hassan',      region:'AE/ARAB/SA', procedure:'Killer Base',       id:'MGR-AE-003'},
-  {name:'Pierre Dubois',     region:'FR',         procedure:'Churn Prevention', id:'MGR-FR-001'},
-  {name:'Sophie Martin',     region:'FR',         procedure:'Active Retention',  id:'MGR-FR-002'},
-  {name:'Lucie Bernard',     region:'FR',         procedure:'Killer Base',       id:'MGR-FR-003'},
-  {name:'Piotr Kowalski',    region:'PL',         procedure:'Killer Base',       id:'MGR-PL-001'},
-  {name:'Agnieszka Wojcik',  region:'PL',         procedure:'Churn Prevention', id:'MGR-PL-002'},
-  {name:'Tomasz Wisniewski', region:'PL',         procedure:'Active Retention',  id:'MGR-PL-003'},
-  {name:'Alexandru Popescu', region:'RO',         procedure:'Churn Prevention', id:'MGR-RO-001'},
-  {name:'Elena Ionescu',     region:'RO',         procedure:'Active Retention',  id:'MGR-RO-002'},
-  {name:'Mihai Constantin',  region:'RO',         procedure:'Killer Base',       id:'MGR-RO-003'},
+  // ── TR (6) ────────────────────────────────────────────
+  {name:'Ahmet Yilmaz',        region:'TR',         procedure:'Churn Prevention'},
+  {name:'Fatma Kaya',          region:'TR',         procedure:'Killer Base'      },
+  {name:'Mehmet Demir',        region:'TR',         procedure:'Active Retention' },
+  {name:'Zeynep Arslan',       region:'TR',         procedure:'Churn Prevention'},
+  {name:'Mustafa Çelik',       region:'TR',         procedure:'Killer Base'      },
+  {name:'Aylin Doğan',         region:'TR',         procedure:'Active Retention' },
+  // ── ES (1) ────────────────────────────────────────────
+  {name:'Carlos García',       region:'ES',         procedure:'Churn Prevention'},
+  // ── IL (5) ────────────────────────────────────────────
+  {name:'Avi Cohen',           region:'IL',         procedure:'Killer Base'      },
+  {name:'Noa Levi',            region:'IL',         procedure:'Active Retention' },
+  {name:'Yael Mizrahi',        region:'IL',         procedure:'Churn Prevention'},
+  {name:'Daniel Ben-David',    region:'IL',         procedure:'Killer Base'      },
+  {name:'Tamar Shapiro',       region:'IL',         procedure:'Active Retention' },
+  // ── RU (1) ────────────────────────────────────────────
+  {name:'Ivan Petrov',         region:'RU',         procedure:'Churn Prevention'},
+  // ── IT (2) ────────────────────────────────────────────
+  {name:'Marco Rossi',         region:'IT',         procedure:'Churn Prevention'},
+  {name:'Giulia Ferrari',      region:'IT',         procedure:'Active Retention' },
+  // ── CZ/SK (1) ─────────────────────────────────────────
+  {name:'Jan Novak',           region:'CZ/SK',      procedure:'Killer Base'      },
+  // ── AE/ARAB/SA (3) ────────────────────────────────────
+  {name:'Omar Al-Rashid',      region:'AE/ARAB/SA', procedure:'Active Retention' },
+  {name:'Layla Khalid',        region:'AE/ARAB/SA', procedure:'Churn Prevention'},
+  {name:'Yusuf Hassan',        region:'AE/ARAB/SA', procedure:'Killer Base'      },
+  // ── FR (1) ────────────────────────────────────────────
+  {name:'Pierre Dubois',       region:'FR',         procedure:'Churn Prevention'},
+  // ── PL (4) ────────────────────────────────────────────
+  {name:'Piotr Kowalski',      region:'PL',         procedure:'Killer Base'      },
+  {name:'Agnieszka Wojcik',    region:'PL',         procedure:'Churn Prevention'},
+  {name:'Tomasz Wisniewski',   region:'PL',         procedure:'Active Retention' },
+  {name:'Magdalena Kowalska',  region:'PL',         procedure:'Killer Base'      },
+  // ── RO (2) ────────────────────────────────────────────
+  {name:'Alexandru Popescu',   region:'RO',         procedure:'Churn Prevention'},
+  {name:'Elena Ionescu',       region:'RO',         procedure:'Active Retention' },
 ];
 // ─── UTILITY HELPERS ─────────────────────────────────────────
 
@@ -191,8 +199,8 @@ function buildScheduleSheet(targetDate) {
     if (byRegion[sorted[i].region]) byRegion[sorted[i].region].push(sorted[i]);
   }
 
-  // ── ROW 1: Title (frozen pane A:G) + Legend (scrollable H:end) ──
-  // Each merge stays within one pane so setFrozenColumns(7) succeeds.
+  // ── ROW 1: Title (frozen pane A:F) + Legend (scrollable G:end) ──
+  // Each merge stays within one pane so setFrozenColumns(6) succeeds.
   sheet.getRange(1, 1, 1, CFG.FROZEN_COLS).merge()
     .setValue('MANAGER SCHEDULE COMMAND CENTER   ·   ' + monthLabel.toUpperCase())
     .setBackground(C.TITLE_BG).setFontColor(C.TITLE_FG)
@@ -206,14 +214,14 @@ function buildScheduleSheet(targetDate) {
   sheet.setRowHeight(1, 42);
 
   // ── ROW 2: Column headers ─────────────────────────────────
-  var fixedHdrs = [['MANAGER NAME','REGION','PROCEDURE','MANAGER ID','📊 WORKING','🔴 OFF','🟣 VAC/SICK']];
+  var fixedHdrs = [['MANAGER NAME','REGION','PROCEDURE','📊 WORKING','🔴 OFF','🟣 VAC/SICK']];
   sheet.getRange(CFG.HEADER_ROW, 1, 1, CFG.FROZEN_COLS)
     .setValues(fixedHdrs)
     .setBackground(C.HDR_BG).setFontColor(C.HDR_FG)
     .setFontWeight('bold').setFontSize(10)
     .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
-  // Summary header columns get a darker shade
-  sheet.getRange(CFG.HEADER_ROW, 5, 1, 3)
+  // Summary header columns get a darker shade (cols 4-6)
+  sheet.getRange(CFG.HEADER_ROW, 4, 1, 3)
     .setBackground(C.SUMHDR_BG).setFontColor(C.SUMHDR_FG);
 
   // Day-of-month headers
@@ -265,7 +273,7 @@ function buildScheduleSheet(targetDate) {
       .setFontStyle('italic').setFontSize(10)
       .setHorizontalAlignment('left').setVerticalAlignment('middle');
     sheet.getRange(currentRow, 4, 1, CFG.FROZEN_COLS - 3 + daysInMonth)
-      .setBackground(rc.hdr);
+      .setBackground(rc.hdr);   // covers summary cols + day cols on separator row
     // Thick border top + bottom on separator
     sheet.getRange(currentRow, 1, 1, totalCols)
       .setBorder(true, true, true, true, false, false,
@@ -280,7 +288,7 @@ function buildScheduleSheet(targetDate) {
       var pBg    = procBg_(mgr.procedure) || rowBg;
       managerRows.push(currentRow);
 
-      // Fixed cols A-D
+      // Fixed cols A-C
       var rowR   = currentRow;
       sheet.getRange(rowR, 1).setValue(mgr.name)
         .setBackground(rowBg).setFontWeight('bold').setFontSize(11)
@@ -291,21 +299,18 @@ function buildScheduleSheet(targetDate) {
       sheet.getRange(rowR, 3).setValue(mgr.procedure)
         .setBackground(pBg).setFontSize(10)
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
-      sheet.getRange(rowR, 4).setValue(mgr.id)
-        .setBackground(rowBg).setFontSize(9).setFontColor('#607D8B')
-        .setHorizontalAlignment('center').setVerticalAlignment('middle');
 
-      // Summary formula cols (E, F, G) — dynamic, update as cells change
+      // Summary formula cols (D, E, F) — dynamic, update as cells change
       var rng = dayStartLtr + rowR + ':' + dayEndLtr + rowR;
-      sheet.getRange(rowR, 5)
+      sheet.getRange(rowR, 4)
         .setFormula('=COUNTIF(' + rng + ',"*:*")+COUNTIF(' + rng + ',"Half Day")')
         .setBackground(rowBg).setFontWeight('bold').setFontSize(10)
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
-      sheet.getRange(rowR, 6)
+      sheet.getRange(rowR, 5)
         .setFormula('=COUNTIF(' + rng + ',"DO")')
         .setBackground(rowBg).setFontWeight('bold').setFontSize(10)
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
-      sheet.getRange(rowR, 7)
+      sheet.getRange(rowR, 6)
         .setFormula('=COUNTIF(' + rng + ',"Vacation")+COUNTIF(' + rng + ',"Sick")')
         .setBackground(rowBg).setFontWeight('bold').setFontSize(10)
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
@@ -330,13 +335,12 @@ function buildScheduleSheet(targetDate) {
   var lastDataRow = currentRow - 1;
 
   // ── Column widths ─────────────────────────────────────────
-  sheet.setColumnWidth(1, 200);   // Name
-  sheet.setColumnWidth(2, 88);    // Region
-  sheet.setColumnWidth(3, 165);   // Procedure
-  sheet.setColumnWidth(4, 115);   // ID
-  sheet.setColumnWidth(5, 78);    // Working days
-  sheet.setColumnWidth(6, 68);    // Off days
-  sheet.setColumnWidth(7, 80);    // Vac/Sick
+  sheet.setColumnWidth(1, 210);   // Name
+  sheet.setColumnWidth(2, 90);    // Region
+  sheet.setColumnWidth(3, 170);   // Procedure
+  sheet.setColumnWidth(4, 80);    // Working days
+  sheet.setColumnWidth(5, 70);    // Off days
+  sheet.setColumnWidth(6, 82);    // Vac/Sick
   for (var c = CFG.DAY_COL_START; c <= totalCols; c++) sheet.setColumnWidth(c, 74);
 
   // ── Data validation: day cells (dropdown) ─────────────────
@@ -471,9 +475,22 @@ function applyCF_(sheet, lastDataRow, daysInMonth, year, month, holidays) {
 function getManagersList_(ss) {
   var ms = ss.getSheetByName('_Managers_');
   if (!ms || ms.getLastRow() < 2) return initManagersSheet_(ss);
-  var data = ms.getRange(2, 1, ms.getLastRow() - 1, 5).getValues();
+
+  // Auto-migrate from v4.0 (5 cols including ID) to v4.1 (4 cols, no ID).
+  // We detect the old schema by looking for an "ID" header in column 4.
+  var headerVals = ms.getRange(1, 1, 1, Math.max(4, ms.getLastColumn())).getValues()[0];
+  if (String(headerVals[3] || '').toUpperCase() === 'ID') {
+    var old = ms.getRange(2, 1, ms.getLastRow() - 1, 5).getValues();
+    var migrated = old.filter(function(r){return String(r[0]).trim();})
+                      .map(function(r){return [r[0], r[1], r[2], r[4] || ''];});
+    ms.clear();
+    ms.appendRow(['Name','Region','Procedure','SlackID']);
+    if (migrated.length) ms.getRange(2, 1, migrated.length, 4).setValues(migrated);
+  }
+
+  var data = ms.getRange(2, 1, ms.getLastRow() - 1, 4).getValues();
   return data.filter(function(r){return String(r[0]).trim();}).map(function(r){
-    return {name:String(r[0]),region:String(r[1]),procedure:String(r[2]),id:String(r[3]),slackId:String(r[4])};
+    return {name:String(r[0]),region:String(r[1]),procedure:String(r[2]),slackId:String(r[3])};
   });
 }
 
@@ -481,37 +498,33 @@ function initManagersSheet_(ss) {
   var ms = ss.getSheetByName('_Managers_') || ss.insertSheet('_Managers_');
   ms.hideSheet();
   ms.clearContents();
-  ms.appendRow(['Name','Region','Procedure','ID','SlackID']);
-  var rows = MANAGERS.map(function(m){return [m.name,m.region,m.procedure,m.id,''];});
-  if (rows.length) ms.getRange(2,1,rows.length,5).setValues(rows);
+  ms.appendRow(['Name','Region','Procedure','SlackID']);
+  var rows = MANAGERS.map(function(m){return [m.name,m.region,m.procedure,''];});
+  if (rows.length) ms.getRange(2,1,rows.length,4).setValues(rows);
   return MANAGERS;
 }
 
 // ─── ADD NEW MANAGER ─────────────────────────────────────────
 function addNewManager() {
   var ui = SpreadsheetApp.getUi();
-  var r1 = ui.prompt('New Manager (1/4)','Full name:',ui.ButtonSet.OK_CANCEL);
+  var r1 = ui.prompt('New Manager (1/3)','Full name:',ui.ButtonSet.OK_CANCEL);
   if (r1.getSelectedButton()!==ui.Button.OK) return;
   var name = r1.getResponseText().trim(); if (!name) return;
 
-  var r2 = ui.prompt('New Manager (2/4)','Region:\n'+REGION_ORDER.join(' / '),ui.ButtonSet.OK_CANCEL);
+  var r2 = ui.prompt('New Manager (2/3)','Region:\n'+REGION_ORDER.join(' / '),ui.ButtonSet.OK_CANCEL);
   if (r2.getSelectedButton()!==ui.Button.OK) return;
   var region = r2.getResponseText().trim().toUpperCase();
   if (REGION_ORDER.indexOf(region)<0){ui.alert('Invalid region: '+region); return;}
 
-  var r3 = ui.prompt('New Manager (3/4)','Procedure:\n1. Churn Prevention\n2. Killer Base\n3. Active Retention',ui.ButtonSet.OK_CANCEL);
+  var r3 = ui.prompt('New Manager (3/3)','Procedure:\n1. Churn Prevention\n2. Killer Base\n3. Active Retention',ui.ButtonSet.OK_CANCEL);
   if (r3.getSelectedButton()!==ui.Button.OK) return;
   var pt = r3.getResponseText().trim();
   var procedure = pt==='1'?'Churn Prevention':pt==='2'?'Killer Base':pt==='3'?'Active Retention':pt;
   if (PROCEDURE_ORDER.indexOf(procedure)<0){ui.alert('Invalid procedure: '+procedure); return;}
 
-  var r4 = ui.prompt('New Manager (4/4)','Manager ID (e.g. MGR-TR-004):',ui.ButtonSet.OK_CANCEL);
-  if (r4.getSelectedButton()!==ui.Button.OK) return;
-  var id = r4.getResponseText().trim(); if (!id) return;
-
   var ss = getSpreadsheet_();
   var ms = ss.getSheetByName('_Managers_') || (initManagersSheet_(ss), ss.getSheetByName('_Managers_'));
-  ms.appendRow([name,region,procedure,id,'']);
+  ms.appendRow([name,region,procedure,'']);
 
   var rebuild = ui.alert('Manager Added!',name+' ('+region+') added.\nRebuild schedule now?',ui.ButtonSet.YES_NO);
   if (rebuild===ui.Button.YES) buildScheduleSheet();
@@ -562,8 +575,9 @@ function postScheduleToSlack() {
 
   for (var r=CFG.DATA_START_ROW-1;r<lastRow;r++) {
     var row=data[r], name=String(row[0]||'').trim(), reg=String(row[1]||'').trim();
-    var proc=String(row[2]||'').trim(), id=String(row[3]||'').trim();
-    if (!name||!id||REGION_ORDER.indexOf(reg)<0) continue;
+    var proc=String(row[2]||'').trim();
+    // Manager rows have a valid procedure; separator rows do not.
+    if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
     var val=String(row[todayCol-1]||'').trim();
     var tag='*'+name+'*  _('+proc+')_';
     if (val===DAY_OFF) status[reg].o.push('• '+tag);
