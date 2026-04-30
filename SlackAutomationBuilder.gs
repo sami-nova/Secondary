@@ -1366,7 +1366,7 @@ function getRegionSlackEmoji(region) {
  * FORMAT ARPU WITH PLAN COMPARISON
  * Compares manager's ARPU against their region's plan and adds indicator
  */
-function formatArpuWithPlan(arpu, region, arpuPlansByRegion) {
+function arpu {
   if (!arpu || !region) return arpu || "";
 
   const regionKey = String(region).trim().toUpperCase();
@@ -1423,11 +1423,13 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const top3ArpuData = sheet.getRange("A90:G92").getValues();  // Top 3 ARPU with 20+ Payments (optional)
     const top3UpsellData = sheet.getRange("A96:G98").getValues();  // Top 3 Upsell Share with 20+ Payments (optional)
     const reactivationData = sheet.getRange("A102:E106").getValues();  // Reactivation Results - Top 5
-    const arpuPlansData = sheet.getRange("A110:C121").getValues();  // ARPU Plans by Region
+    const cpArpuPlansData = sheet.getRange("A110:C121").getValues();  // CP ARPU Plans by Region
+    const kbArpuPlansData = sheet.getRange("A125:C136").getValues();  // KB ARPU Plans by Region
 
     // Build ARPU Plans lookup map
-    const arpuPlansByRegion = {};
-    arpuPlansData.forEach(row => {
+    const cpArpuPlansByRegion = {};
+    const kbArpuPlansByRegion = {};
+    cpArpuPlansData.forEach(row => {
       const region = String(row[0]).trim().toUpperCase();
       const plan = row[1];
       if (region && plan) {
@@ -1907,7 +1909,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       churnCurrentText += `${rankEmoji} *${managerName}*\n`;
       churnCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
       if (arpu) {
-        const formattedArpu = formatArpuWithPlan(arpu, region, arpuPlansByRegion);
+        const formattedArpu = formatArpuWithPlan(arpu, region, cpArpuPlansByRegion);
         churnCurrentText += ` | ARPU: ${formattedArpu}`;
       }
       if (upsellShare) {
@@ -1959,7 +1961,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         risingStarsText += `⭐ *${managerName}*  #${rank}\n`;
         risingStarsText += `   └ ${salesText} | 💰 ${cashGenerated}`;
         if (arpu) {
-          risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
+          risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, cpArpuPlansByRegion)}`;
         }
         if (upsellShare) {
           risingStarsText += ` | Upsell: ${upsellShare}`;
@@ -1981,132 +1983,6 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
     blocks.push({ type: "divider" });
 
-    // ============================================
-    // SECTION 2: CHURN PREVENTION - OLD BASE - TOP 3 + RISING STARS (OPTIONAL)
-    // ============================================
-    // Check if there's any data before displaying this section
-    const # REMOVED = churnOldData.some(row => row[1] && row[2]); // Check if has rank and manager name
-
-    if (# REMOVED) {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: "*🏆 CHURN PREVENTION - OLD BASE - TOP 3*"
-        }
-      });
-
-      // Split into main (ranks 1-3) and rising stars (ranks 4-5)
-      # REMOVED churnOld.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
-      # REMOVED churnOld.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
-
-      let churnOldText = "";
-      churnOldMain.forEach((row, idx) => {
-        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
-        const rank = row[1];
-        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-        const sales = row[3];
-        const wow = row[4] ? String(row[4]).trim() : "";
-        const cashRaw = row[5];
-        const arpu = row[6] ? row[6] : "";
-        const upsellShare = row[7] ? row[7] : "";
-        const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-        const region = cleanSheetData(row[8]);
-
-        if (!rank || !managerName) return;
-
-        const rankEmoji = getRankEmoji(rank);
-        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
-
-        // Build sales text with optional WoW (color-coded)
-        let salesText = `${sales} sales`;
-        if (wow) {
-          // Parse WoW number for color-coding
-          const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
-          const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
-                          !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
-                          !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
-                          !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
-          salesText += `  ${wowEmoji} ${wow}`;
-        }
-
-        churnOldText += `${rankEmoji} *${managerName}*\n`;
-        churnOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
-        if (arpu) {
-          churnOldText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
-        }
-        if (upsellShare) {
-          churnOldText += ` | Upsell: ${upsellShare}`;
-        }
-        if (region) {
-          churnOldText += ` | ${regionEmoji} ${region}`;
-        }
-        churnOldText += `\n\n`;
-      });
-
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: churnOldText || "_No data available_"
-        }
-      });
-
-      // Add Rising Stars if available
-      if (churnOldRising.length > 0) {
-        let risingStarsText = "_⭐ Rising Stars_\n\n";
-        churnOldRising.forEach((row) => {
-          const rank = row[1];
-          const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-          const sales = row[3];
-          const wow = row[4] ? String(row[4]).trim() : "";
-          const cashRaw = row[5];
-          const arpu = row[6] ? row[6] : "";
-          const upsellShare = row[7] ? row[7] : "";
-          const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-          const region = cleanSheetData(row[8]);
-
-          if (!rank || !managerName) return;
-
-          const regionEmoji = region ? getRegionSlackEmoji(region) : "";
-
-          let salesText = `${sales} sales`;
-          if (wow) {
-            const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
-            const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
-                            !isNaN(wowNum) && wowNum >= 10 ? '📈' :
-                            !isNaN(wowNum) && wowNum >= 1 ? '➕' :
-                            !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-            salesText += `  ${wowEmoji} ${wow}`;
-          }
-
-          risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
-          if (arpu) {
-            risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
-          }
-          if (upsellShare) {
-            risingStarsText += ` | Upsell: ${upsellShare}`;
-          }
-          if (region) {
-            risingStarsText += ` | ${regionEmoji} ${region}`;
-          }
-          risingStarsText += `\n`;
-        });
-
-        blocks.push({
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: risingStarsText
-          }
-        });
-      }
-    }
-
-    blocks.push({ type: "divider" });
-
-    // ============================================
-    // SECTION 3: KILLER BASE - TOTAL BASE - TOP 3 + RISING STARS (OPTIONAL)
     // ============================================
     const hasKillerData = killerCurrentData.some(row => row[1] && row[2]);
 
@@ -2156,7 +2032,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         killerCurrentText += `${rankEmoji} *${managerName}*\n`;
         killerCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
         if (arpu) {
-          killerCurrentText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
+          killerCurrentText += ` | ARPU: ${formatArpuWithPlan(arpu, region, kbArpuPlansByRegion)}`;
         }
         if (upsellShare) {
           killerCurrentText += ` | Upsell: ${upsellShare}`;
@@ -2205,7 +2081,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
           if (arpu) {
-            risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
+            risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, kbArpuPlansByRegion)}`;
           }
           if (upsellShare) {
             risingStarsText += ` | Upsell: ${upsellShare}`;
@@ -2229,131 +2105,6 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 4: KILLER BASE - OLD BASE - TOP 3 + RISING STARS (OPTIONAL)
-    // ============================================
-    const # REMOVED = killerOldData.some(row => row[1] && row[2]);
-
-    if (# REMOVED) {
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: "*💪 KILLER BASE - OLD BASE - TOP 3*"
-        }
-      });
-
-      // Split into main (ranks 1-3) and rising stars (ranks 4-5)
-      # REMOVED killerOld.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
-      # REMOVED killerOld.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
-
-      let killerOldText = "";
-      killerOldMain.forEach((row, idx) => {
-        // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
-        const rank = row[1];
-        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-        const sales = row[3];
-        const wow = row[4] ? String(row[4]).trim() : "";
-        const cashRaw = row[5];
-        const arpu = row[6] ? row[6] : "";
-        const upsellShare = row[7] ? row[7] : "";
-        const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-        const region = cleanSheetData(row[8]);
-
-        if (!rank || !managerName) return;
-
-        const rankEmoji = getRankEmoji(rank);
-        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
-
-        // Build sales text with optional WoW (color-coded)
-        let salesText = `${sales} sales`;
-        if (wow) {
-          // Parse WoW number for color-coding
-          const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
-          const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :  // Strong growth
-                          !isNaN(wowNum) && wowNum >= 10 ? '📈' :  // Good growth
-                          !isNaN(wowNum) && wowNum >= 1 ? '➕' :   // Slight growth
-                          !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';  // Decline or neutral
-          salesText += `  ${wowEmoji} ${wow}`;
-        }
-
-        killerOldText += `${rankEmoji} *${managerName}*\n`;
-        killerOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
-        if (arpu) {
-          killerOldText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
-        }
-        if (upsellShare) {
-          killerOldText += ` | Upsell: ${upsellShare}`;
-        }
-        if (region) {
-          killerOldText += ` | ${regionEmoji} ${region}`;
-        }
-        killerOldText += `\n\n`;
-      });
-
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: killerOldText || "_No data available_"
-        }
-      });
-
-      // Add Rising Stars if available
-      if (killerOldRising.length > 0) {
-        let risingStarsText = "_⭐ Rising Stars_\n\n";
-        killerOldRising.forEach((row) => {
-          const rank = row[1];
-          const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-          const sales = row[3];
-          const wow = row[4] ? String(row[4]).trim() : "";
-          const cashRaw = row[5];
-          const arpu = row[6] ? row[6] : "";
-          const upsellShare = row[7] ? row[7] : "";
-          const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-          const region = cleanSheetData(row[8]);
-
-          if (!rank || !managerName) return;
-
-          const regionEmoji = region ? getRegionSlackEmoji(region) : "";
-
-          let salesText = `${sales} sales`;
-          if (wow) {
-            const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
-            const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
-                            !isNaN(wowNum) && wowNum >= 10 ? '📈' :
-                            !isNaN(wowNum) && wowNum >= 1 ? '➕' :
-                            !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-            salesText += `  ${wowEmoji} ${wow}`;
-          }
-
-          risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
-          if (arpu) {
-            risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
-          }
-          if (upsellShare) {
-            risingStarsText += ` | Upsell: ${upsellShare}`;
-          }
-          if (region) {
-            risingStarsText += ` | ${regionEmoji} ${region}`;
-          }
-          risingStarsText += `\n`;
-        });
-
-        blocks.push({
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: risingStarsText
-          }
-        });
-      }
-    }
-
-    blocks.push({ type: "divider" });
-
-    // ━━━━━━━━ BONUS METRICS SECTION ━━━━━━━━
-    blocks.push({
-      type: "context",
       elements: [{
         type: "mrkdwn",
         text: "━━━━━━━━ 📊 *BONUS METRICS* ━━━━━━━━"

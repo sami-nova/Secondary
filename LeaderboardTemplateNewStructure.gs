@@ -359,11 +359,11 @@ function createLeaderboardTemplateV2() {
   // ============================================
   // SECTION 15: ARPU PLANS BY REGION (EDITABLE - Update Monthly)
   // ============================================
-  sheet.getRange("A108").setValue("📊 ARPU PLANS BY REGION");
+  sheet.getRange("A108").setValue("🏆 CP ARPU PLANS BY REGION");
   sheet.getRange("A122:C122").merge();
   sheet.getRange("A122:C122").setBackground("#673AB7").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const arpuPlansHeaders = ["Region", "ARPU Plan ($)", "Notes"];
+  const arpuPlansHeaders = ["Region", "CP ARPU Plan ($)", "Notes"];
   sheet.getRange("A123:C123").setValues([arpuPlansHeaders]);
   sheet.getRange("A123:C123").setBackground("#D1C4E9").setFontWeight("bold");
 
@@ -399,8 +399,8 @@ function createLeaderboardTemplateV2() {
   // Add borders to all sections
   sheet.getRange("A20:I25").setBorder(true, true, true, true, true, true);  // Churn Current (now with ARPU & Upsell Share)
   sheet.getRange("A28:I33").setBorder(true, true, true, true, true, true);  // Churn Old (now with ARPU & Upsell Share)
-  sheet.# REMOVED.setBorder(true, true, true, true, true, true);  // Killer Current (now with ARPU & Upsell Share)
-  sheet.# REMOVED.setBorder(true, true, true, true, true, true);  // Killer Old (now with ARPU & Upsell Share)
+  // REMOVED(true, true, true, true, true, true);  // Killer Current (now with ARPU & Upsell Share)
+  // REMOVED(true, true, true, true, true, true);  // Killer Old (now with ARPU & Upsell Share)
   sheet.getRange("A36:B40").setBorder(true, true, true, true, true, true);  // Totals Summary
   sheet.getRange("A49:G50").setBorder(true, true, true, true, true, true);  // Manager of the Week (now with ARPU & Upsell Share)
   sheet.getRange("A53:F56").setBorder(true, true, true, true, true, true);  // KB Paid Rate
@@ -630,3 +630,32 @@ function createLeaderboardTemplateV2() {
     SpreadsheetApp.getUi().ButtonSet.OK
   );
 }
+
+  // ============================================
+  // SECTION 16: KB ARPU PLANS BY REGION (EDITABLE - Update Monthly)
+  // ============================================
+  sheet.getRange("A123").setValue("💪 KB ARPU PLANS BY REGION");
+  sheet.getRange("A123:C123").merge();
+  sheet.getRange("A123:C123").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+
+  const kbArpuPlansHeaders = ["Region", "KB ARPU Plan ($)", "Notes"];
+  sheet.getRange("A124:C124").setValues([kbArpuPlansHeaders]);
+  sheet.getRange("A124:C124").setBackground("#E3F2FD").setFontWeight("bold");
+
+  const kbArpuPlansData = [
+    ["TR", 52.00, "Turkey - Update monthly"],
+    ["ARAB", 58.00, "Arab regions - Update monthly"],
+    ["PL", 48.00, "Poland - Update monthly"],
+    ["RO", 46.00, "Romania - Update monthly"],
+    ["ES", 50.00, "Spain - Update monthly"],
+    ["FR", 52.00, "France - Update monthly"],
+    ["DE", 55.00, "Germany - Update monthly"],
+    ["IT", 50.00, "Italy - Update monthly"],
+    ["IL", 53.00, "Israel - Update monthly"],
+    ["RU", 44.00, "Russia - Update monthly"],
+    ["CZ", 47.00, "Czech Republic - Update monthly"],
+    ["OTHER", 45.00, "Default for unlisted regions"]
+  ];
+  sheet.getRange("A125:C136").setValues(kbArpuPlansData);
+  sheet.getRange("A124:C136").setBorder(true, true, true, true, true, true);
+
