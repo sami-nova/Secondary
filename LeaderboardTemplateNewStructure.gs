@@ -214,12 +214,12 @@ function createLeaderboardTemplateV2() {
   // SECTION 7: CP PAID RATE CONTACTED 14DAY - TOP 3
   // ============================================
   sheet.getRange("A58").setValue("🏆 CP PAID RATE CONTACTED 14DAY - TOP 3");
-  sheet.getRange("A72:F72").merge();
-  sheet.getRange("A72:F72").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A58:F58").merge();
+  sheet.getRange("A58:F58").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const cpPaidRateHeaders = ["Week", "Rank", "Region", "Paid Rate %", "Target %", "Total Payments"];
-  sheet.getRange("A73:F73").setValues([cpPaidRateHeaders]);
-  sheet.getRange("A73:F73").setBackground("#E8F5E9").setFontWeight("bold");
+  sheet.getRange("A59:F59").setValues([cpPaidRateHeaders]);
+  sheet.getRange("A59:F59").setBackground("#E8F5E9").setFontWeight("bold");
 
   const cpPaidRateData = [
     [currentWeek, 1, "TR", "35%", "25%", "$120"],
@@ -232,12 +232,12 @@ function createLeaderboardTemplateV2() {
   // SECTION 8: HIGHEST PAYMENTS THIS WEEK - TOP 3
   // ============================================
   sheet.getRange("A64").setValue("💰 HIGHEST PAYMENTS THIS WEEK - TOP 3");
-  sheet.getRange("A78:F78").merge();
-  sheet.getRange("A78:F78").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A64:F64").merge();
+  sheet.getRange("A64:F64").setBackground("#FF9800").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const highestPaymentsHeaders = ["Week", "Rank", "Manager Name", "Region", "Payment ($)", "Slack User ID"];
-  sheet.getRange("A79:F79").setValues([highestPaymentsHeaders]);
-  sheet.getRange("A79:F79").setBackground("#FFE0B2").setFontWeight("bold");
+  sheet.getRange("A65:F65").setValues([highestPaymentsHeaders]);
+  sheet.getRange("A65:F65").setBackground("#FFE0B2").setFontWeight("bold");
 
   const highestPaymentsData = [
     [currentWeek, 1, "@Sami", "TR", 16100, "U02905GQ32R"],
