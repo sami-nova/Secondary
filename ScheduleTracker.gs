@@ -1,5 +1,5 @@
 // ============================================================
-//  MANAGER SCHEDULE TRACKER  — Command Center  v4.0
+//  MANAGER SCHEDULE TRACKER  — Command Center  v4.2
 //  Single-file Google Apps Script
 // ============================================================
 
@@ -58,16 +58,17 @@ var REGION_COLORS = {
   'FR'        : {hdr:'#1565C0', hdrFg:'#FFFFFF', odd:'#E3F2FD', even:'#BBDEFB'},
   'PL'        : {hdr:'#880E4F', hdrFg:'#FFFFFF', odd:'#FCE4EC', even:'#F8BBD0'},
   'RO'        : {hdr:'#4A148C', hdrFg:'#FFFFFF', odd:'#F3E5F5', even:'#E1BEE7'},
+  'DE'        : {hdr:'#212121', hdrFg:'#FDD835', odd:'#FAFAFA',  even:'#F0F0F0' },
 };
 
 // ─── REGIONAL FLAGS ───────────────────────────────────────────
 var REGION_EMOJIS = {
   'TR':'🇹🇷','ES':'🇪🇸','IL':'🇮🇱','RU':'🇷🇺','IT':'🇮🇹',
-  'CZ/SK':'🇨🇿','AE/ARAB/SA':'🇦🇪','FR':'🇫🇷','PL':'🇵🇱','RO':'🇷🇴'
+  'CZ/SK':'🇨🇿','AE/ARAB/SA':'🇦🇪','FR':'🇫🇷','PL':'🇵🇱','RO':'🇷🇴','DE':'🇩🇪'
 };
 
 // ─── SORT ORDERS ─────────────────────────────────────────────
-var REGION_ORDER    = ['TR','ES','IL','RU','IT','CZ/SK','AE/ARAB/SA','FR','PL','RO'];
+var REGION_ORDER    = ['TR','ES','IL','RU','IT','CZ/SK','AE/ARAB/SA','FR','PL','RO','DE'];
 var PROCEDURE_ORDER = ['Churn Prevention','Killer Base','Active Retention'];
 var DAY_ABBR        = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
@@ -76,9 +77,10 @@ var PUBLIC_HOLIDAYS = [
   // '2026-05-01',
 ];
 
-// ─── DEFAULT MANAGER ROSTER (26 managers) ────────────────────
+// ─── DEFAULT MANAGER ROSTER (28 managers) ────────────────────
 // Seeds the hidden _Managers_ sheet on first run.
-// Use  Schedule Management → Add New Manager  to add more.
+// To rename managers after setup: Schedule Management → Edit Manager List,
+// edit the sheet directly, then  Schedule Management → Refresh Schedule from List.
 var MANAGERS = [
   // ── TR (6) ────────────────────────────────────────────
   {name:'Ahmet Yilmaz',        region:'TR',         procedure:'Churn Prevention'},
@@ -116,6 +118,9 @@ var MANAGERS = [
   // ── RO (2) ────────────────────────────────────────────
   {name:'Alexandru Popescu',   region:'RO',         procedure:'Churn Prevention'},
   {name:'Elena Ionescu',       region:'RO',         procedure:'Active Retention' },
+  // ── DE (2) ────────────────────────────────────────────
+  {name:'Klaus Weber',         region:'DE',         procedure:'Churn Prevention'},
+  {name:'Heike Braun',         region:'DE',         procedure:'Killer Base'      },
 ];
 // ─── UTILITY HELPERS ─────────────────────────────────────────
 
@@ -145,16 +150,18 @@ function procBg_(procedure) {
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Schedule Management')
-    .addItem('Build / Rebuild This Month',  'buildScheduleSheet')
-    .addItem('Update to Next Month',        'updateMonth')
-    .addItem('Reset Day Cells Only',        'resetSheet')
+    .addItem('Build / Rebuild This Month',    'buildScheduleSheet')
+    .addItem('Update to Next Month',          'updateMonth')
+    .addItem('Reset Day Cells Only',          'resetSheet')
     .addSeparator()
-    .addItem('Add New Manager',             'addNewManager')
+    .addItem('Edit Manager List',             'editManagersList')
+    .addItem('Refresh Schedule from List',    'refreshFromManagerList')
+    .addItem('Add New Manager',               'addNewManager')
     .addSeparator()
-    .addItem('Post Today to Slack',         'postScheduleToSlack')
+    .addItem('Post Today to Slack',           'postScheduleToSlack')
     .addSeparator()
-    .addItem('Set Up Daily 8AM Trigger',    'createTimeDrivenTrigger')
-    .addItem('Remove All Triggers',         'deleteAllTriggers')
+    .addItem('Set Up Daily 8AM Trigger',      'createTimeDrivenTrigger')
+    .addItem('Remove All Triggers',           'deleteAllTriggers')
     .addToUi();
 }
 
@@ -528,6 +535,45 @@ function addNewManager() {
 
   var rebuild = ui.alert('Manager Added!',name+' ('+region+') added.\nRebuild schedule now?',ui.ButtonSet.YES_NO);
   if (rebuild===ui.Button.YES) buildScheduleSheet();
+}
+
+// ─── EDIT MANAGER LIST ───────────────────────────────────────
+// Unhides the _Managers_ sheet and navigates the user to it.
+// The user edits names/regions/procedures directly, then clicks
+// "Refresh Schedule from List" to regenerate the schedule.
+function editManagersList() {
+  var ss = getSpreadsheet_();
+  var ms = ss.getSheetByName('_Managers_');
+  if (!ms) { initManagersSheet_(ss); ms = ss.getSheetByName('_Managers_'); }
+  ms.showSheet();
+  ss.setActiveSheet(ms);
+  SpreadsheetApp.getUi().alert(
+    'Manager List is now visible',
+    'Edit names, regions, or procedures directly in this sheet.\n\n' +
+    'Valid Regions: ' + REGION_ORDER.join(', ') + '\n' +
+    'Valid Procedures: ' + PROCEDURE_ORDER.join(', ') + '\n\n' +
+    'When finished, go to  Schedule Management → Refresh Schedule from List\n' +
+    'to rebuild the schedule with your changes.',
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
+
+// ─── REFRESH SCHEDULE FROM LIST ──────────────────────────────
+// Rebuilds the schedule using the current _Managers_ sheet data.
+// Call this after editing the manager list directly.
+function refreshFromManagerList() {
+  var ui  = SpreadsheetApp.getUi();
+  var res = ui.alert(
+    'Refresh Schedule?',
+    'Rebuilds the schedule using the current Manager List.\nAll day-cell values will be reset to defaults. Continue?',
+    ui.ButtonSet.YES_NO
+  );
+  if (res !== ui.Button.YES) return;
+  buildScheduleSheet();
+  // Re-hide the _Managers_ sheet after rebuild
+  var ss = getSpreadsheet_();
+  var ms = ss.getSheetByName('_Managers_');
+  if (ms) ms.hideSheet();
 }
 
 // ─── RESET DAY CELLS ONLY ────────────────────────────────────
