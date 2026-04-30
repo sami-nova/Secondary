@@ -250,12 +250,12 @@ function createLeaderboardTemplateV2() {
   // SECTION 9: CP UPSELL - TOP 3 MANAGERS
   // ============================================
   sheet.getRange("A70").setValue("🏆 CP UPSELL - TOP 3 MANAGERS");
-  sheet.getRange("A84:G84").merge();
-  sheet.getRange("A84:G84").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A70:G70").merge();
+  sheet.getRange("A70:G70").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const cpUpsellHeaders = ["Week", "Rank", "Manager Name", "N# of Sales", "ARPU", "Upsell Share", "Region"];
-  sheet.getRange("A85:G85").setValues([cpUpsellHeaders]);
-  sheet.getRange("A85:G85").setBackground("#E8F5E9").setFontWeight("bold");
+  sheet.getRange("A71:G71").setValues([cpUpsellHeaders]);
+  sheet.getRange("A71:G71").setBackground("#E8F5E9").setFontWeight("bold");
 
   const cpUpsellData = [
     [currentWeek, 1, "@Merve Odali", 10, "$45.50", "18%", "TR"],
@@ -268,12 +268,12 @@ function createLeaderboardTemplateV2() {
   // SECTION 10: KB UPSELL - TOP 3 MANAGERS
   // ============================================
   sheet.getRange("A76").setValue("💪 KB UPSELL - TOP 3 MANAGERS");
-  sheet.getRange("A90:G90").merge();
-  sheet.getRange("A90:G90").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A76:G76").merge();
+  sheet.getRange("A76:G76").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const kbUpsellHeaders = ["Week", "Rank", "Manager Name", "N# of Sales", "ARPU", "Upsell Share", "Region"];
-  sheet.getRange("A91:G91").setValues([kbUpsellHeaders]);
-  sheet.getRange("A91:G91").setBackground("#E3F2FD").setFontWeight("bold");
+  sheet.getRange("A77:G77").setValues([kbUpsellHeaders]);
+  sheet.getRange("A77:G77").setBackground("#E3F2FD").setFontWeight("bold");
 
   const kbUpsellData = [
     [currentWeek, 1, "@Selen Orcan", 18, "$52.30", "22%", "TR"],
@@ -286,12 +286,12 @@ function createLeaderboardTemplateV2() {
   // SECTION 11: BIGGEST ARPU SALE OF THE WEEK
   // ============================================
   sheet.getRange("A82").setValue("📈 BIGGEST ARPU SALE OF THE WEEK");
-  sheet.getRange("A96:F96").merge();
-  sheet.getRange("A96:F96").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A82:F82").merge();
+  sheet.getRange("A82:F82").setBackground("#9C27B0").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const biggestArpuHeaders = ["Week", "Manager Name", "Client", "Previous ARPU ($)", "New ARPU ($)", "Region"];
-  sheet.getRange("A97:F97").setValues([biggestArpuHeaders]);
-  sheet.getRange("A97:F97").setBackground("#E1BEE7").setFontWeight("bold");
+  sheet.getRange("A83:F83").setValues([biggestArpuHeaders]);
+  sheet.getRange("A83:F83").setBackground("#E1BEE7").setFontWeight("bold");
 
   const biggestArpuSampleData = [
     [currentWeek, "Omar Al-Farsi", "Client A", 15, 75, "ARAB"],
@@ -304,12 +304,12 @@ function createLeaderboardTemplateV2() {
   // SECTION 12: TOP 3 ARPU WITH 20 PAYMENTS TOTAL
   // ============================================
   sheet.getRange("A88").setValue("📊 TOP 3 ARPU - 20+ PAYMENTS");
-  sheet.getRange("A102:G102").merge();
-  sheet.getRange("A102:G102").setBackground("#00BCD4").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A88:G88").merge();
+  sheet.getRange("A88:G88").setBackground("#00BCD4").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const top3ArpuHeaders = ["Week", "Rank", "Manager Name", "ARPU", "Total Payments", "Upsell Share", "Region"];
-  sheet.getRange("A103:G103").setValues([top3ArpuHeaders]);
-  sheet.getRange("A103:G103").setBackground("#B2EBF2").setFontWeight("bold");
+  sheet.getRange("A89:G89").setValues([top3ArpuHeaders]);
+  sheet.getRange("A89:G89").setBackground("#B2EBF2").setFontWeight("bold");
 
   const top3ArpuData = [
     [currentWeek, 1, "@Selen Orcan", "$55.30", 22, "22%", "TR"],
@@ -322,12 +322,12 @@ function createLeaderboardTemplateV2() {
   // SECTION 13: TOP 3 UPSELL SHARE WITH 20+ PAYMENTS
   // ============================================
   sheet.getRange("A94").setValue("🔥 TOP 3 UPSELL SHARE - 20+ PAYMENTS");
-  sheet.getRange("A108:G108").merge();
-  sheet.getRange("A108:G108").setBackground("#FF5722").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A94:G94").merge();
+  sheet.getRange("A94:G94").setBackground("#FF5722").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const top3UpsellHeaders = ["Week", "Rank", "Manager Name", "Upsell Share", "Total Payments", "ARPU", "Region"];
-  sheet.getRange("A109:G109").setValues([top3UpsellHeaders]);
-  sheet.getRange("A109:G109").setBackground("#FFCCBC").setFontWeight("bold");
+  sheet.getRange("A95:G95").setValues([top3UpsellHeaders]);
+  sheet.getRange("A95:G95").setBackground("#FFCCBC").setFontWeight("bold");
 
   const top3UpsellData = [
     [currentWeek, 1, "@Selen Orcan", "25%", 28, "$52.30", "TR"],
@@ -340,12 +340,12 @@ function createLeaderboardTemplateV2() {
   // SECTION 14: REACTIVATION RESULTS - TOP 5
   // ============================================
   sheet.getRange("A100").setValue("🔄 REACTIVATION RESULTS - TOP 5");
-  sheet.getRange("A114:D114").merge();
-  sheet.getRange("A114:D114").setBackground("#8E24AA").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A100:E100").merge();
+  sheet.getRange("A100:E100").setBackground("#8E24AA").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const reactivationHeaders = ["Week", "Rank", "Manager Name", "Number of Returns", "Region"];
-  sheet.getRange("A115:E115").setValues([reactivationHeaders]);
-  sheet.getRange("A115:E115").setBackground("#E1BEE7").setFontWeight("bold");
+  sheet.getRange("A101:E101").setValues([reactivationHeaders]);
+  sheet.getRange("A101:E101").setBackground("#E1BEE7").setFontWeight("bold");
 
   const reactivationData = [
     [currentWeek, 1, "Passant Elsayed", 22, "ARAB"],
@@ -357,15 +357,15 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A102:E106").setValues(reactivationData);
 
   // ============================================
-  // SECTION 15: ARPU PLANS BY REGION (EDITABLE - Update Monthly)
+  // SECTION 15: CP ARPU PLANS BY REGION (EDITABLE - Update Monthly)
   // ============================================
   sheet.getRange("A108").setValue("🏆 CP ARPU PLANS BY REGION");
-  sheet.getRange("A122:C122").merge();
-  sheet.getRange("A122:C122").setBackground("#673AB7").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A108:C108").merge();
+  sheet.getRange("A108:C108").setBackground("#673AB7").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
   const arpuPlansHeaders = ["Region", "CP ARPU Plan ($)", "Notes"];
-  sheet.getRange("A123:C123").setValues([arpuPlansHeaders]);
-  sheet.getRange("A123:C123").setBackground("#D1C4E9").setFontWeight("bold");
+  sheet.getRange("A109:C109").setValues([arpuPlansHeaders]);
+  sheet.getRange("A109:C109").setBackground("#D1C4E9").setFontWeight("bold");
 
   const arpuPlansData = [
     ["TR", 45.00, "Turkey - Update monthly"],
