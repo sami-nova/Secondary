@@ -603,34 +603,6 @@ function createLeaderboardTemplateV2() {
   instructionSheet.getRange("A1").setBackground("#673AB7").setFontColor("white").setFontWeight("bold").setFontSize(14);
   instructionSheet.setColumnWidth(1, 700);
 
-  SpreadsheetApp.getUi().alert(
-    '✅ NEW Template Created!',
-    'The "Weekly Leaderboard" sheet has been created with the new structure:\n\n' +
-    '✓ Secondary Sales Plan (Purchase & Revenue Plan Execution)\n' +
-    '✓ Regional Champions (CP & KB top regions)\n' +
-    '✓ NEW: Upsell Metrics Summary (Overall ARPU, Upsell Share, N# of Sales)\n' +
-    '✓ Churn Prevention: Current Base + Old Base - TOP 5 each\n' +
-    '✓ Killer Base: Current Base + Old Base - TOP 5 each\n' +
-    '✓ Rising Stars: Ranks 4-5 shown separately\n' +
-    '✓ Cash Generated column and WoW tracking\n' +
-    '✓ Regional Performance with detailed breakdown\n' +
-    '✓ CP Upsell Top 3 with ARPU & Upsell Share (optional - leave empty to skip)\n' +
-    '✓ KB Upsell Top 3 with ARPU & Upsell Share (optional - leave empty to skip)\n' +
-    '✓ Biggest ARPU Sale of the Week (optional - leave empty to skip)\n' +
-    '✓ TOP 3 ARPU with 20+ Payments (optional - leave empty to skip)\n' +
-    '✓ TOP 3 Upsell Share with 20+ Payments (optional - leave empty to skip)\n' +
-    '✓ Reactivation Results - TOP 5 (customer returns tracking)\n' +
-    '✓ ARPU Plans by Region (update monthly - used for performance comparison)\n\n' +
-    'Next steps:\n' +
-    '1. Review the sample data\n' +
-    '2. Update Secondary Sales Plan (A3:C3) and Regional Champions (A7:C8)\n' +
-    '3. Update Upsell Metrics Summary (A12:E14) with overall metrics\n' +
-    '4. Update with your actual leaderboard data (5 managers per section)\n' +
-    '5. Use the automation - it will automatically split Top 3 and Rising Stars!',
-    SpreadsheetApp.getUi().ButtonSet.OK
-  );
-}
-
   // ============================================
   // SECTION 16: KB ARPU PLANS BY REGION (EDITABLE - Update Monthly)
   // ============================================
@@ -659,3 +631,33 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A125:C136").setValues(kbArpuPlansData);
   sheet.getRange("A124:C136").setBorder(true, true, true, true, true, true);
 
+  // Show success message
+  SpreadsheetApp.getUi().alert(
+    '✅ NEW Template Created!',
+    'The "Weekly Leaderboard" sheet has been created with the new structure:\n\n' +
+    '✓ CP TOTAL BASE - TOP 5 (combines Current + Old Base)\n' +
+    '✓ KB TOTAL BASE - TOP 5 (combines Current + Old Base)\n' +
+    '✓ HEADER METRICS (editable: Reactivations Count, Reactivations WoW, ARPU WoW)\n' +
+    '✓ Secondary Sales Plan\n' +
+    '✓ Regional Champions\n' +
+    '✓ Upsell Metrics Summary\n' +
+    '✓ Rising Stars: Ranks 4-5 shown separately\n' +
+    '✓ Cash Generated column and WoW tracking\n' +
+    '✓ CP Upsell Top 3 with ARPU & Upsell Share (optional)\n' +
+    '✓ KB Upsell Top 3 with ARPU & Upsell Share (optional)\n' +
+    '✓ Biggest ARPU Sale (optional)\n' +
+    '✓ TOP 3 ARPU with 20+ Payments (optional)\n' +
+    '✓ TOP 3 Upsell Share with 20+ Payments (optional)\n' +
+    '✓ Reactivation Results - TOP 5\n' +
+    '✓ CP ARPU Plans by Region (A110:C121)\n' +
+    '✓ KB ARPU Plans by Region (A125:C136)\n\n' +
+    'Next steps:\n' +
+    '1. Fill in CP TOTAL BASE (A21:I25)\n' +
+    '2. Fill in KB TOTAL BASE (A29:I33)\n' +
+    '3. Update HEADER METRICS (A44:B46) - Reactivations & WoW\n' +
+    '4. Update Totals (A37:B40)\n' +
+    '5. Set CP and KB ARPU targets in both plan tables\n' +
+    '6. Use "Send to Slack Now" from menu!',
+    SpreadsheetApp.getUi().ButtonSet.OK
+  );
+}
