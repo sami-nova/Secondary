@@ -1366,7 +1366,7 @@ function getRegionSlackEmoji(region) {
  * FORMAT ARPU WITH PLAN COMPARISON
  * Compares manager's ARPU against their region's plan and adds indicator
  */
-function arpu {
+function formatArpuWithPlan(arpu, region, arpuPlansByRegion) {
   if (!arpu || !region) return arpu || "";
 
   const regionKey = String(region).trim().toUpperCase();
@@ -1426,14 +1426,23 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const cpArpuPlansData = sheet.getRange("A110:C121").getValues();  // CP ARPU Plans by Region
     const kbArpuPlansData = sheet.getRange("A125:C136").getValues();  // KB ARPU Plans by Region
 
-    // Build ARPU Plans lookup map
+    // Build CP ARPU Plans lookup map
     const cpArpuPlansByRegion = {};
-    const kbArpuPlansByRegion = {};
     cpArpuPlansData.forEach(row => {
       const region = String(row[0]).trim().toUpperCase();
       const plan = row[1];
       if (region && plan) {
-        arpuPlansByRegion[region] = plan;
+        cpArpuPlansByRegion[region] = plan;
+      }
+    });
+
+    // Build KB ARPU Plans lookup map
+    const kbArpuPlansByRegion = {};
+    kbArpuPlansData.forEach(row => {
+      const region = String(row[0]).trim().toUpperCase();
+      const plan = row[1];
+      if (region && plan) {
+        kbArpuPlansByRegion[region] = plan;
       }
     });
 
@@ -1459,7 +1468,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     // ============================================
     const grandTotal = totalsData[1] ? totalsData[1][1] : 0;
     const churnTotal = totalsData[2] ? totalsData[2][1] : 0;
-    const killerTotal = totalsData[5] ? totalsData[5][1] : 0;
+    const killerTotal = totalsData[3] ? totalsData[3][1] : 0;
 
     // Get ARPU from secondary sales plan section
     const arpuRow = teamPerfData.length > 3 ? teamPerfData[3] : null;
@@ -1773,8 +1782,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
       // Auto-calculate from #1 ranked managers
       const allManagers = [];
 
-      [churnCurrentData, churnOldData, killerCurrentData, killerOldData].forEach((sectionData, sectionIdx) => {
-        const sectionNames = ["CP Current", "CP Old", "KB Current", "KB Old"];
+      [churnData, killerData].forEach((sectionData, sectionIdx) => {
+        const sectionNames = ["CP Total", "KB Total"];
         sectionData.forEach(row => {
           const rank = row[1];
           if (rank === 1) {
@@ -1873,8 +1882,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
     });
 
     // Split into main (ranks 1-3) and rising stars (ranks 4-5)
-    const churnMain = churnCurrentData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
-    const churnRising = churnCurrentData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
+    const churnMain = churnData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
+    const churnRising = churnData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
 
     let churnCurrentText = "";
     churnMain.forEach((row, idx) => {
@@ -1984,7 +1993,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    const hasKillerData = killerCurrentData.some(row => row[1] && row[2]);
+    const hasKillerData = killerData.some(row => row[1] && row[2]);
 
     if (hasKillerData) {
       blocks.push({
@@ -2589,12 +2598,6 @@ function buildCombinedLeaderboardFromSheet(automation) {
     }
 
     // Footer with stats from sheet (you can update these manually)
-    // Note: totalsData[0] is Display Date, so actual totals start at index 1
-    // Variables already declared in summary block above, just get additional ones
-    const churnCurrent = totalsData[3] ? totalsData[3][1] : 0;
-    const churnOld = totalsData[4] ? totalsData[4][1] : 0;
-    const killerCurrent = totalsData[6] ? totalsData[6][1] : 0;
-    const killerOld = totalsData[7] ? totalsData[7][1] : 0;
 
     blocks.push({ type: "divider" });
 
@@ -2603,7 +2606,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
       elements: [
         {
           type: "mrkdwn",
-          text: `📊 *Grand Total:* ${grandTotal} sales | 🏆 CP: ${churnTotal} (${churnCurrent} Current + ${churnOld} Old) | 💪 KB: ${killerTotal} (${killerCurrent} Current + ${killerOld} Old) | Updated: ${new Date().toLocaleString()}`
+          text: `📊 *Grand Total:* ${grandTotal} sales | 🏆 CP: ${churnTotal} | 💪 KB: ${killerTotal} | Updated: ${new Date().toLocaleString()}`
         }
       ]
     });
