@@ -1405,26 +1405,25 @@ function buildCombinedLeaderboardFromSheet(automation) {
       return { text: "Weekly Leaderboard sheet not found. Please create it first." };
     }
 
-    // Get all data sections from the sheet (TOP 5 STRUCTURE - with Rising Stars + ARPU & Upsell Share)
-    const teamPerfData = sheet.getRange("A3:E6").getValues();  // NEW: Team Performance Summary (4 rows: Purchase, Revenue, Net Churn, ARPU)
-    const regionalChampData = sheet.getRange("A10:C11").getValues();  // NEW: Regional Champions
-    const upsellMetricsData = sheet.getRange("A15:E17").getValues();  // NEW: Upsell Metrics Summary
-    const churnCurrentData = sheet.getRange("A21:I25").getValues();  // 5 rows (1-3 main, 4-5 rising stars) + ARPU & Upsell Share
-    const churnOldData = sheet.getRange("A29:I33").getValues();  // 5 rows + ARPU & Upsell Share
-    const killerCurrentData = sheet.getRange("A37:I41").getValues();  // 5 rows + ARPU & Upsell Share
-    const killerOldData = sheet.getRange("A45:I49").getValues();  // 5 rows + ARPU & Upsell Share
-    const totalsData = sheet.getRange("A53:B60").getValues();
-    const managerOfWeekData = sheet.getRange("A64:G64").getValues();  // Now includes ARPU & Upsell Share
-    const kbPaidRateData = sheet.getRange("A68:F70").getValues();
-    const cpPaidRateData = sheet.getRange("A74:F76").getValues();
-    const highestPaymentsData = sheet.getRange("A80:F82").getValues();
-    const cpUpsellData = sheet.getRange("A86:G88").getValues();    // CP Upsell Top 3 (optional) - now with ARPU & Upsell Share
-    const kbUpsellData = sheet.getRange("A92:G94").getValues();    // KB Upsell Top 3 (optional) - now with ARPU & Upsell Share
-    const biggestArpuData = sheet.getRange("A98:F100").getValues(); // Biggest ARPU Sale (optional)
-    const top3ArpuData = sheet.getRange("A104:G106").getValues();  // Top 3 ARPU with 20+ Payments (optional)
-    const top3UpsellData = sheet.getRange("A110:G112").getValues(); // Top 3 Upsell Share with 20+ Payments (optional)
-    const reactivationData = sheet.getRange("A116:E120").getValues(); // Reactivation Results - Top 5
-    const arpuPlansData = sheet.getRange("A124:C135").getValues();  // ARPU Plans by Region
+    // Get all data sections from the sheet (UPDATED: TOTAL BASE structure with editable header metrics)
+    const teamPerfData = sheet.getRange("A3:E6").getValues();  // Secondary Sales Plan (4 rows)
+    const regionalChampData = sheet.getRange("A10:C11").getValues();  // Regional Champions
+    const upsellMetricsData = sheet.getRange("A15:E17").getValues();  // Upsell Metrics Summary
+    const churnData = sheet.getRange("A21:I25").getValues();  // COMBINED: CP Total Base - TOP 5
+    const killerData = sheet.getRange("A29:I33").getValues();  // COMBINED: KB Total Base - TOP 5
+    const totalsData = sheet.getRange("A37:B40").getValues();  // Totals Summary (4 rows)
+    const headerMetricsData = sheet.getRange("A44:B46").getValues();  // NEW: Header Metrics (Reactivations Count, WoW values)
+    const managerOfWeekData = sheet.getRange("A50:G50").getValues();  // Manager of the Week
+    const kbPaidRateData = sheet.getRange("A54:F56").getValues();  // KB Paid Rate
+    const cpPaidRateData = sheet.getRange("A60:F62").getValues();  // CP Paid Rate
+    const highestPaymentsData = sheet.getRange("A66:F68").getValues();  // Highest Payments
+    const cpUpsellData = sheet.getRange("A72:G74").getValues();  // CP Upsell Top 3 (optional)
+    const kbUpsellData = sheet.getRange("A78:G80").getValues();  // KB Upsell Top 3 (optional)
+    const biggestArpuData = sheet.getRange("A84:F86").getValues();  // Biggest ARPU Sale (optional)
+    const top3ArpuData = sheet.getRange("A90:G92").getValues();  // Top 3 ARPU with 20+ Payments (optional)
+    const top3UpsellData = sheet.getRange("A96:G98").getValues();  // Top 3 Upsell Share with 20+ Payments (optional)
+    const reactivationData = sheet.getRange("A102:E106").getValues();  // Reactivation Results - Top 5
+    const arpuPlansData = sheet.getRange("A110:C121").getValues();  // ARPU Plans by Region
 
     // Build ARPU Plans lookup map
     const arpuPlansByRegion = {};
@@ -1479,24 +1478,29 @@ function buildCombinedLeaderboardFromSheet(automation) {
       }
     }
 
-    // Get reactivations count
+    // Get reactivations count and WoW from HEADER METRICS section (editable)
     let reactivationsCount = 0;
-    if (reactivationData && reactivationData.length > 0) {
-      reactivationData.forEach(row => {
-        if (row[3]) {
-          const num = parseInt(row[3]);
-          if (!isNaN(num)) reactivationsCount += num;
-        }
-      });
+    let reactivationsWoW = "";
+    let arpuWoW = "";
+
+    if (headerMetricsData && headerMetricsData.length >= 3) {
+      // Row 0: Reactivations Count
+      reactivationsCount = headerMetricsData[0][1] || 0;
+      // Row 1: Reactivations WoW
+      reactivationsWoW = headerMetricsData[1][1] ? String(headerMetricsData[1][1]).trim() : "";
+      // Row 2: ARPU WoW
+      arpuWoW = headerMetricsData[2][1] ? String(headerMetricsData[2][1]).trim() : "";
     }
 
     let summaryText = `📊 *${displayDate}*  |  Grand Total: *${grandTotal} sales*\n`;
     summaryText += `🏆 CP: *${churnTotal}*  |  💪 KB: *${killerTotal}*\n`;
     if (arpuPlan && arpuToday) {
-      summaryText += `📈 ARPU: *${arpuToday}* / Plan: ${arpuPlan}${arpuVariance}\n`;
+      const arpuWowText = arpuWoW ? ` (${arpuWoW})` : arpuVariance;
+      summaryText += `📈 ARPU: *${arpuToday}* / Plan: ${arpuPlan}${arpuWowText}\n`;
     }
     if (reactivationsCount > 0) {
-      summaryText += `🔄 Reactivations: *${reactivationsCount} customers* returned`;
+      const reactWowText = reactivationsWoW ? ` (${reactivationsWoW})` : "";
+      summaryText += `🔄 Reactivations: *${reactivationsCount} customers* returned${reactWowText}`;
     }
 
     blocks.push({
@@ -1856,22 +1860,22 @@ function buildCombinedLeaderboardFromSheet(automation) {
     });
 
     // ============================================
-    // SECTION 1: CHURN PREVENTION - CURRENT BASE - TOP 3 + RISING STARS
+    // SECTION 1: CHURN PREVENTION - TOTAL BASE - TOP 3 + RISING STARS
     // ============================================
     blocks.push({
       type: "section",
       text: {
         type: "mrkdwn",
-        text: "*🏆 CHURN PREVENTION - CURRENT BASE - TOP 3*"
+        text: "*🏆 CHURN PREVENTION - TOTAL BASE - TOP 3*"
       }
     });
 
     // Split into main (ranks 1-3) and rising stars (ranks 4-5)
-    const churnCurrentMain = churnCurrentData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
-    const churnCurrentRising = churnCurrentData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
+    const churnMain = churnCurrentData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
+    const churnRising = churnCurrentData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
 
     let churnCurrentText = "";
-    churnCurrentMain.forEach((row, idx) => {
+    churnMain.forEach((row, idx) => {
       // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
       const rank = row[1];
       const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -1924,9 +1928,9 @@ function buildCombinedLeaderboardFromSheet(automation) {
     });
 
     // Add Rising Stars if available
-    if (churnCurrentRising.length > 0) {
+    if (churnRising.length > 0) {
       let risingStarsText = "_⭐ Rising Stars_\n\n";
-      churnCurrentRising.forEach((row) => {
+      churnRising.forEach((row) => {
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
         const sales = row[3];
@@ -1955,7 +1959,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         risingStarsText += `⭐ *${managerName}*  #${rank}\n`;
         risingStarsText += `   └ ${salesText} | 💰 ${cashGenerated}`;
         if (arpu) {
-          risingStarsText += ` | ARPU: ${arpu}`;
+          risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
         }
         if (upsellShare) {
           risingStarsText += ` | Upsell: ${upsellShare}`;
@@ -1981,9 +1985,9 @@ function buildCombinedLeaderboardFromSheet(automation) {
     // SECTION 2: CHURN PREVENTION - OLD BASE - TOP 3 + RISING STARS (OPTIONAL)
     // ============================================
     // Check if there's any data before displaying this section
-    const hasChurnOldData = churnOldData.some(row => row[1] && row[2]); // Check if has rank and manager name
+    const # REMOVED = churnOldData.some(row => row[1] && row[2]); // Check if has rank and manager name
 
-    if (hasChurnOldData) {
+    if (# REMOVED) {
       blocks.push({
         type: "section",
         text: {
@@ -1993,8 +1997,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
       });
 
       // Split into main (ranks 1-3) and rising stars (ranks 4-5)
-      const churnOldMain = churnOldData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
-      const churnOldRising = churnOldData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
+      # REMOVED churnOld.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
+      # REMOVED churnOld.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
 
       let churnOldText = "";
       churnOldMain.forEach((row, idx) => {
@@ -2029,7 +2033,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         churnOldText += `${rankEmoji} *${managerName}*\n`;
         churnOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
         if (arpu) {
-          churnOldText += ` | ARPU: ${arpu}`;
+          churnOldText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
         }
         if (upsellShare) {
           churnOldText += ` | Upsell: ${upsellShare}`;
@@ -2078,7 +2082,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
           if (arpu) {
-            risingStarsText += ` | ARPU: ${arpu}`;
+            risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
           }
           if (upsellShare) {
             risingStarsText += ` | Upsell: ${upsellShare}`;
@@ -2102,25 +2106,25 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 3: KILLER BASE - CURRENT BASE - TOP 3 + RISING STARS (OPTIONAL)
+    // SECTION 3: KILLER BASE - TOTAL BASE - TOP 3 + RISING STARS (OPTIONAL)
     // ============================================
-    const hasKillerCurrentData = killerCurrentData.some(row => row[1] && row[2]);
+    const hasKillerData = killerCurrentData.some(row => row[1] && row[2]);
 
-    if (hasKillerCurrentData) {
+    if (hasKillerData) {
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: "*💪 KILLER BASE - CURRENT BASE - TOP 3*"
+          text: "*💪 KILLER BASE - TOTAL BASE - TOP 3*"
         }
       });
 
       // Split into main (ranks 1-3) and rising stars (ranks 4-5)
-      const killerCurrentMain = killerCurrentData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
-      const killerCurrentRising = killerCurrentData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
+      const killerMain = killerData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
+      const killerRising = killerData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
 
       let killerCurrentText = "";
-      killerCurrentMain.forEach((row, idx) => {
+      killerMain.forEach((row, idx) => {
         // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -2152,7 +2156,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         killerCurrentText += `${rankEmoji} *${managerName}*\n`;
         killerCurrentText += `   └ ${salesText} | 💰 ${cashGenerated}`;
         if (arpu) {
-          killerCurrentText += ` | ARPU: ${arpu}`;
+          killerCurrentText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
         }
         if (upsellShare) {
           killerCurrentText += ` | Upsell: ${upsellShare}`;
@@ -2172,9 +2176,9 @@ function buildCombinedLeaderboardFromSheet(automation) {
       });
 
       // Add Rising Stars if available
-      if (killerCurrentRising.length > 0) {
+      if (killerRising.length > 0) {
         let risingStarsText = "_⭐ Rising Stars_\n\n";
-        killerCurrentRising.forEach((row) => {
+        killerRising.forEach((row) => {
           const rank = row[1];
           const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
           const sales = row[3];
@@ -2201,7 +2205,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
           if (arpu) {
-            risingStarsText += ` | ARPU: ${arpu}`;
+            risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
           }
           if (upsellShare) {
             risingStarsText += ` | Upsell: ${upsellShare}`;
@@ -2227,9 +2231,9 @@ function buildCombinedLeaderboardFromSheet(automation) {
     // ============================================
     // SECTION 4: KILLER BASE - OLD BASE - TOP 3 + RISING STARS (OPTIONAL)
     // ============================================
-    const hasKillerOldData = killerOldData.some(row => row[1] && row[2]);
+    const # REMOVED = killerOldData.some(row => row[1] && row[2]);
 
-    if (hasKillerOldData) {
+    if (# REMOVED) {
       blocks.push({
         type: "section",
         text: {
@@ -2239,8 +2243,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
       });
 
       // Split into main (ranks 1-3) and rising stars (ranks 4-5)
-      const killerOldMain = killerOldData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
-      const killerOldRising = killerOldData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
+      # REMOVED killerOld.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
+      # REMOVED killerOld.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
 
       let killerOldText = "";
       killerOldMain.forEach((row, idx) => {
@@ -2275,7 +2279,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         killerOldText += `${rankEmoji} *${managerName}*\n`;
         killerOldText += `   └ ${salesText} | 💰 ${cashGenerated}`;
         if (arpu) {
-          killerOldText += ` | ARPU: ${arpu}`;
+          killerOldText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
         }
         if (upsellShare) {
           killerOldText += ` | Upsell: ${upsellShare}`;
@@ -2324,7 +2328,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
 
           risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
           if (arpu) {
-            risingStarsText += ` | ARPU: ${arpu}`;
+            risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, arpuPlansByRegion)}`;
           }
           if (upsellShare) {
             risingStarsText += ` | Upsell: ${upsellShare}`;
