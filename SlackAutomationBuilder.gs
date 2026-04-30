@@ -2114,6 +2114,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
+    blocks.push({
+      type: "context",
       elements: [{
         type: "mrkdwn",
         text: "━━━━━━━━ 📊 *BONUS METRICS* ━━━━━━━━"
