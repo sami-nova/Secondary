@@ -1,5 +1,5 @@
 // ============================================================
-//  MANAGER SCHEDULE TRACKER  — Command Center  v4.2
+//  MANAGER SCHEDULE TRACKER  — Command Center  v4.3
 //  Single-file Google Apps Script
 // ============================================================
 
@@ -44,6 +44,52 @@ var C = {
   PROC_CHURN: '#E1F5FE',        // procedure tints
   PROC_KILL : '#FFF3E0',
   PROC_RETEN: '#E0F2F1',
+};
+
+// ─── COLOUR THEMES ───────────────────────────────────────────
+// Themes override the structural palette (headers, borders, title).
+// Status colours (working=green, off=red, etc.) never change — they carry
+// semantic meaning across every theme.
+var THEMES = {
+  'Classic': {
+    TITLE_BG  :'#0D47A1', TITLE_FG  :'#FFFFFF',
+    LEGEND_BG :'#E8EAF6', LEGEND_FG :'#283593',
+    HDR_BG    :'#1565C0', HDR_FG    :'#FFFFFF',
+    SUMHDR_BG :'#283593', SUMHDR_FG :'#FFFFFF',
+    WKND_BG   :'#37474F', WKND_FG   :'#ECEFF1',
+    BORDER_OUT:'#0D47A1', BORDER_IN :'#90CAF9',
+    TAB_COLOR :'#0D47A1',
+    DASH_HDR  :'#0D47A1', DASH_HDR_FG:'#FFFFFF',
+    DASH_SUB  :'#E8EAF6', DASH_SUB_FG:'#283593',
+    DASH_CARD :'#BBDEFB', DASH_CARD_FG:'#0D47A1',
+    DASH_ALT  :'#E3F2FD', DASH_TAB  :'#1565C0',
+  },
+  'Forest': {
+    TITLE_BG  :'#1B5E20', TITLE_FG  :'#FFFFFF',
+    LEGEND_BG :'#F1F8E9', LEGEND_FG :'#2E7D32',
+    HDR_BG    :'#2E7D32', HDR_FG    :'#FFFFFF',
+    SUMHDR_BG :'#388E3C', SUMHDR_FG :'#FFFFFF',
+    WKND_BG   :'#33691E', WKND_FG   :'#CCFF90',
+    BORDER_OUT:'#1B5E20', BORDER_IN :'#A5D6A7',
+    TAB_COLOR :'#2E7D32',
+    DASH_HDR  :'#1B5E20', DASH_HDR_FG:'#FFFFFF',
+    DASH_SUB  :'#F1F8E9', DASH_SUB_FG:'#2E7D32',
+    DASH_CARD :'#C8E6C9', DASH_CARD_FG:'#1B5E20',
+    DASH_ALT  :'#DCEDC8', DASH_TAB  :'#2E7D32',
+  },
+  'Slate': {
+    TITLE_BG  :'#263238', TITLE_FG  :'#ECEFF1',
+    LEGEND_BG :'#ECEFF1', LEGEND_FG :'#37474F',
+    HDR_BG    :'#37474F', HDR_FG    :'#ECEFF1',
+    SUMHDR_BG :'#455A64', SUMHDR_FG :'#ECEFF1',
+    WKND_BG   :'#1C313A', WKND_FG   :'#CFD8DC',
+    BORDER_OUT:'#263238', BORDER_IN :'#90A4AE',
+    TAB_COLOR :'#263238',
+    DASH_HDR  :'#263238', DASH_HDR_FG:'#ECEFF1',
+    DASH_SUB  :'#ECEFF1', DASH_SUB_FG:'#37474F',
+    DASH_CARD :'#CFD8DC', DASH_CARD_FG:'#263238',
+    DASH_ALT  :'#B0BEC5', DASH_TAB  :'#37474F',
+  },
 };
 
 // ─── PER-REGION ACCENT COLOURS ────────────────────────────────
@@ -146,6 +192,32 @@ function procBg_(procedure) {
   return null;
 }
 
+// Returns the stored theme object (defaults to Classic).
+function getActiveTheme_() {
+  var name = PropertiesService.getScriptProperties().getProperty('THEME') || 'Classic';
+  return THEMES[name] || THEMES['Classic'];
+}
+
+// Writes the structural theme colours into the global C palette so all
+// downstream code (headers, borders, tab) picks up the active theme.
+function applyThemeToPalette_() {
+  var t = getActiveTheme_();
+  C.TITLE_BG   = t.TITLE_BG;   C.TITLE_FG   = t.TITLE_FG;
+  C.LEGEND_BG  = t.LEGEND_BG;  C.LEGEND_FG  = t.LEGEND_FG;
+  C.HDR_BG     = t.HDR_BG;     C.HDR_FG     = t.HDR_FG;
+  C.SUMHDR_BG  = t.SUMHDR_BG;  C.SUMHDR_FG  = t.SUMHDR_FG;
+  C.WKND_BG    = t.WKND_BG;    C.WKND_FG    = t.WKND_FG;
+  C.BORDER_OUT = t.BORDER_OUT; C.BORDER_IN  = t.BORDER_IN;
+}
+
+// Linear blend of two 6-digit hex colours. ratio 0 = hex1, 1 = hex2.
+function blendHex_(hex1, hex2, ratio) {
+  function p(h) { return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
+  function x(n) { return ('0'+Math.round(n).toString(16)).slice(-2); }
+  var a = p(hex1), b = p(hex2), r = 1 - ratio;
+  return '#'+x(a[0]*r+b[0]*ratio)+x(a[1]*r+b[1]*ratio)+x(a[2]*r+b[2]*ratio);
+}
+
 // ─── MENU ────────────────────────────────────────────────────
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -160,6 +232,9 @@ function onOpen() {
     .addSeparator()
     .addItem('Post Today to Slack',           'postScheduleToSlack')
     .addSeparator()
+    .addItem('Refresh Dashboard',             'buildDashboard')
+    .addItem('Change Colour Theme',           'selectTheme')
+    .addSeparator()
     .addItem('Set Up Daily 8AM Trigger',      'createTimeDrivenTrigger')
     .addItem('Remove All Triggers',           'deleteAllTriggers')
     .addToUi();
@@ -167,6 +242,7 @@ function onOpen() {
 
 // ─── MAIN BUILD ──────────────────────────────────────────────
 function buildScheduleSheet(targetDate) {
+  applyThemeToPalette_();   // load active theme into C before any rendering
   var ss   = getSpreadsheet_();
   var tz   = Session.getScriptTimeZone();
   var date = (targetDate instanceof Date) ? targetDate : new Date();
@@ -408,11 +484,12 @@ function buildScheduleSheet(targetDate) {
     }
   }
 
-  // ── Tab colour ────────────────────────────────────────────
-  sheet.setTabColor('#0D47A1');
+  // ── Tab colour (theme-driven) ─────────────────────────────
+  sheet.setTabColor(getActiveTheme_().TAB_COLOR || '#0D47A1');
 
   SpreadsheetApp.flush();   // ensure all formatting renders before function exits
-  ss.setActiveSheet(sheet);
+  buildDashboard();         // auto-refresh analytics dashboard after every build
+  ss.setActiveSheet(sheet); // return focus to Schedule
   sheet.setActiveSelection('A1');
   Logger.log('✅ Built: ' + monthLabel + ' | ' + sorted.length + ' managers | rows 3-' + lastDataRow);
 } // END buildScheduleSheet
@@ -683,6 +760,352 @@ function postScheduleToSlack() {
 }
 
 function repeat_(ch,n){var s='';for(var i=0;i<n;i++)s+=ch;return s;}
+
+// ─── ANALYTICS DASHBOARD ─────────────────────────────────────
+// Builds (or fully rebuilds) a 'Dashboard' sheet with:
+//   • Today's snapshot summary cards
+//   • Monthly performance table per manager (attendance %, days worked/off/vac/sick/half)
+//   • Regional overview table
+//   • Daily capacity heatmap across all days of the month
+// Called automatically at the end of buildScheduleSheet and via the menu.
+function buildDashboard() {
+  var ss = getSpreadsheet_();
+  var sched = ss.getSheetByName(CFG.SHEET_NAME);
+  if (!sched) { Logger.log('buildDashboard: Schedule sheet not found.'); return; }
+
+  var tz          = Session.getScriptTimeZone();
+  var today       = new Date();
+  var year        = today.getFullYear();
+  var month       = today.getMonth();
+  var dim         = new Date(year, month + 1, 0).getDate(); // days in month
+  var monthLabel  = Utilities.formatDate(today, tz, 'MMMM yyyy');
+  var lastUpdated = Utilities.formatDate(today, tz, 'dd MMM yyyy  HH:mm');
+  var t = getActiveTheme_();
+
+  // ── Get / reset Dashboard sheet ──────────────────────────
+  var dash = ss.getSheetByName('Dashboard');
+  if (!dash) { dash = ss.insertSheet('Dashboard', 1); }
+  else       { dash.clearConditionalFormatRules(); dash.clear(); }
+  dash.setTabColor(t.DASH_TAB);
+
+  // ── Read all schedule rows in one call ───────────────────
+  var sLastRow = sched.getLastRow();
+  var sLastCol = sched.getLastColumn();
+  if (sLastRow < CFG.DATA_START_ROW || sLastCol < CFG.DAY_COL_START) {
+    dash.getRange(1,1).setValue('No schedule data. Build the schedule first.');
+    return;
+  }
+  var raw = sched.getRange(1, 1, sLastRow, sLastCol).getValues();
+
+  // Today's day index (0-based); -1 if we're outside this month
+  var todayDayIdx = (today.getFullYear()===year && today.getMonth()===month)
+                    ? today.getDate() - 1 : -1;
+
+  // ── Single pass: collect manager stats + per-day totals ──
+  var mgrStats  = [];
+  var dayTotals = []; // [{w,o,v,s,h}] length = dim
+  for (var dd = 0; dd < dim; dd++) dayTotals.push({w:0,o:0,v:0,s:0,h:0});
+
+  for (var r = CFG.DATA_START_ROW - 1; r < sLastRow; r++) {
+    var row  = raw[r];
+    var name = String(row[0]||'').trim();
+    var reg  = String(row[1]||'').trim();
+    var proc = String(row[2]||'').trim();
+    if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
+
+    var ms = {name:name, region:reg, procedure:proc, w:0, o:0, v:0, s:0, h:0, todayVal:''};
+    for (var dd = 0; dd < dim; dd++) {
+      var ci  = CFG.DAY_COL_START - 1 + dd;
+      if (ci >= sLastCol) break;
+      var val = String(row[ci]||'').trim();
+      if      (val===DAY_OFF)              { ms.o++; dayTotals[dd].o++; }
+      else if (val===VACATION)             { ms.v++; dayTotals[dd].v++; }
+      else if (val===SICK)                 { ms.s++; dayTotals[dd].s++; }
+      else if (val===HALF_DAY)             { ms.h++; dayTotals[dd].h++; }
+      else if (val.indexOf(':')>=0)        { ms.w++; dayTotals[dd].w++; }
+      if (dd === todayDayIdx) ms.todayVal = val;
+    }
+    mgrStats.push(ms);
+  }
+
+  // Today's global headline figures
+  var todayW=0,todayO=0,todayV=0,todayS=0,todayH=0;
+  if (todayDayIdx>=0 && todayDayIdx<dim) {
+    var dt=dayTotals[todayDayIdx];
+    todayW=dt.w; todayO=dt.o; todayV=dt.v; todayS=dt.s; todayH=dt.h;
+  }
+  var totalMgrs = mgrStats.length;
+
+  // Regional aggregates
+  var regStats = {};
+  for (var ri=0;ri<REGION_ORDER.length;ri++) regStats[REGION_ORDER[ri]]={count:0,w:0,o:0,v:0,s:0,h:0};
+  for (var mi=0;mi<mgrStats.length;mi++) {
+    var ms2=mgrStats[mi], rs=regStats[ms2.region];
+    if (!rs) continue;
+    rs.count++; rs.w+=ms2.w; rs.o+=ms2.o; rs.v+=ms2.v; rs.s+=ms2.s; rs.h+=ms2.h;
+  }
+
+  // Days elapsed this month (for attendance %)
+  var daysElapsed = (today.getFullYear()===year && today.getMonth()===month)
+                    ? today.getDate() : dim;
+
+  // ── Layout helpers ────────────────────────────────────────
+  var TOTAL_COLS = 14; // width of the fixed-column sections
+  var cr = 1;          // current row pointer
+
+  function titleRow(text, bg, fg, size, height) {
+    dash.getRange(cr, 1, 1, TOTAL_COLS).merge()
+      .setValue(text).setBackground(bg).setFontColor(fg)
+      .setFontSize(size||11).setFontWeight('bold')
+      .setHorizontalAlignment('center').setVerticalAlignment('middle');
+    dash.setRowHeight(cr, height||32); cr++;
+  }
+
+  // ── Row 1: Main title ────────────────────────────────────
+  titleRow('MANAGER ANALYTICS DASHBOARD   ·   ' + monthLabel.toUpperCase(),
+           t.DASH_HDR, t.DASH_HDR_FG, 15, 54);
+
+  // ── Row 2: Subtitle ──────────────────────────────────────
+  dash.getRange(cr, 1, 1, TOTAL_COLS).merge()
+    .setValue('Last updated: ' + lastUpdated + '   ·   ' + totalMgrs + ' managers across ' + REGION_ORDER.length + ' regions')
+    .setBackground(t.DASH_SUB).setFontColor(t.DASH_SUB_FG)
+    .setFontSize(10).setFontStyle('italic')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  dash.setRowHeight(cr, 26); cr++;
+  cr++; // spacer
+
+  // ── TODAY'S SNAPSHOT CARDS ───────────────────────────────
+  titleRow("TODAY'S SNAPSHOT   ·   " +
+    Utilities.formatDate(today, tz, 'EEEE, d MMMM yyyy').toUpperCase(),
+    t.DASH_HDR, t.DASH_HDR_FG, 11, 30);
+
+  var cards = [
+    {label:'👥 TOTAL MANAGERS', val:totalMgrs, bg:t.DASH_CARD,  fg:t.DASH_CARD_FG},
+    {label:'✅ WORKING',         val:todayW,     bg:'#C8E6C9',   fg:'#1B5E20'},
+    {label:'🔴 DAY OFF',         val:todayO,     bg:'#FFCDD2',   fg:'#B71C1C'},
+    {label:'🟣 VACATION',        val:todayV,     bg:'#E1BEE7',   fg:'#4A148C'},
+    {label:'🟠 SICK',            val:todayS,     bg:'#FFE0B2',   fg:'#BF360C'},
+    {label:'🟡 HALF DAY',        val:todayH,     bg:'#FFF9C4',   fg:'#F57F17'},
+  ];
+  // Label row (2 cols per card)
+  for (var ci=0;ci<cards.length;ci++) {
+    dash.getRange(cr, ci*2+1, 1, 2).merge()
+      .setValue(cards[ci].label).setBackground(cards[ci].bg).setFontColor(cards[ci].fg)
+      .setFontSize(9).setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
+  }
+  dash.setRowHeight(cr, 28); cr++;
+  // Value row
+  for (var ci=0;ci<cards.length;ci++) {
+    dash.getRange(cr, ci*2+1, 1, 2).merge()
+      .setValue(cards[ci].val).setBackground(cards[ci].bg).setFontColor(cards[ci].fg)
+      .setFontSize(36).setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
+  }
+  dash.setRowHeight(cr, 68); cr++;
+  // Capacity bar (full width)
+  var capFilled = totalMgrs>0 ? Math.round(todayW/totalMgrs*20) : 0;
+  dash.getRange(cr, 1, 1, TOTAL_COLS).merge()
+    .setValue('CAPACITY   ' + repeat_('█',capFilled) + repeat_('░',20-capFilled) +
+              '   ' + todayW + ' of ' + totalMgrs + ' managers active today')
+    .setBackground(t.DASH_SUB).setFontColor(t.DASH_SUB_FG)
+    .setFontFamily('Courier New').setFontSize(11).setFontWeight('bold')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  dash.setRowHeight(cr, 30); cr++;
+  cr++; // spacer
+
+  // ── MONTHLY PERFORMANCE BY MANAGER ───────────────────────
+  titleRow('MONTHLY PERFORMANCE BY MANAGER', t.DASH_HDR, t.DASH_HDR_FG, 11, 32);
+
+  var mHdrs = ['MANAGER NAME','REGION','PROCEDURE',
+               'WORKING\nDAYS','DAYS\nOFF','VACATION\nDAYS','SICK\nDAYS','HALF\nDAYS','ATTENDANCE %'];
+  dash.getRange(cr, 1, 1, mHdrs.length).setValues([mHdrs])
+    .setBackground(t.DASH_CARD).setFontColor(t.DASH_HDR).setFontSize(9).setFontWeight('bold')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
+  dash.setRowHeight(cr, 44); cr++;
+
+  // Sort by region order then procedure order
+  var sorted = mgrStats.slice().sort(function(a,b){
+    var ri = REGION_ORDER.indexOf(a.region) - REGION_ORDER.indexOf(b.region);
+    return ri!==0 ? ri : PROCEDURE_ORDER.indexOf(a.procedure) - PROCEDURE_ORDER.indexOf(b.procedure);
+  });
+
+  for (var mi=0;mi<sorted.length;mi++) {
+    var m = sorted[mi];
+    var altBg = mi%2===0 ? '#FFFFFF' : t.DASH_ALT;
+    var att   = daysElapsed>0 ? Math.round((m.w + m.h*0.5)/daysElapsed*100) : 0;
+    var attFg = att>=75 ? '#1B5E20' : att>=50 ? '#E65100' : '#B71C1C';
+
+    dash.getRange(cr, 1, 1, 9).setValues([[m.name,m.region,m.procedure,m.w,m.o,m.v,m.s,m.h,att+'%']])
+      .setBackground(altBg).setFontSize(10).setHorizontalAlignment('center').setVerticalAlignment('middle');
+    dash.getRange(cr,1).setFontWeight('bold').setHorizontalAlignment('left');
+    dash.getRange(cr,4).setFontColor('#1B5E20').setFontWeight('bold');
+    dash.getRange(cr,5).setFontColor('#B71C1C');
+    dash.getRange(cr,6).setFontColor('#4A148C');
+    dash.getRange(cr,7).setFontColor('#BF360C');
+    dash.getRange(cr,8).setFontColor('#F57F17');
+    dash.getRange(cr,9).setFontWeight('bold').setFontColor(attFg);
+    dash.setRowHeight(cr, 26); cr++;
+  }
+  cr++; // spacer
+
+  // ── REGIONAL OVERVIEW ─────────────────────────────────────
+  titleRow('REGIONAL OVERVIEW', t.DASH_HDR, t.DASH_HDR_FG, 11, 32);
+
+  dash.getRange(cr, 1, 1, 9).setValues([['REGION','','MANAGERS',
+    'WORKING\nDAYS','DAYS\nOFF','VACATION','SICK\nDAYS','HALF\nDAYS','ATTENDANCE %']])
+    .setBackground(t.DASH_CARD).setFontColor(t.DASH_HDR).setFontSize(9).setFontWeight('bold')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
+  dash.setRowHeight(cr, 44); cr++;
+
+  var altToggle = 0;
+  for (var ri=0;ri<REGION_ORDER.length;ri++) {
+    var reg2 = REGION_ORDER[ri], rs2 = regStats[reg2];
+    if (!rs2 || rs2.count===0) continue;
+    var rc3  = REGION_COLORS[reg2] || {hdr:'#455A64',hdrFg:'#FFFFFF'};
+    var altBg2 = altToggle%2===0 ? '#FFFFFF' : t.DASH_ALT;
+    var regAtt = (rs2.count*dim)>0 ? Math.round((rs2.w+rs2.h*0.5)/(rs2.count*dim)*100) : 0;
+    var regFg  = regAtt>=75 ? '#1B5E20' : regAtt>=50 ? '#E65100' : '#B71C1C';
+
+    dash.getRange(cr,1).setValue(reg2).setBackground(rc3.hdr).setFontColor(rc3.hdrFg||'#FFFFFF')
+      .setFontWeight('bold').setFontSize(11).setHorizontalAlignment('center').setVerticalAlignment('middle');
+    dash.getRange(cr,2).setValue(REGION_EMOJIS[reg2]||'').setBackground(altBg2)
+      .setFontSize(16).setHorizontalAlignment('center').setVerticalAlignment('middle');
+    dash.getRange(cr,3).setValue(rs2.count).setBackground(altBg2).setFontWeight('bold').setFontSize(11).setHorizontalAlignment('center');
+    dash.getRange(cr,4).setValue(rs2.w).setBackground(altBg2).setFontColor('#1B5E20').setFontWeight('bold').setFontSize(10).setHorizontalAlignment('center');
+    dash.getRange(cr,5).setValue(rs2.o).setBackground(altBg2).setFontColor('#B71C1C').setFontSize(10).setHorizontalAlignment('center');
+    dash.getRange(cr,6).setValue(rs2.v).setBackground(altBg2).setFontColor('#4A148C').setFontSize(10).setHorizontalAlignment('center');
+    dash.getRange(cr,7).setValue(rs2.s).setBackground(altBg2).setFontColor('#BF360C').setFontSize(10).setHorizontalAlignment('center');
+    dash.getRange(cr,8).setValue(rs2.h).setBackground(altBg2).setFontColor('#F57F17').setFontSize(10).setHorizontalAlignment('center');
+    dash.getRange(cr,9).setValue(regAtt+'%').setBackground(altBg2).setFontColor(regFg).setFontWeight('bold').setFontSize(10).setHorizontalAlignment('center');
+    dash.setRowHeight(cr, 30); cr++;
+    altToggle++;
+  }
+  cr++; // spacer
+
+  // ── DAILY CAPACITY HEATMAP ────────────────────────────────
+  // Section spans cols 1..(dim+1) so it can be wider than the tables above.
+  var hmCols = dim + 1;
+  dash.getRange(cr, 1, 1, hmCols).merge()
+    .setValue('DAILY CAPACITY HEATMAP   ·   ' + monthLabel.toUpperCase())
+    .setBackground(t.DASH_HDR).setFontColor(t.DASH_HDR_FG)
+    .setFontSize(11).setFontWeight('bold')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  dash.setRowHeight(cr, 32); cr++;
+
+  // Day-number header
+  var dayNumVals = ['DAY'];
+  var dayNameVals = [''];
+  for (var dd=0;dd<dim;dd++) {
+    var dObj = new Date(year, month, dd+1);
+    dayNumVals.push(dd+1);
+    dayNameVals.push(DAY_ABBR[dObj.getDay()]);
+  }
+  dash.getRange(cr, 1, 1, hmCols).setValues([dayNumVals])
+    .setBackground(t.DASH_CARD).setFontColor(t.DASH_HDR)
+    .setFontSize(9).setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
+  dash.setRowHeight(cr, 24); cr++;
+  dash.getRange(cr, 1, 1, hmCols).setValues([dayNameVals])
+    .setBackground(t.DASH_ALT).setFontColor(t.DASH_SUB_FG)
+    .setFontSize(9).setHorizontalAlignment('center').setVerticalAlignment('middle');
+  dash.setRowHeight(cr, 22); cr++;
+
+  var heatMetrics = [
+    {label:'✅ Working',  key:'w', fg:'#1B5E20', bg:'#C8E6C9'},
+    {label:'🔴 Day Off',  key:'o', fg:'#B71C1C', bg:'#FFCDD2'},
+    {label:'🟣 Vacation', key:'v', fg:'#4A148C', bg:'#E1BEE7'},
+    {label:'🟠 Sick',     key:'s', fg:'#BF360C', bg:'#FFE0B2'},
+    {label:'🟡 Half Day', key:'h', fg:'#F57F17', bg:'#FFF9C4'},
+  ];
+
+  for (var hmi=0;hmi<heatMetrics.length;hmi++) {
+    var hm = heatMetrics[hmi];
+    var rowVals = [hm.label];
+    var maxVal  = 0;
+    for (var dd=0;dd<dim;dd++) {
+      var v = dayTotals[dd][hm.key];
+      rowVals.push(v);
+      if (v>maxVal) maxVal=v;
+    }
+    dash.getRange(cr, 1, 1, hmCols).setValues([rowVals])
+      .setFontSize(9).setHorizontalAlignment('center').setVerticalAlignment('middle');
+    // Label cell
+    dash.getRange(cr,1).setBackground(hm.bg).setFontColor(hm.fg).setFontWeight('bold').setHorizontalAlignment('left');
+    // Value cells — intensity shading + today highlight
+    for (var dd=0;dd<dim;dd++) {
+      var v2   = dayTotals[dd][hm.key];
+      var cell = dash.getRange(cr, dd+2);
+      var shade;
+      if      (v2===0)           shade = '#F8F9FA';
+      else if (maxVal===0)       shade = hm.bg;
+      else if (v2<maxVal*0.35)   shade = blendHex_(hm.bg,'#FFFFFF',0.65);
+      else if (v2<maxVal*0.70)   shade = blendHex_(hm.bg,'#FFFFFF',0.35);
+      else                       shade = hm.bg;
+      cell.setBackground(shade).setFontColor(v2===0 ? '#BDBDBD' : hm.fg);
+      if (dd===todayDayIdx)
+        cell.setBorder(true,true,true,true,false,false,'#FF6F00',SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+    }
+    dash.setRowHeight(cr, 28); cr++;
+  }
+  cr++; // spacer
+
+  // ── Footer note ───────────────────────────────────────────
+  dash.getRange(cr, 1, 1, hmCols).merge()
+    .setValue('Attendance % = (working days + 0.5 × half days) ÷ days elapsed × 100.  ' +
+              'Heatmap: darker cell = more managers in that status.  ' +
+              'Refresh: Schedule Management → Refresh Dashboard.')
+    .setBackground(t.DASH_SUB).setFontColor(t.DASH_SUB_FG)
+    .setFontSize(8).setFontStyle('italic')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  dash.setRowHeight(cr, 22);
+
+  // ── Column widths ─────────────────────────────────────────
+  dash.setColumnWidth(1, 190);           // Name / metric label
+  dash.setColumnWidth(2, 76);            // emoji / region
+  for (var c=3;c<=9;c++)  dash.setColumnWidth(c, 76);   // table data cols
+  for (var c=10;c<=hmCols;c++) dash.setColumnWidth(c, 36); // heatmap day cols
+
+  // ── Freeze title + subtitle rows ─────────────────────────
+  dash.setFrozenRows(2);
+
+  SpreadsheetApp.flush();
+  Logger.log('✅ Dashboard built: ' + totalMgrs + ' managers | ' + monthLabel);
+}
+
+// ─── COLOUR THEME SELECTOR ───────────────────────────────────
+function selectTheme() {
+  var ui      = SpreadsheetApp.getUi();
+  var names   = Object.keys(THEMES);
+  var current = PropertiesService.getScriptProperties().getProperty('THEME') || 'Classic';
+  var r = ui.prompt(
+    'Change Colour Theme',
+    'Current theme: ' + current + '\n\n' +
+    'Available:\n' +
+    '  1. Classic  —  deep corporate blue\n' +
+    '  2. Forest   —  dark forest green\n' +
+    '  3. Slate    —  charcoal professional\n\n' +
+    'Enter the theme name or its number (1-3):',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+  var input = r.getResponseText().trim();
+  var idx   = parseInt(input, 10);
+  var raw   = (!isNaN(idx) && idx>=1 && idx<=names.length) ? names[idx-1] : input;
+  // Case-insensitive match
+  var chosen = '';
+  for (var i=0;i<names.length;i++) {
+    if (names[i].toLowerCase()===raw.toLowerCase()) { chosen=names[i]; break; }
+  }
+  if (!chosen) {
+    ui.alert('Unknown theme: "' + input + '".\nValid options: ' + names.join(', '));
+    return;
+  }
+  PropertiesService.getScriptProperties().setProperty('THEME', chosen);
+  var rebuild = ui.alert(
+    'Theme changed to "' + chosen + '"',
+    'Rebuild the schedule now to apply the new colours?',
+    ui.ButtonSet.YES_NO
+  );
+  if (rebuild === ui.Button.YES) buildScheduleSheet();
+}
 
 // ─── TRIGGERS ─────────────────────────────────────────────────
 function createTimeDrivenTrigger() {
