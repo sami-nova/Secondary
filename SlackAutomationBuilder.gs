@@ -1409,22 +1409,22 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const teamPerfData = sheet.getRange("A3:E6").getValues();  // Secondary Sales Plan (4 rows)
     const regionalChampData = sheet.getRange("A10:C11").getValues();  // Regional Champions
     const upsellMetricsData = sheet.getRange("A15:E17").getValues();  // Upsell Metrics Summary
-    const churnData = sheet.getRange("A21:I25").getValues();  // COMBINED: CP Total Base - TOP 5
-    const killerData = sheet.getRange("A29:I33").getValues();  // COMBINED: KB Total Base - TOP 5
-    const totalsData = sheet.getRange("A37:B40").getValues();  // Totals Summary (4 rows)
-    const headerMetricsData = sheet.getRange("A44:B46").getValues();  // NEW: Header Metrics (Reactivations Count, WoW values)
-    const managerOfWeekData = sheet.getRange("A50:G50").getValues();  // Manager of the Week
-    const cpCallRateData = sheet.getRange("A54:F56").getValues();  // CP Call Rate - Lowest 3 Regions
-    const kbCallRateData = sheet.getRange("A60:F62").getValues();  // KB Call Rate - Lowest 3 Regions
-    const highestPaymentsData = sheet.getRange("A66:F68").getValues();  // Highest Payments
-    const cpUpsellData = sheet.getRange("A72:G74").getValues();  // CP Upsell Top 3 (optional)
-    const kbUpsellData = sheet.getRange("A78:G80").getValues();  // KB Upsell Top 3 (optional)
-    const biggestArpuData = sheet.getRange("A84:F86").getValues();  // Biggest ARPU Sale (optional)
-    const top3ArpuData = sheet.getRange("A90:G92").getValues();  // Top 3 ARPU with 20+ Payments (optional)
-    const top3UpsellData = sheet.getRange("A96:G98").getValues();  // Top 3 Upsell Share with 20+ Payments (optional)
-    const reactivationData = sheet.getRange("A102:E106").getValues();  // Reactivation Results - Top 5
-    const cpArpuPlansData = sheet.getRange("A110:C121").getValues();  // CP ARPU Plans by Region
-    const kbArpuPlansData = sheet.getRange("A125:C136").getValues();  // KB ARPU Plans by Region
+    const churnData = sheet.getRange("A21:I23").getValues();  // COMBINED: CP Total Base - TOP 3
+    const killerData = sheet.getRange("A27:I29").getValues();  // COMBINED: KB Total Base - TOP 3
+    const totalsData = sheet.getRange("A33:B36").getValues();  // Totals Summary (4 rows)
+    const headerMetricsData = sheet.getRange("A40:B42").getValues();  // NEW: Header Metrics (Reactivations Count, WoW values)
+    const managerOfWeekData = sheet.getRange("A46:G46").getValues();  // Manager of the Week
+    const cpRegionalData = sheet.getRange("A50:G52").getValues();  // CP Regional Performance - Lowest 3
+    const kbRegionalData = sheet.getRange("A56:G58").getValues();  // KB Regional Performance - Lowest 3
+    const highestPaymentsData = sheet.getRange("A62:F64").getValues();  // Highest Payments
+    const cpUpsellData = sheet.getRange("A68:G70").getValues();  // CP Upsell Top 3 (optional)
+    const kbUpsellData = sheet.getRange("A74:G76").getValues();  // KB Upsell Top 3 (optional)
+    const biggestArpuData = sheet.getRange("A80:F82").getValues();  // Biggest ARPU Sale (optional)
+    const top3ArpuData = sheet.getRange("A86:G88").getValues();  // Top 3 ARPU with 20+ Payments (optional)
+    const top3UpsellData = sheet.getRange("A92:G94").getValues();  // Top 3 Upsell Share with 20+ Payments (optional)
+    const reactivationData = sheet.getRange("A98:E100").getValues();  // Reactivation Results - Top 3
+    const cpArpuPlansData = sheet.getRange("A104:C115").getValues();  // CP ARPU Plans by Region
+    const kbArpuPlansData = sheet.getRange("A119:C130").getValues();  // KB ARPU Plans by Region
 
     // Build CP ARPU Plans lookup map
     const cpArpuPlansByRegion = {};
@@ -1881,12 +1881,9 @@ function buildCombinedLeaderboardFromSheet(automation) {
       }
     });
 
-    // Split into main (ranks 1-3) and rising stars (ranks 4-5)
-    const churnMain = churnData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
-    const churnRising = churnData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
-
+    // TOP 3 only - no rising stars
     let churnCurrentText = "";
-    churnMain.forEach((row, idx) => {
+    churnData.forEach((row, idx) => {
       // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
       const rank = row[1];
       const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -1938,58 +1935,6 @@ function buildCombinedLeaderboardFromSheet(automation) {
       }
     });
 
-    // Add Rising Stars if available
-    if (churnRising.length > 0) {
-      let risingStarsText = "_⭐ Rising Stars_\n\n";
-      churnRising.forEach((row) => {
-        const rank = row[1];
-        const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-        const sales = row[3];
-        const wow = row[4] ? String(row[4]).trim() : "";
-        const cashRaw = row[5];
-        const arpu = row[6] ? row[6] : "";
-        const upsellShare = row[7] ? row[7] : "";
-        const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-        const region = cleanSheetData(row[8]);
-
-        if (!rank || !managerName) return;
-
-        const regionEmoji = region ? getRegionSlackEmoji(region) : "";
-
-        let salesText = `${sales} sales`;
-        if (wow) {
-          const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
-          const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
-                          !isNaN(wowNum) && wowNum >= 10 ? '📈' :
-                          !isNaN(wowNum) && wowNum >= 1 ? '➕' :
-                          !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-          salesText += ` ${wowEmoji} ${wow}`;
-        }
-
-        // Use consistent format with top 3
-        risingStarsText += `⭐ *${managerName}*  #${rank}\n`;
-        risingStarsText += `   └ ${salesText} | 💰 ${cashGenerated}`;
-        if (arpu) {
-          risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, cpArpuPlansByRegion)}`;
-        }
-        if (upsellShare) {
-          risingStarsText += ` | Upsell: ${upsellShare}`;
-        }
-        if (region) {
-          risingStarsText += ` | ${regionEmoji} ${region}`;
-        }
-        risingStarsText += `\n\n`;
-      });
-
-      blocks.push({
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: risingStarsText
-        }
-      });
-    }
-
     blocks.push({ type: "divider" });
 
     // ============================================
@@ -2004,12 +1949,9 @@ function buildCombinedLeaderboardFromSheet(automation) {
         }
       });
 
-      // Split into main (ranks 1-3) and rising stars (ranks 4-5)
-      const killerMain = killerData.filter(row => row[1] && row[1] >= 1 && row[1] <= 3);
-      const killerRising = killerData.filter(row => row[1] && row[1] >= 4 && row[1] <= 5);
-
+      // TOP 3 only - no rising stars
       let killerCurrentText = "";
-      killerMain.forEach((row, idx) => {
+      killerData.forEach((row, idx) => {
         // Row format: [Week, Rank, Manager Name, Sales, WoW, Cash Generated, ARPU, Upsell Share, Region]
         const rank = row[1];
         const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
@@ -2059,56 +2001,6 @@ function buildCombinedLeaderboardFromSheet(automation) {
           text: killerCurrentText || "_No data available_"
         }
       });
-
-      // Add Rising Stars if available
-      if (killerRising.length > 0) {
-        let risingStarsText = "_⭐ Rising Stars_\n\n";
-        killerRising.forEach((row) => {
-          const rank = row[1];
-          const managerName = typeof applyManagerMentions === 'function' ? applyManagerMentions(row[2]) : cleanSheetData(row[2]);
-          const sales = row[3];
-          const wow = row[4] ? String(row[4]).trim() : "";
-          const cashRaw = row[5];
-          const arpu = row[6] ? row[6] : "";
-          const upsellShare = row[7] ? row[7] : "";
-          const cashGenerated = typeof cashRaw === 'number' ? `$${cashRaw.toLocaleString('en-US')}` : cashRaw;
-          const region = cleanSheetData(row[8]);
-
-          if (!rank || !managerName) return;
-
-          const regionEmoji = region ? getRegionSlackEmoji(region) : "";
-
-          let salesText = `${sales} sales`;
-          if (wow) {
-            const wowNum = parseInt(wow.replace(/[^0-9-]/g, ''));
-            const wowEmoji = !isNaN(wowNum) && wowNum >= 20 ? '🔥' :
-                            !isNaN(wowNum) && wowNum >= 10 ? '📈' :
-                            !isNaN(wowNum) && wowNum >= 1 ? '➕' :
-                            !isNaN(wowNum) && wowNum < 0 ? '📉' : '➡️';
-            salesText += `  ${wowEmoji} ${wow}`;
-          }
-
-          risingStarsText += `#${rank} *${managerName}* - ${salesText} | 💰 ${cashGenerated}`;
-          if (arpu) {
-            risingStarsText += ` | ARPU: ${formatArpuWithPlan(arpu, region, kbArpuPlansByRegion)}`;
-          }
-          if (upsellShare) {
-            risingStarsText += ` | Upsell: ${upsellShare}`;
-          }
-          if (region) {
-            risingStarsText += ` | ${regionEmoji} ${region}`;
-          }
-          risingStarsText += `\n`;
-        });
-
-        blocks.push({
-          type: "section",
-          text: {
-            type: "mrkdwn",
-            text: risingStarsText
-          }
-        });
-      }
     }
 
     blocks.push({ type: "divider" });
@@ -2123,61 +2015,55 @@ function buildCombinedLeaderboardFromSheet(automation) {
     });
 
     // ============================================
-    // SECTION 5: CP CALL RATE - LOWEST 3 REGIONS (OPTIONAL)
+    // SECTION 5: CP REGIONAL PERFORMANCE - LOWEST 3 (OPTIONAL)
     // ============================================
-    const hasCpCallRateData = cpCallRateData.some(row => row[1] && row[2]);
+    const hasCpRegionalData = cpRegionalData.some(row => row[1] && row[2]);
 
-    if (hasCpCallRateData) {
+    if (hasCpRegionalData) {
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: "*🏆 CP CALL RATE - LOWEST 3 REGIONS ⚠️*"
+          text: "*🏆 CP - LOWEST 3 REGIONS ⚠️*"
         }
       });
 
-      let cpCallRateText = "";
-      cpCallRateData.forEach((row, idx) => {
-        // Row format: [Week, Rank, Region, Call Rate %, Target %, Total Calls]
+      let cpRegionalText = "";
+      cpRegionalData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Region, Call Rate %, Purch Exec %, Reve Exec %, Fact Purch]
         const rank = row[1];
         const region = cleanSheetData(row[2]);
         let callRate = row[3];
-        let target = row[4];
-        const totalCalls = row[5];
+        let purchExec = row[4];
+        let reveExec = row[5];
+        const factPurch = row[6];
 
         if (!rank || !region) return;
 
-        // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
-        if (typeof callRate === 'number' && callRate < 1) {
-          callRate = (callRate * 100).toFixed(2) + '%';
-        } else if (typeof callRate === 'string' && !callRate.includes('%')) {
-          const num = parseFloat(callRate);
-          if (!isNaN(num) && num < 1) {
-            callRate = (num * 100).toFixed(2) + '%';
+        // Format percentages for all three percentage columns
+        [callRate, purchExec, reveExec].forEach((value, index) => {
+          if (typeof value === 'number' && value < 1) {
+            [callRate, purchExec, reveExec][index] = (value * 100).toFixed(0) + '%';
+          } else if (typeof value === 'string' && !value.includes('%')) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num < 1) {
+              [callRate, purchExec, reveExec][index] = (num * 100).toFixed(0) + '%';
+            }
           }
-        }
-
-        if (typeof target === 'number' && target < 1) {
-          target = (target * 100).toFixed(2) + '%';
-        } else if (typeof target === 'string' && !target.includes('%')) {
-          const num = parseFloat(target);
-          if (!isNaN(num) && num < 1) {
-            target = (num * 100).toFixed(2) + '%';
-          }
-        }
+        });
 
         const rankEmoji = getRankEmoji(rank);
         const regionEmoji = getRegionSlackEmoji(region);
 
-        cpCallRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
-        cpCallRateText += `   └ Call Rate: *${callRate}* ⚠️ | Target: ${target} | Total Calls: ${totalCalls}\n\n`;
+        cpRegionalText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+        cpRegionalText += `   └ 📞 Call: *${callRate}* | 💰 Purch: ${purchExec} | 💵 Reve: ${reveExec} | 🛒 Fact: ${factPurch}\n\n`;
       });
 
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: cpCallRateText || "_No data available_"
+          text: cpRegionalText || "_No data available_"
         }
       });
     }
@@ -2185,61 +2071,55 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 6: KB CALL RATE - LOWEST 3 REGIONS (OPTIONAL)
+    // SECTION 6: KB REGIONAL PERFORMANCE - LOWEST 3 (OPTIONAL)
     // ============================================
-    const hasKbCallRateData = kbCallRateData.some(row => row[1] && row[2]);
+    const hasKbRegionalData = kbRegionalData.some(row => row[1] && row[2]);
 
-    if (hasKbCallRateData) {
+    if (hasKbRegionalData) {
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: "*💪 KB CALL RATE - LOWEST 3 REGIONS ⚠️*"
+          text: "*💪 KB - LOWEST 3 REGIONS ⚠️*"
         }
       });
 
-      let kbCallRateText = "";
-      kbCallRateData.forEach((row, idx) => {
-        // Row format: [Week, Rank, Region, Call Rate %, Target %, Total Calls]
+      let kbRegionalText = "";
+      kbRegionalData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Region, Call Rate %, Purch Exec %, Reve Exec %, Fact Purch]
         const rank = row[1];
         const region = cleanSheetData(row[2]);
         let callRate = row[3];
-        let target = row[4];
-        const totalCalls = row[5];
+        let purchExec = row[4];
+        let reveExec = row[5];
+        const factPurch = row[6];
 
         if (!rank || !region) return;
 
-        // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
-        if (typeof callRate === 'number' && callRate < 1) {
-          callRate = (callRate * 100).toFixed(2) + '%';
-        } else if (typeof callRate === 'string' && !callRate.includes('%')) {
-          const num = parseFloat(callRate);
-          if (!isNaN(num) && num < 1) {
-            callRate = (num * 100).toFixed(2) + '%';
+        // Format percentages for all three percentage columns
+        [callRate, purchExec, reveExec].forEach((value, index) => {
+          if (typeof value === 'number' && value < 1) {
+            [callRate, purchExec, reveExec][index] = (value * 100).toFixed(0) + '%';
+          } else if (typeof value === 'string' && !value.includes('%')) {
+            const num = parseFloat(value);
+            if (!isNaN(num) && num < 1) {
+              [callRate, purchExec, reveExec][index] = (num * 100).toFixed(0) + '%';
+            }
           }
-        }
-
-        if (typeof target === 'number' && target < 1) {
-          target = (target * 100).toFixed(2) + '%';
-        } else if (typeof target === 'string' && !target.includes('%')) {
-          const num = parseFloat(target);
-          if (!isNaN(num) && num < 1) {
-            target = (num * 100).toFixed(2) + '%';
-          }
-        }
+        });
 
         const rankEmoji = getRankEmoji(rank);
         const regionEmoji = getRegionSlackEmoji(region);
 
-        kbCallRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
-        kbCallRateText += `   └ Call Rate: *${callRate}* ⚠️ | Target: ${target} | Total Calls: ${totalCalls}\n\n`;
+        kbRegionalText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+        kbRegionalText += `   └ 📞 Call: *${callRate}* | 💰 Purch: ${purchExec} | 💵 Reve: ${reveExec} | 🛒 Fact: ${factPurch}\n\n`;
       });
 
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: kbCallRateText || "_No data available_"
+          text: kbRegionalText || "_No data available_"
         }
       });
     }
@@ -2554,7 +2434,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
     }
 
     // ============================================
-    // SECTION 14: REACTIVATION RESULTS - TOP 5
+    // SECTION 14: REACTIVATION RESULTS - TOP 3
     // ============================================
     const hasReactivationData = reactivationData && reactivationData.some(row => row[1] && row[2] && row[3]);
 
@@ -2565,7 +2445,7 @@ function buildCombinedLeaderboardFromSheet(automation) {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: "*🔄 REACTIVATION RESULTS - TOP 5*"
+          text: "*🔄 REACTIVATION RESULTS - TOP 3*"
         }
       });
 
