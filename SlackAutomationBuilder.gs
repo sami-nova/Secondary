@@ -1414,8 +1414,8 @@ function buildCombinedLeaderboardFromSheet(automation) {
     const totalsData = sheet.getRange("A37:B40").getValues();  // Totals Summary (4 rows)
     const headerMetricsData = sheet.getRange("A44:B46").getValues();  // NEW: Header Metrics (Reactivations Count, WoW values)
     const managerOfWeekData = sheet.getRange("A50:G50").getValues();  // Manager of the Week
-    const kbPaidRateData = sheet.getRange("A54:F56").getValues();  // KB Paid Rate
-    const cpPaidRateData = sheet.getRange("A60:F62").getValues();  // CP Paid Rate
+    const cpCallRateData = sheet.getRange("A54:F56").getValues();  // CP Call Rate - Lowest 3 Regions
+    const kbCallRateData = sheet.getRange("A60:F62").getValues();  // KB Call Rate - Lowest 3 Regions
     const highestPaymentsData = sheet.getRange("A66:F68").getValues();  // Highest Payments
     const cpUpsellData = sheet.getRange("A72:G74").getValues();  // CP Upsell Top 3 (optional)
     const kbUpsellData = sheet.getRange("A78:G80").getValues();  // KB Upsell Top 3 (optional)
@@ -2123,37 +2123,37 @@ function buildCombinedLeaderboardFromSheet(automation) {
     });
 
     // ============================================
-    // SECTION 5: KB PAID RATE CONTACTED 14DAY - TOP 3 (OPTIONAL)
+    // SECTION 5: CP CALL RATE - LOWEST 3 REGIONS (OPTIONAL)
     // ============================================
-    const hasKbPaidRateData = kbPaidRateData.some(row => row[1] && row[2]);
+    const hasCpCallRateData = cpCallRateData.some(row => row[1] && row[2]);
 
-    if (hasKbPaidRateData) {
+    if (hasCpCallRateData) {
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: "*💪 KB PAID RATE CONTACTED 14DAY - TOP 3*"
+          text: "*🏆 CP CALL RATE - LOWEST 3 REGIONS ⚠️*"
         }
       });
 
-      let kbPaidRateText = "";
-      kbPaidRateData.forEach((row, idx) => {
-        // Row format: [Week, Rank, Region, Paid Rate %, Target %, Total Payments]
+      let cpCallRateText = "";
+      cpCallRateData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Region, Call Rate %, Target %, Total Calls]
         const rank = row[1];
         const region = cleanSheetData(row[2]);
-        let paidRate = row[3];
+        let callRate = row[3];
         let target = row[4];
-        const totalPayments = row[5];
+        const totalCalls = row[5];
 
         if (!rank || !region) return;
 
         // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
-        if (typeof paidRate === 'number' && paidRate < 1) {
-          paidRate = (paidRate * 100).toFixed(2) + '%';
-        } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
-          const num = parseFloat(paidRate);
+        if (typeof callRate === 'number' && callRate < 1) {
+          callRate = (callRate * 100).toFixed(2) + '%';
+        } else if (typeof callRate === 'string' && !callRate.includes('%')) {
+          const num = parseFloat(callRate);
           if (!isNaN(num) && num < 1) {
-            paidRate = (num * 100).toFixed(2) + '%';
+            callRate = (num * 100).toFixed(2) + '%';
           }
         }
 
@@ -2169,15 +2169,15 @@ function buildCombinedLeaderboardFromSheet(automation) {
         const rankEmoji = getRankEmoji(rank);
         const regionEmoji = getRegionSlackEmoji(region);
 
-        kbPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
-        kbPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
+        cpCallRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+        cpCallRateText += `   └ Call Rate: *${callRate}* ⚠️ | Target: ${target} | Total Calls: ${totalCalls}\n\n`;
       });
 
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: kbPaidRateText || "_No data available_"
+          text: cpCallRateText || "_No data available_"
         }
       });
     }
@@ -2185,37 +2185,37 @@ function buildCombinedLeaderboardFromSheet(automation) {
     blocks.push({ type: "divider" });
 
     // ============================================
-    // SECTION 6: CP PAID RATE CONTACTED 14DAY - TOP 3 (OPTIONAL)
+    // SECTION 6: KB CALL RATE - LOWEST 3 REGIONS (OPTIONAL)
     // ============================================
-    const hasCpPaidRateData = cpPaidRateData.some(row => row[1] && row[2]);
+    const hasKbCallRateData = kbCallRateData.some(row => row[1] && row[2]);
 
-    if (hasCpPaidRateData) {
+    if (hasKbCallRateData) {
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: "*🏆 CP PAID RATE CONTACTED 14DAY - TOP 3*"
+          text: "*💪 KB CALL RATE - LOWEST 3 REGIONS ⚠️*"
         }
       });
 
-      let cpPaidRateText = "";
-      cpPaidRateData.forEach((row, idx) => {
-        // Row format: [Week, Rank, Region, Paid Rate %, Target %, Total Payments]
+      let kbCallRateText = "";
+      kbCallRateData.forEach((row, idx) => {
+        // Row format: [Week, Rank, Region, Call Rate %, Target %, Total Calls]
         const rank = row[1];
         const region = cleanSheetData(row[2]);
-        let paidRate = row[3];
+        let callRate = row[3];
         let target = row[4];
-        const totalPayments = row[5];
+        const totalCalls = row[5];
 
         if (!rank || !region) return;
 
         // Format percentages: if it's a decimal (0.4), convert to percentage (40%)
-        if (typeof paidRate === 'number' && paidRate < 1) {
-          paidRate = (paidRate * 100).toFixed(2) + '%';
-        } else if (typeof paidRate === 'string' && !paidRate.includes('%')) {
-          const num = parseFloat(paidRate);
+        if (typeof callRate === 'number' && callRate < 1) {
+          callRate = (callRate * 100).toFixed(2) + '%';
+        } else if (typeof callRate === 'string' && !callRate.includes('%')) {
+          const num = parseFloat(callRate);
           if (!isNaN(num) && num < 1) {
-            paidRate = (num * 100).toFixed(2) + '%';
+            callRate = (num * 100).toFixed(2) + '%';
           }
         }
 
@@ -2231,15 +2231,15 @@ function buildCombinedLeaderboardFromSheet(automation) {
         const rankEmoji = getRankEmoji(rank);
         const regionEmoji = getRegionSlackEmoji(region);
 
-        cpPaidRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
-        cpPaidRateText += `   └ Paid Rate: *${paidRate}* | Target: ${target} | Total Payments: ${totalPayments}\n\n`;
+        kbCallRateText += `${rankEmoji} ${regionEmoji} *${region}*\n`;
+        kbCallRateText += `   └ Call Rate: *${callRate}* ⚠️ | Target: ${target} | Total Calls: ${totalCalls}\n\n`;
       });
 
       blocks.push({
         type: "section",
         text: {
           type: "mrkdwn",
-          text: cpPaidRateText || "_No data available_"
+          text: kbCallRateText || "_No data available_"
         }
       });
     }

@@ -193,40 +193,40 @@ function createLeaderboardTemplateV2() {
   sheet.getRange("A48:G50").setBorder(true, true, true, true, true, true, "#000000", SpreadsheetApp.BorderStyle.SOLID);
 
   // ============================================
-  // SECTION 6: KB PAID RATE CONTACTED 14DAY - TOP 3
+  // SECTION 6: CP CALL RATE - LOWEST 3 REGIONS (Areas Needing Attention)
   // ============================================
-  sheet.getRange("A52").setValue("💪 KB PAID RATE CONTACTED 14DAY - TOP 3");
+  sheet.getRange("A52").setValue("🏆 CP CALL RATE - LOWEST 3 REGIONS");
   sheet.getRange("A52:F52").merge();
-  sheet.getRange("A52:F52").setBackground("#2196F3").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A52:F52").setBackground("#FF6B6B").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const kbPaidRateHeaders = ["Week", "Rank", "Region", "Paid Rate %", "Target %", "Total Payments"];
-  sheet.getRange("A53:F53").setValues([kbPaidRateHeaders]);
-  sheet.getRange("A53:F53").setBackground("#E3F2FD").setFontWeight("bold");
+  const cpCallRateHeaders = ["Week", "Rank", "Region", "Call Rate %", "Target %", "Total Calls"];
+  sheet.getRange("A53:F53").setValues([cpCallRateHeaders]);
+  sheet.getRange("A53:F53").setBackground("#FFE0E0").setFontWeight("bold");
 
-  const kbPaidRateData = [
-    [currentWeek, 1, "IT", "40%", "20%", "$14"],
-    [currentWeek, 2, "PL", "33.33%", "20%", "$22"],
-    [currentWeek, 3, "RO", "22.15%", "11%", "$33"]
+  const cpCallRateData = [
+    [currentWeek, 1, "TR", "12%", "20%", 145],
+    [currentWeek, 2, "ARAB", "15%", "20%", 112],
+    [currentWeek, 3, "RO", "17%", "20%", 98]
   ];
-  sheet.getRange("A54:F56").setValues(kbPaidRateData);
+  sheet.getRange("A54:F56").setValues(cpCallRateData);
 
   // ============================================
-  // SECTION 7: CP PAID RATE CONTACTED 14DAY - TOP 3
+  // SECTION 7: KB CALL RATE - LOWEST 3 REGIONS (Areas Needing Attention)
   // ============================================
-  sheet.getRange("A58").setValue("🏆 CP PAID RATE CONTACTED 14DAY - TOP 3");
+  sheet.getRange("A58").setValue("💪 KB CALL RATE - LOWEST 3 REGIONS");
   sheet.getRange("A58:F58").merge();
-  sheet.getRange("A58:F58").setBackground("#4CAF50").setFontColor("white").setFontWeight("bold").setFontSize(12);
+  sheet.getRange("A58:F58").setBackground("#FF6B6B").setFontColor("white").setFontWeight("bold").setFontSize(12);
 
-  const cpPaidRateHeaders = ["Week", "Rank", "Region", "Paid Rate %", "Target %", "Total Payments"];
-  sheet.getRange("A59:F59").setValues([cpPaidRateHeaders]);
-  sheet.getRange("A59:F59").setBackground("#E8F5E9").setFontWeight("bold");
+  const kbCallRateHeaders = ["Week", "Rank", "Region", "Call Rate %", "Target %", "Total Calls"];
+  sheet.getRange("A59:F59").setValues([kbCallRateHeaders]);
+  sheet.getRange("A59:F59").setBackground("#FFE0E0").setFontWeight("bold");
 
-  const cpPaidRateData = [
-    [currentWeek, 1, "TR", "35%", "25%", "$120"],
-    [currentWeek, 2, "FR", "28%", "20%", "$95"],
-    [currentWeek, 3, "DE", "22%", "20%", "$78"]
+  const kbCallRateData = [
+    [currentWeek, 1, "PL", "14%", "20%", 128],
+    [currentWeek, 2, "CZ", "16%", "20%", 95],
+    [currentWeek, 3, "IT", "18%", "20%", 87]
   ];
-  sheet.getRange("A60:F62").setValues(cpPaidRateData);
+  sheet.getRange("A60:F62").setValues(kbCallRateData);
 
   // ============================================
   // SECTION 8: HIGHEST PAYMENTS THIS WEEK - TOP 3
