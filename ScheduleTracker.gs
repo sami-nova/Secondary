@@ -1,5 +1,5 @@
 // ============================================================
-//  MANAGER SCHEDULE TRACKER  — Command Center  v4.3
+//  MANAGER SCHEDULE TRACKER  — Command Center  v4.4
 //  Single-file Google Apps Script
 // ============================================================
 
@@ -225,6 +225,7 @@ function onOpen() {
     .addItem('Build / Rebuild This Month',    'buildScheduleSheet')
     .addItem('Update to Next Month',          'updateMonth')
     .addItem('Reset Day Cells Only',          'resetSheet')
+    .addItem('Copy Week Pattern to Month',    'copyWeekPattern')
     .addSeparator()
     .addItem('Edit Manager List',             'editManagersList')
     .addItem('Refresh Schedule from List',    'refreshFromManagerList')
@@ -666,12 +667,224 @@ function resetSheet() {
 
 // ─── UPDATE MONTH ─────────────────────────────────────────────
 function updateMonth() {
-  var ui = SpreadsheetApp.getUi();
-  var next = new Date(); next.setDate(1); next.setMonth(next.getMonth()+1);
-  var label = Utilities.formatDate(next,Session.getScriptTimeZone(),'MMMM yyyy');
-  var r = ui.alert('Next Month?','Clear all data and build for '+label+'?',ui.ButtonSet.YES_NO);
-  if (r!==ui.Button.YES) return;
+  var ui    = SpreadsheetApp.getUi();
+  var ss    = getSpreadsheet_();
+  var next  = new Date(); next.setDate(1); next.setMonth(next.getMonth()+1);
+  var label = Utilities.formatDate(next, Session.getScriptTimeZone(), 'MMMM yyyy');
+
+  var r = ui.alert(
+    'Update to ' + label,
+    'How should the new month be populated?\n\n' +
+    'YES  — Copy this month\'s schedule values into ' + label + '\n' +
+    '         (weekends & holidays are still forced to Day Off)\n\n' +
+    'NO   — Reset all day cells to defaults\n\n' +
+    'CANCEL — Do nothing',
+    ui.ButtonSet.YES_NO_CANCEL
+  );
+  if (r === ui.Button.CANCEL) return;
+
+  var copyPrev = (r === ui.Button.YES);
+  if (copyPrev) saveCurrentMonthData_(ss);   // snapshot BEFORE the clear
+
   buildScheduleSheet(next);
+
+  if (copyPrev) {
+    var ny = next.getFullYear(), nm = next.getMonth();
+    var ndim = new Date(ny, nm+1, 0).getDate();
+    applyLastMonthData_(ss, ny, nm, ndim);
+    SpreadsheetApp.flush();
+    ss.toast('This month\'s schedule copied forward into ' + label + '.', 'Done', 6);
+  }
+}
+
+// ─── SAVE CURRENT MONTH DATA ─────────────────────────────────
+// Writes a snapshot of every manager's day-cell values to the hidden
+// '_LastMonth_' sheet so applyLastMonthData_ can replay them next month.
+function saveCurrentMonthData_(ss) {
+  var sched = ss.getSheetByName(CFG.SHEET_NAME);
+  if (!sched || sched.getLastRow() < CFG.DATA_START_ROW) return;
+
+  var lastRow  = sched.getLastRow();
+  var lastCol  = sched.getLastColumn();
+  var raw      = sched.getRange(1, 1, lastRow, lastCol).getValues();
+
+  var rows = [['__META__', new Date().getFullYear(), new Date().getMonth()]];
+  for (var r = CFG.DATA_START_ROW - 1; r < lastRow; r++) {
+    var name = String(raw[r][0]||'').trim();
+    var reg  = String(raw[r][1]||'').trim();
+    var proc = String(raw[r][2]||'').trim();
+    if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
+    var entry = [name, reg, proc];
+    for (var ci = CFG.DAY_COL_START - 1; ci < lastCol; ci++) entry.push(String(raw[r][ci]||'').trim());
+    rows.push(entry);
+  }
+
+  var maxLen = 0;
+  for (var i=0;i<rows.length;i++) maxLen = Math.max(maxLen, rows[i].length);
+  for (var i=0;i<rows.length;i++) { while(rows[i].length<maxLen) rows[i].push(''); }
+
+  var lm = ss.getSheetByName('_LastMonth_') || ss.insertSheet('_LastMonth_');
+  lm.hideSheet();
+  lm.clearContents();
+  if (rows.length > 0) lm.getRange(1, 1, rows.length, maxLen).setValues(rows);
+}
+
+// ─── APPLY LAST MONTH DATA ────────────────────────────────────
+// Reads the '_LastMonth_' snapshot and overlays those values onto the
+// current schedule. Holidays in the new month are always forced to DO.
+function applyLastMonthData_(ss, year, month, daysInMonth) {
+  var lm = ss.getSheetByName('_LastMonth_');
+  if (!lm || lm.getLastRow() < 2) return;
+
+  var lmRaw = lm.getRange(1, 1, lm.getLastRow(), lm.getLastColumn()).getValues();
+  // Build name → [val_day0, val_day1, ...] map (row 0 is metadata, skip it)
+  var prevMap = {};
+  for (var r=1;r<lmRaw.length;r++) {
+    var n = String(lmRaw[r][0]||'').trim();
+    if (n) prevMap[n] = lmRaw[r].slice(3); // skip name, region, procedure cols
+  }
+
+  var tz = Session.getScriptTimeZone();
+  var holidays = {};
+  for (var h=0;h<PUBLIC_HOLIDAYS.length;h++) holidays[PUBLIC_HOLIDAYS[h]] = true;
+
+  var sched    = ss.getSheetByName(CFG.SHEET_NAME);
+  if (!sched) return;
+  var lastRow  = sched.getLastRow();
+  var totalCol = CFG.DAY_COL_START + daysInMonth - 1;
+  var raw      = sched.getRange(CFG.DATA_START_ROW, 1, lastRow-CFG.DATA_START_ROW+1, totalCol).getValues();
+
+  for (var ri=0;ri<raw.length;ri++) {
+    var name = String(raw[ri][0]||'').trim();
+    var reg  = String(raw[ri][1]||'').trim();
+    var proc = String(raw[ri][2]||'').trim();
+    if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
+
+    var prev = prevMap[name];
+    if (!prev || !prev.length) continue;  // manager not in last month → keep defaults
+
+    var newDays = [];
+    for (var d=0;d<daysInMonth;d++) {
+      var pv   = d<prev.length ? String(prev[d]||'').trim() : '';
+      var dObj = new Date(year, month, d+1);
+      var ds   = Utilities.formatDate(dObj, tz, 'yyyy-MM-dd');
+      if      (holidays[ds])             newDays.push(DAY_OFF);
+      else if (pv)                       newDays.push(pv);
+      else if (dObj.getDay()===0||dObj.getDay()===6) newDays.push(DAY_OFF);
+      else                               newDays.push(DEFAULT_HOURS);
+    }
+    sched.getRange(CFG.DATA_START_ROW+ri, CFG.DAY_COL_START, 1, daysInMonth).setValues([newDays]);
+  }
+}
+
+// ─── COPY WEEK PATTERN ────────────────────────────────────────
+// Reads one week's schedule for a manager and copies it (day-position
+// to day-position within each 7-day block) to every other week in the month.
+function copyWeekPattern() {
+  var ui    = SpreadsheetApp.getUi();
+  var ss    = getSpreadsheet_();
+  var sched = ss.getSheetByName(CFG.SHEET_NAME);
+  if (!sched) { ui.alert('Build the schedule first.'); return; }
+
+  var lastRow  = sched.getLastRow();
+  var nameData = sched.getRange(CFG.DATA_START_ROW, 1, lastRow-CFG.DATA_START_ROW+1, 3).getValues();
+
+  // ── Step 1: find the manager ──────────────────────────────
+  // Try detecting from currently active row first
+  var mgrRow = -1, mgrName = '';
+  try {
+    var sel = ss.getActiveSheet().getActiveCell();
+    if (sel && sel.getRow() >= CFG.DATA_START_ROW) {
+      var ri0 = sel.getRow() - CFG.DATA_START_ROW;
+      if (ri0 >= 0 && ri0 < nameData.length) {
+        var n0 = String(nameData[ri0][0]||'').trim();
+        var p0 = String(nameData[ri0][2]||'').trim();
+        if (n0 && PROCEDURE_ORDER.indexOf(p0)>=0) { mgrRow=sel.getRow(); mgrName=n0; }
+      }
+    }
+  } catch(e) {}
+
+  if (mgrRow > 0) {
+    var ok = ui.alert('Copy Week Pattern','Use selected manager: "'+mgrName+'"?', ui.ButtonSet.YES_NO);
+    if (ok !== ui.Button.YES) { mgrRow=-1; mgrName=''; }
+  }
+
+  if (mgrRow < 0) {
+    var r1 = ui.prompt('Copy Week Pattern (1/2)', 'Enter manager name (or part of it):', ui.ButtonSet.OK_CANCEL);
+    if (r1.getSelectedButton() !== ui.Button.OK) return;
+    var search = r1.getResponseText().trim().toLowerCase();
+    var matches = [];
+    for (var ri=0;ri<nameData.length;ri++) {
+      var n = String(nameData[ri][0]||'').trim();
+      var p = String(nameData[ri][2]||'').trim();
+      if (n.toLowerCase().indexOf(search)>=0 && PROCEDURE_ORDER.indexOf(p)>=0) matches.push({row:CFG.DATA_START_ROW+ri, name:n});
+    }
+    if (matches.length===0) { ui.alert('"'+r1.getResponseText().trim()+'" not found in the schedule.'); return; }
+    if (matches.length===1) {
+      mgrRow=matches[0].row; mgrName=matches[0].name;
+    } else {
+      var pickStr = matches.map(function(m,i){return (i+1)+'. '+m.name;}).join('\n');
+      var rp = ui.prompt('Multiple matches','Choose:\n'+pickStr+'\n\nEnter number:', ui.ButtonSet.OK_CANCEL);
+      if (rp.getSelectedButton()!==ui.Button.OK) return;
+      var idx = parseInt(rp.getResponseText().trim(),10)-1;
+      if (isNaN(idx)||idx<0||idx>=matches.length){ui.alert('Invalid choice.');return;}
+      mgrRow=matches[idx].row; mgrName=matches[idx].name;
+    }
+  }
+
+  // ── Step 2: pick the source week ─────────────────────────
+  var tz   = Session.getScriptTimeZone();
+  var now  = new Date();
+  var year = now.getFullYear(), month = now.getMonth();
+  var dim  = new Date(year, month+1, 0).getDate();
+  var numWeeks = Math.ceil(dim/7);
+
+  var wkList = [];
+  for (var w=1;w<=numWeeks;w++) {
+    var sd=(w-1)*7+1, ed=Math.min(w*7,dim);
+    wkList.push(w + '  (days '+sd+'–'+ed+')');
+  }
+  var r2 = ui.prompt(
+    'Copy Week Pattern (2/2)',
+    'Manager: ' + mgrName + '\n\n' +
+    'Which week to use as the template?\n\n' + wkList.join('\n') + '\n\nEnter week number (1–'+numWeeks+'):',
+    ui.ButtonSet.OK_CANCEL
+  );
+  if (r2.getSelectedButton()!==ui.Button.OK) return;
+  var weekNum = parseInt(r2.getResponseText().trim(),10);
+  if (isNaN(weekNum)||weekNum<1||weekNum>numWeeks){ui.alert('Invalid week number.');return;}
+
+  // ── Step 3: read source week (7 day slots) ───────────────
+  var srcStart = (weekNum-1)*7;  // 0-based day index
+  var srcLen   = Math.min(7, dim-srcStart);
+  var srcVals  = sched.getRange(mgrRow, CFG.DAY_COL_START+srcStart, 1, srcLen).getValues()[0];
+  while (srcVals.length<7) srcVals.push(''); // pad to full 7-slot week
+
+  // Holiday lookup
+  var holidays={};
+  for(var h=0;h<PUBLIC_HOLIDAYS.length;h++) holidays[PUBLIC_HOLIDAYS[h]]=true;
+
+  // ── Step 4: write to every other week ────────────────────
+  var changes=0;
+  for (var w=1;w<=numWeeks;w++) {
+    if (w===weekNum) continue;
+    var wVals=[];
+    for (var d=0;d<7;d++) {
+      var dayIdx=(w-1)*7+d;
+      if (dayIdx>=dim) break;
+      var sv = String(srcVals[d]||'').trim();
+      if (!sv) { wVals.push((new Date(year,month,dayIdx+1).getDay()===0||new Date(year,month,dayIdx+1).getDay()===6)?DAY_OFF:DEFAULT_HOURS); continue; }
+      var dObj=new Date(year,month,dayIdx+1);
+      var ds=Utilities.formatDate(dObj,tz,'yyyy-MM-dd');
+      wVals.push(holidays[ds]?DAY_OFF:sv);
+      changes++;
+    }
+    if (wVals.length>0) sched.getRange(mgrRow, CFG.DAY_COL_START+(w-1)*7, 1, wVals.length).setValues([wVals]);
+  }
+  ui.alert('Done',
+    'Week '+weekNum+' pattern applied to the other '+(numWeeks-1)+' week(s).\n'+
+    changes+' cells updated for "'+mgrName+'".',
+    ui.ButtonSet.OK);
 }
 
 // ─── POST TO SLACK ────────────────────────────────────────────
