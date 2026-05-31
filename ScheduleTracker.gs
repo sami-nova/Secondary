@@ -676,105 +676,97 @@ function updateMonth() {
     'Update to ' + label,
     'How should the new month be populated?\n\n' +
     'YES  — Copy this month\'s schedule values into ' + label + '\n' +
-    '         (weekends & holidays are still forced to Day Off)\n\n' +
+    '         (weekends & public holidays still forced to Day Off)\n\n' +
     'NO   — Reset all day cells to defaults\n\n' +
     'CANCEL — Do nothing',
     ui.ButtonSet.YES_NO_CANCEL
   );
   if (r === ui.Button.CANCEL) return;
 
-  var copyPrev = (r === ui.Button.YES);
-  if (copyPrev) saveCurrentMonthData_(ss);   // snapshot BEFORE the clear
+  // Capture BEFORE the build clears the sheet (pure JS object — no sheet I/O)
+  var snapshot = (r === ui.Button.YES) ? captureScheduleData_(ss) : null;
 
-  buildScheduleSheet(next);
+  buildScheduleSheet(next);   // clears + rebuilds; also calls buildDashboard()
 
-  if (copyPrev) {
-    var ny = next.getFullYear(), nm = next.getMonth();
-    var ndim = new Date(ny, nm+1, 0).getDate();
-    applyLastMonthData_(ss, ny, nm, ndim);
+  if (snapshot) {
+    var ny   = next.getFullYear();
+    var nm   = next.getMonth();
+    var ndim = new Date(ny, nm + 1, 0).getDate();
+    replayScheduleData_(ss, snapshot, ny, nm, ndim);
+    buildDashboard();   // refresh dashboard to reflect the replayed values
     SpreadsheetApp.flush();
-    ss.toast('This month\'s schedule copied forward into ' + label + '.', 'Done', 6);
+    ss.toast('Schedule copied forward into ' + label + '.', 'Done', 6);
   }
 }
 
-// ─── SAVE CURRENT MONTH DATA ─────────────────────────────────
-// Writes a snapshot of every manager's day-cell values to the hidden
-// '_LastMonth_' sheet so applyLastMonthData_ can replay them next month.
-function saveCurrentMonthData_(ss) {
+// ─── CAPTURE SCHEDULE DATA (in-memory) ───────────────────────
+// Reads every manager's day-cell values into a plain JS object before
+// the schedule is cleared. No sheet writes — no timing issues.
+function captureScheduleData_(ss) {
   var sched = ss.getSheetByName(CFG.SHEET_NAME);
-  if (!sched || sched.getLastRow() < CFG.DATA_START_ROW) return;
+  if (!sched || sched.getLastRow() < CFG.DATA_START_ROW) return {};
 
-  var lastRow  = sched.getLastRow();
-  var lastCol  = sched.getLastColumn();
-  var raw      = sched.getRange(1, 1, lastRow, lastCol).getValues();
+  var lastRow = sched.getLastRow();
+  var lastCol = sched.getLastColumn();
+  var raw     = sched.getRange(1, 1, lastRow, lastCol).getValues();
 
-  var rows = [['__META__', new Date().getFullYear(), new Date().getMonth()]];
+  var snap = {};  // { managerName: [ 'val_day1', 'val_day2', ... ] }
   for (var r = CFG.DATA_START_ROW - 1; r < lastRow; r++) {
     var name = String(raw[r][0]||'').trim();
     var reg  = String(raw[r][1]||'').trim();
     var proc = String(raw[r][2]||'').trim();
     if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
-    var entry = [name, reg, proc];
-    for (var ci = CFG.DAY_COL_START - 1; ci < lastCol; ci++) entry.push(String(raw[r][ci]||'').trim());
-    rows.push(entry);
+    var dayVals = [];
+    for (var ci = CFG.DAY_COL_START - 1; ci < lastCol; ci++) dayVals.push(String(raw[r][ci]||'').trim());
+    snap[name] = dayVals;
   }
-
-  var maxLen = 0;
-  for (var i=0;i<rows.length;i++) maxLen = Math.max(maxLen, rows[i].length);
-  for (var i=0;i<rows.length;i++) { while(rows[i].length<maxLen) rows[i].push(''); }
-
-  var lm = ss.getSheetByName('_LastMonth_') || ss.insertSheet('_LastMonth_');
-  lm.hideSheet();
-  lm.clearContents();
-  if (rows.length > 0) lm.getRange(1, 1, rows.length, maxLen).setValues(rows);
+  Logger.log('captureScheduleData_: captured ' + Object.keys(snap).length + ' managers');
+  return snap;
 }
 
-// ─── APPLY LAST MONTH DATA ────────────────────────────────────
-// Reads the '_LastMonth_' snapshot and overlays those values onto the
-// current schedule. Holidays in the new month are always forced to DO.
-function applyLastMonthData_(ss, year, month, daysInMonth) {
-  var lm = ss.getSheetByName('_LastMonth_');
-  if (!lm || lm.getLastRow() < 2) return;
+// ─── REPLAY SCHEDULE DATA (in-memory) ────────────────────────
+// Overlays the captured snapshot onto the freshly-built schedule.
+// Public holidays and weekends in the NEW month always keep Day Off.
+function replayScheduleData_(ss, snap, year, month, daysInMonth) {
+  if (!snap || !Object.keys(snap).length) return;
 
-  var lmRaw = lm.getRange(1, 1, lm.getLastRow(), lm.getLastColumn()).getValues();
-  // Build name → [val_day0, val_day1, ...] map (row 0 is metadata, skip it)
-  var prevMap = {};
-  for (var r=1;r<lmRaw.length;r++) {
-    var n = String(lmRaw[r][0]||'').trim();
-    if (n) prevMap[n] = lmRaw[r].slice(3); // skip name, region, procedure cols
-  }
-
-  var tz = Session.getScriptTimeZone();
+  var tz       = Session.getScriptTimeZone();
   var holidays = {};
-  for (var h=0;h<PUBLIC_HOLIDAYS.length;h++) holidays[PUBLIC_HOLIDAYS[h]] = true;
+  for (var h = 0; h < PUBLIC_HOLIDAYS.length; h++) holidays[PUBLIC_HOLIDAYS[h]] = true;
 
-  var sched    = ss.getSheetByName(CFG.SHEET_NAME);
+  var sched   = ss.getSheetByName(CFG.SHEET_NAME);
   if (!sched) return;
-  var lastRow  = sched.getLastRow();
-  var totalCol = CFG.DAY_COL_START + daysInMonth - 1;
-  var raw      = sched.getRange(CFG.DATA_START_ROW, 1, lastRow-CFG.DATA_START_ROW+1, totalCol).getValues();
+  var lastRow = sched.getLastRow();
+  // Read enough columns to cover the fixed cols + all day cols
+  var readCols = CFG.DAY_COL_START + daysInMonth - 1;
+  var raw      = sched.getRange(CFG.DATA_START_ROW, 1,
+                                lastRow - CFG.DATA_START_ROW + 1, readCols).getValues();
 
-  for (var ri=0;ri<raw.length;ri++) {
+  var applied = 0;
+  for (var ri = 0; ri < raw.length; ri++) {
     var name = String(raw[ri][0]||'').trim();
     var reg  = String(raw[ri][1]||'').trim();
     var proc = String(raw[ri][2]||'').trim();
     if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
 
-    var prev = prevMap[name];
-    if (!prev || !prev.length) continue;  // manager not in last month → keep defaults
+    var prev = snap[name];
+    if (!prev || !prev.length) continue;   // manager wasn't in last month → keep defaults
 
     var newDays = [];
-    for (var d=0;d<daysInMonth;d++) {
-      var pv   = d<prev.length ? String(prev[d]||'').trim() : '';
-      var dObj = new Date(year, month, d+1);
+    for (var d = 0; d < daysInMonth; d++) {
+      var pv   = d < prev.length ? prev[d] : '';
+      var dObj = new Date(year, month, d + 1);
       var ds   = Utilities.formatDate(dObj, tz, 'yyyy-MM-dd');
-      if      (holidays[ds])             newDays.push(DAY_OFF);
-      else if (pv)                       newDays.push(pv);
-      else if (dObj.getDay()===0||dObj.getDay()===6) newDays.push(DAY_OFF);
-      else                               newDays.push(DEFAULT_HOURS);
+      var dow  = dObj.getDay();
+      if      (holidays[ds])       newDays.push(DAY_OFF);
+      else if (pv)                 newDays.push(pv);
+      else if (dow===0||dow===6)   newDays.push(DAY_OFF);
+      else                         newDays.push(DEFAULT_HOURS);
     }
-    sched.getRange(CFG.DATA_START_ROW+ri, CFG.DAY_COL_START, 1, daysInMonth).setValues([newDays]);
+    sched.getRange(CFG.DATA_START_ROW + ri, CFG.DAY_COL_START, 1, daysInMonth).setValues([newDays]);
+    applied++;
   }
+  Logger.log('replayScheduleData_: applied to ' + applied + ' manager rows');
 }
 
 // ─── COPY WEEK PATTERN ────────────────────────────────────────
