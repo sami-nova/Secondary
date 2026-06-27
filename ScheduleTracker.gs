@@ -1,6 +1,16 @@
 // ============================================================
-//  MANAGER SCHEDULE TRACKER  — Command Center  v4.4
+//  MANAGER SCHEDULE TRACKER  — Command Center  v5.0
 //  Single-file Google Apps Script
+//
+//  v5.0 redesign — compact, professional, easy to fill & read:
+//   • Day cells now hold short STATUS CODES (W / DO / V / S / H)
+//     instead of long time strings → far faster to scan and fill.
+//   • Each manager has one editable "Default Hrs" column; a "W"
+//     cell means "working those hours" so you set the time once.
+//   • Day columns are narrow and grouped into week blocks with
+//     subtle separators so the eye can navigate weeks quickly.
+//   • Header has a clean title band, a one-line colour key, and a
+//     live "today / this month" status strip.
 // ============================================================
 
 // ─── CONFIGURATION ───────────────────────────────────────────
@@ -9,20 +19,55 @@ var CFG = {
   SLACK_WEBHOOK : 'YOUR_SLACK_WEBHOOK_URL_HERE',
   SHEET_URL     : '',           // optional: paste your sheet URL for Slack button
   POST_HOUR     : 8,
-  FROZEN_COLS   : 6,            // Name·Region·Procedure·Working·Off·Vac/Sick
-  HEADER_ROW    : 2,
-  DATA_START_ROW: 3,
-  DAY_COL_START : 7,            // day columns begin at col 7 (G)
+  FROZEN_COLS   : 7,            // Name·Region·Procedure·DefaultHrs·Working·Off·Away
+  HEADER_ROW    : 3,           // column-header row (row 1 title, row 2 key)
+  TITLE_ROW     : 1,
+  KEY_ROW       : 2,
+  DATA_START_ROW: 4,           // first manager/region row
+  DAY_COL_START : 8,           // day columns begin at col 8 (H)
 };
 
-// ─── SCHEDULE OPTIONS (dropdown in every day cell) ────────────
-var OPTS = ['09:00-18:00','10:00-19:00','08:00-17:00','07:00-16:00',
-            '12:00-21:00','14:00-23:00','Half Day','DO','Vacation','Sick'];
+// ─── STATUS CODES (what a day cell actually holds) ────────────
+// Short codes keep the grid scannable. "W" = working the manager's
+// Default Hrs; an explicit time string (e.g. 10:00-19:00) is also
+// allowed for one-off different shifts.
+var WORK     = 'W';            // working — uses the manager's Default Hrs
+var DAY_OFF  = 'DO';           // day off
+var VACATION = 'V';            // vacation
+var SICK     = 'S';            // sick
+var HALF_DAY = 'H';            // half day
+
 var DEFAULT_HOURS = '09:00-18:00';
-var DAY_OFF  = 'DO';
-var VACATION = 'Vacation';
-var SICK     = 'Sick';
-var HALF_DAY = 'Half Day';
+
+// Dropdown shown in every day cell: codes first, then alt shift times
+// for the occasional non-standard working day.
+var OPTS = [WORK, DAY_OFF, VACATION, SICK, HALF_DAY,
+            '10:00-19:00','08:00-17:00','07:00-16:00','12:00-21:00','14:00-23:00'];
+
+// Dropdown for the Default Hrs column.
+var HOURS_OPTS = ['09:00-18:00','10:00-19:00','08:00-17:00','07:00-16:00',
+                  '11:00-20:00','12:00-21:00','14:00-23:00'];
+
+// Classifies a raw day-cell value into a status bucket.
+// Returns one of: 'work' | 'off' | 'vac' | 'sick' | 'half' | ''
+function classifyStatus_(val) {
+  var v = String(val || '').trim();
+  if (!v) return '';
+  if (v === WORK || v.indexOf(':') >= 0) return 'work';
+  if (v === DAY_OFF)  return 'off';
+  if (v === VACATION) return 'vac';
+  if (v === SICK)     return 'sick';
+  if (v === HALF_DAY) return 'half';
+  return '';
+}
+
+// Human-readable shift text for a working cell, given the manager's
+// default hours. "W" → the default; an explicit time → itself.
+function shiftText_(val, defaultHours) {
+  var v = String(val || '').trim();
+  if (v.indexOf(':') >= 0) return v;
+  return defaultHours || DEFAULT_HOURS;
+}
 
 // ─── COLOUR PALETTE ──────────────────────────────────────────
 var C = {
@@ -267,6 +312,8 @@ function buildScheduleSheet(targetDate) {
     sheet.clearConditionalFormatRules();
     var ef = sheet.getFilter(); if (ef) ef.remove();
     sheet.clear();
+    // Break any merges left from a previous build so setValues won't collide
+    sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart();
   }
 
   // Load manager list (from _Managers_ sheet, or seed from defaults)
@@ -283,32 +330,45 @@ function buildScheduleSheet(targetDate) {
     if (byRegion[sorted[i].region]) byRegion[sorted[i].region].push(sorted[i]);
   }
 
-  // ── ROW 1: Title (frozen pane A:F) + Legend (scrollable G:end) ──
-  // Each merge stays within one pane so setFrozenColumns(6) succeeds.
-  sheet.getRange(1, 1, 1, CFG.FROZEN_COLS).merge()
-    .setValue('MANAGER SCHEDULE COMMAND CENTER   ·   ' + monthLabel.toUpperCase())
+  // ════ ROW 1: Title band ═══════════════════════════════════
+  // Two merges (each stays inside one freeze pane) keep the freeze legal.
+  sheet.getRange(CFG.TITLE_ROW, 1, 1, CFG.FROZEN_COLS).merge()
+    .setValue('📋  MANAGER SCHEDULE   ·   ' + monthLabel.toUpperCase())
     .setBackground(C.TITLE_BG).setFontColor(C.TITLE_FG)
-    .setFontSize(13).setFontWeight('bold')
+    .setFontSize(14).setFontWeight('bold')
+    .setHorizontalAlignment('left').setVerticalAlignment('middle');
+  sheet.getRange(CFG.TITLE_ROW, CFG.DAY_COL_START, 1, daysInMonth).merge()
+    .setValue('HOW TO FILL:   type or pick   W = Working   ·   DO = Day Off   ·   V = Vacation   ·   S = Sick   ·   H = Half Day')
+    .setBackground(C.TITLE_BG).setFontColor(C.TITLE_FG)
+    .setFontSize(11).setFontWeight('bold')
     .setHorizontalAlignment('center').setVerticalAlignment('middle');
-  sheet.getRange(1, CFG.DAY_COL_START, 1, daysInMonth).merge()
-    .setValue('LEGEND:   🟢 Working   🔴 Day Off   🟣 Vacation   🟠 Sick   🟡 Half Day   🟧 Holiday   ◆ Today Column')
-    .setBackground(C.LEGEND_BG).setFontColor(C.LEGEND_FG)
-    .setFontSize(10).setFontWeight('bold')
-    .setHorizontalAlignment('center').setVerticalAlignment('middle');
-  sheet.setRowHeight(1, 42);
+  sheet.setRowHeight(CFG.TITLE_ROW, 38);
 
-  // ── ROW 2: Column headers ─────────────────────────────────
-  var fixedHdrs = [['MANAGER NAME','REGION','PROCEDURE','📊 WORKING','🔴 OFF','🟣 VAC/SICK']];
+  // ════ ROW 2: Colour-key band ══════════════════════════════
+  sheet.getRange(CFG.KEY_ROW, 1, 1, CFG.FROZEN_COLS).merge()
+    .setValue('“Default Hrs” = each person’s normal shift — a “W” day uses it automatically.')
+    .setBackground(C.LEGEND_BG).setFontColor(C.LEGEND_FG)
+    .setFontSize(9).setFontStyle('italic')
+    .setHorizontalAlignment('left').setVerticalAlignment('middle');
+  sheet.getRange(CFG.KEY_ROW, CFG.DAY_COL_START, 1, daysInMonth).merge()
+    .setValue('🟩 W Working    🟥 DO Off    🟪 V Vacation    🟧 S Sick    🟨 H Half-day    ⬛ Weekend    🟫 Holiday    ▮ Today')
+    .setBackground(C.LEGEND_BG).setFontColor(C.LEGEND_FG)
+    .setFontSize(9).setFontWeight('bold')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  sheet.setRowHeight(CFG.KEY_ROW, 24);
+
+  // ════ ROW 3: Column headers ═══════════════════════════════
+  var fixedHdrs = [['MANAGER','REGION','PROCEDURE','DEFAULT HRS','✅ WORK','🔴 OFF','🌴 AWAY']];
   sheet.getRange(CFG.HEADER_ROW, 1, 1, CFG.FROZEN_COLS)
     .setValues(fixedHdrs)
     .setBackground(C.HDR_BG).setFontColor(C.HDR_FG)
     .setFontWeight('bold').setFontSize(10)
     .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
-  // Summary header columns get a darker shade (cols 4-6)
-  sheet.getRange(CFG.HEADER_ROW, 4, 1, 3)
+  // Summary header columns (E,F,G) get a darker shade
+  sheet.getRange(CFG.HEADER_ROW, 5, 1, 3)
     .setBackground(C.SUMHDR_BG).setFontColor(C.SUMHDR_FG);
 
-  // Day-of-month headers
+  // Day-of-month headers (weekday abbr + zero-padded day number)
   var dayLabels = [];
   for (var d = 1; d <= daysInMonth; d++) {
     var dow = new Date(year, month, d).getDay();
@@ -317,9 +377,9 @@ function buildScheduleSheet(targetDate) {
   sheet.getRange(CFG.HEADER_ROW, CFG.DAY_COL_START, 1, daysInMonth)
     .setValues([dayLabels])
     .setBackground(C.HDR_BG).setFontColor(C.HDR_FG)
-    .setFontWeight('bold').setFontSize(10)
+    .setFontWeight('bold').setFontSize(9)
     .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
-  sheet.setRowHeight(CFG.HEADER_ROW, 54);
+  sheet.setRowHeight(CFG.HEADER_ROW, 40);
 
   // Weekend day-header tint
   for (var d = 1; d <= daysInMonth; d++) {
@@ -328,6 +388,7 @@ function buildScheduleSheet(targetDate) {
       sheet.getRange(CFG.HEADER_ROW, CFG.DAY_COL_START + d - 1)
         .setBackground(C.WKND_BG).setFontColor(C.WKND_FG);
   }
+
   // ── DATA ROWS ────────────────────────────────────────────
   var currentRow  = CFG.DATA_START_ROW;
   var managerRows = [];   // track for data validation
@@ -342,27 +403,17 @@ function buildScheduleSheet(targetDate) {
 
     // ── Region separator row ─────────────────────────────
     var rEmoji = REGION_EMOJIS[region] || '';
-    sheet.getRange(currentRow, 1)
-      .setValue('  ' + rEmoji + '  ' + region)
+    sheet.getRange(currentRow, 1, 1, 3).merge()
+      .setValue('  ' + rEmoji + '   ' + region + '   ·   ' + mgrs.length + ' manager' + (mgrs.length===1?'':'s'))
       .setBackground(rc.hdr).setFontColor(rc.hdrFg)
-      .setFontWeight('bold').setFontSize(12)
-      .setHorizontalAlignment('left').setVerticalAlignment('middle');
-    sheet.getRange(currentRow, 2)
-      .setValue(region)
-      .setBackground(rc.hdr).setFontColor(rc.hdrFg)
-      .setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle');
-    sheet.getRange(currentRow, 3)
-      .setValue(mgrs.length + ' managers')
-      .setBackground(rc.hdr).setFontColor(rc.hdrFg)
-      .setFontStyle('italic').setFontSize(10)
+      .setFontWeight('bold').setFontSize(11)
       .setHorizontalAlignment('left').setVerticalAlignment('middle');
     sheet.getRange(currentRow, 4, 1, CFG.FROZEN_COLS - 3 + daysInMonth)
-      .setBackground(rc.hdr);   // covers summary cols + day cols on separator row
-    // Thick border top + bottom on separator
+      .setBackground(rc.hdr);   // band across the rest of the separator row
     sheet.getRange(currentRow, 1, 1, totalCols)
       .setBorder(true, true, true, true, false, false,
                  rc.hdr, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-    sheet.setRowHeight(currentRow, 30);
+    sheet.setRowHeight(currentRow, 26);
     currentRow++;
 
     // ── Manager rows ─────────────────────────────────────
@@ -371,9 +422,9 @@ function buildScheduleSheet(targetDate) {
       var rowBg  = (mi % 2 === 0) ? rc.odd : rc.even;
       var pBg    = procBg_(mgr.procedure) || rowBg;
       managerRows.push(currentRow);
-
-      // Fixed cols A-C
       var rowR   = currentRow;
+
+      // Fixed cols A-D
       sheet.getRange(rowR, 1).setValue(mgr.name)
         .setBackground(rowBg).setFontWeight('bold').setFontSize(11)
         .setHorizontalAlignment('left').setVerticalAlignment('middle');
@@ -381,58 +432,69 @@ function buildScheduleSheet(targetDate) {
         .setBackground(rowBg).setFontSize(10)
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
       sheet.getRange(rowR, 3).setValue(mgr.procedure)
-        .setBackground(pBg).setFontSize(10)
+        .setBackground(pBg).setFontSize(9)
+        .setHorizontalAlignment('center').setVerticalAlignment('middle');
+      sheet.getRange(rowR, 4).setValue(mgr.defaultHours || DEFAULT_HOURS)
+        .setBackground('#FFFFFF').setFontSize(9).setFontColor('#37474F')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
 
-      // Summary formula cols (D, E, F) — dynamic, update as cells change
+      // Summary formula cols (E, F, G) — live counts of the day codes
       var rng = dayStartLtr + rowR + ':' + dayEndLtr + rowR;
-      sheet.getRange(rowR, 4)
-        .setFormula('=COUNTIF(' + rng + ',"*:*")+COUNTIF(' + rng + ',"Half Day")')
-        .setBackground(rowBg).setFontWeight('bold').setFontSize(10)
-        .setHorizontalAlignment('center').setVerticalAlignment('middle');
       sheet.getRange(rowR, 5)
-        .setFormula('=COUNTIF(' + rng + ',"DO")')
-        .setBackground(rowBg).setFontWeight('bold').setFontSize(10)
+        .setFormula('=COUNTIF(' + rng + ',"' + WORK + '")+COUNTIF(' + rng + ',"*:*")+COUNTIF(' + rng + ',"' + HALF_DAY + '")')
+        .setBackground(rowBg).setFontWeight('bold').setFontSize(10).setFontColor('#1B5E20')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
       sheet.getRange(rowR, 6)
-        .setFormula('=COUNTIF(' + rng + ',"Vacation")+COUNTIF(' + rng + ',"Sick")')
-        .setBackground(rowBg).setFontWeight('bold').setFontSize(10)
+        .setFormula('=COUNTIF(' + rng + ',"' + DAY_OFF + '")')
+        .setBackground(rowBg).setFontWeight('bold').setFontSize(10).setFontColor('#B71C1C')
+        .setHorizontalAlignment('center').setVerticalAlignment('middle');
+      sheet.getRange(rowR, 7)
+        .setFormula('=COUNTIF(' + rng + ',"' + VACATION + '")+COUNTIF(' + rng + ',"' + SICK + '")')
+        .setBackground(rowBg).setFontWeight('bold').setFontSize(10).setFontColor('#4A148C')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
 
-      // Day cells
+      // Day cells — short status codes (weekends/holidays default to DO)
       var dayVals = [];
       for (var d = 1; d <= daysInMonth; d++) {
-        var dd  = new Date(year, month, d);
+        var dd   = new Date(year, month, d);
         var dow2 = dd.getDay();
-        var ds  = Utilities.formatDate(dd, tz, 'yyyy-MM-dd');
-        dayVals.push((dow2===0||dow2===6||holidays[ds]) ? DAY_OFF : DEFAULT_HOURS);
+        var ds   = Utilities.formatDate(dd, tz, 'yyyy-MM-dd');
+        dayVals.push((dow2===0||dow2===6||holidays[ds]) ? DAY_OFF : WORK);
       }
       sheet.getRange(rowR, CFG.DAY_COL_START, 1, daysInMonth)
         .setValues([dayVals])
-        .setBackground(rowBg).setFontSize(9)
+        .setBackground(rowBg).setFontSize(10).setFontWeight('bold')
         .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(false);
 
-      sheet.setRowHeight(rowR, 32);
+      sheet.setRowHeight(rowR, 28);
       currentRow++;
     }
   }
   var lastDataRow = currentRow - 1;
 
   // ── Column widths ─────────────────────────────────────────
-  sheet.setColumnWidth(1, 210);   // Name
-  sheet.setColumnWidth(2, 90);    // Region
-  sheet.setColumnWidth(3, 170);   // Procedure
-  sheet.setColumnWidth(4, 80);    // Working days
-  sheet.setColumnWidth(5, 70);    // Off days
-  sheet.setColumnWidth(6, 82);    // Vac/Sick
-  for (var c = CFG.DAY_COL_START; c <= totalCols; c++) sheet.setColumnWidth(c, 74);
+  sheet.setColumnWidth(1, 200);   // Name
+  sheet.setColumnWidth(2, 84);    // Region
+  sheet.setColumnWidth(3, 158);   // Procedure
+  sheet.setColumnWidth(4, 92);    // Default Hrs
+  sheet.setColumnWidth(5, 58);    // Work count
+  sheet.setColumnWidth(6, 50);    // Off count
+  sheet.setColumnWidth(7, 56);    // Away count
+  for (var c = CFG.DAY_COL_START; c <= totalCols; c++) sheet.setColumnWidth(c, 34); // narrow day cols
 
-  // ── Data validation: day cells (dropdown) ─────────────────
+  // ── Data validation: day cells (dropdown of codes) ────────
   var dayRule = SpreadsheetApp.newDataValidation()
     .requireValueInList(OPTS, true).setAllowInvalid(true)
-    .setHelpText('Choose a shift, DO, Vacation, Sick, or Half Day').build();
+    .setHelpText('W = Working · DO = Day Off · V = Vacation · S = Sick · H = Half Day (or pick a specific shift time)').build();
   for (var i = 0; i < managerRows.length; i++)
     sheet.getRange(managerRows[i], CFG.DAY_COL_START, 1, daysInMonth).setDataValidation(dayRule);
+
+  // ── Data validation: Default Hrs (col D) ──────────────────
+  var hoursRule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(HOURS_OPTS, true).setAllowInvalid(true)
+    .setHelpText('This person’s normal shift. “W” days use it.').build();
+  for (var i = 0; i < managerRows.length; i++)
+    sheet.getRange(managerRows[i], 4).setDataValidation(hoursRule);
 
   // ── Data validation: Region column (col B) ────────────────
   var regionRule = SpreadsheetApp.newDataValidation()
@@ -445,42 +507,50 @@ function buildScheduleSheet(targetDate) {
     .requireValueInList(PROCEDURE_ORDER, true).setAllowInvalid(false).build();
   for (var i = 0; i < managerRows.length; i++)
     sheet.getRange(managerRows[i], 3).setDataValidation(procRule);
-  // ── Borders: thick outer frame, thin inner grid ───────────
+
+  // ── Borders: thin inner grid, thick outer frame ───────────
   var fullBlock = sheet.getRange(CFG.HEADER_ROW, 1, lastDataRow - CFG.HEADER_ROW + 1, totalCols);
-  // Inner thin grid first
   fullBlock.setBorder(false, false, false, false, true, true,
                       C.BORDER_IN, SpreadsheetApp.BorderStyle.SOLID);
-  // Outer thick frame on top (overrides edges only)
   fullBlock.setBorder(true, true, true, true, false, false,
                       C.BORDER_OUT, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
 
-  // ── Freeze panes (no merge crosses col 7) ─────────────────
+  // ── Week-block separators: medium left border at each week start ──
+  for (var d = 1; d <= daysInMonth; d += 7) {
+    var wcol = CFG.DAY_COL_START + d - 1;
+    sheet.getRange(CFG.HEADER_ROW, wcol, lastDataRow - CFG.HEADER_ROW + 1, 1)
+      .setBorder(null, true, null, null, false, false,
+                 C.BORDER_OUT, SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
+  }
+  // Divider between the fixed panel and the day grid
+  sheet.getRange(CFG.HEADER_ROW, CFG.DAY_COL_START, lastDataRow - CFG.HEADER_ROW + 1, 1)
+    .setBorder(null, true, null, null, false, false,
+               C.BORDER_OUT, SpreadsheetApp.BorderStyle.SOLID_THICK);
+
+  // ── Freeze panes ──────────────────────────────────────────
   sheet.setFrozenRows(CFG.HEADER_ROW);
   sheet.setFrozenColumns(CFG.FROZEN_COLS);
 
-  // ── Conditional formatting (setBold fixes the TypeError) ──
+  // ── Conditional formatting ────────────────────────────────
   applyCF_(sheet, lastDataRow, daysInMonth, year, month, holidays);
 
   // ── Filter on fixed columns (Region + Procedure dropdowns) ─
   sheet.getRange(CFG.HEADER_ROW, 1, lastDataRow - CFG.HEADER_ROW + 1, CFG.FROZEN_COLS)
     .createFilter();
 
-  // ── Today column glow ─────────────────────────────────────
+  // ── Today column highlight ────────────────────────────────
   var today = new Date();
   if (today.getFullYear() === year && today.getMonth() === month) {
     var tc = CFG.DAY_COL_START + today.getDate() - 1;
     if (tc <= totalCols) {
-      // Header: amber background + bold + thick border
       sheet.getRange(CFG.HEADER_ROW, tc)
         .setBackground(C.TODAY_BG).setFontColor(C.TODAY_FG).setFontWeight('bold')
         .setBorder(true, true, true, true, false, false,
                    '#BF360C', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
-      // Data column: light-amber tint on every manager row
       for (var i = 0; i < managerRows.length; i++) {
         sheet.getRange(managerRows[i], tc)
-          .setBackground(C.TODAY_COL)
           .setBorder(null, true, null, true, false, false,
-                     '#FF6F00', SpreadsheetApp.BorderStyle.SOLID);
+                     '#FF6F00', SpreadsheetApp.BorderStyle.SOLID_MEDIUM);
       }
     }
   }
@@ -492,7 +562,7 @@ function buildScheduleSheet(targetDate) {
   buildDashboard();         // auto-refresh analytics dashboard after every build
   ss.setActiveSheet(sheet); // return focus to Schedule
   sheet.setActiveSelection('A1');
-  Logger.log('✅ Built: ' + monthLabel + ' | ' + sorted.length + ' managers | rows 3-' + lastDataRow);
+  Logger.log('✅ Built: ' + monthLabel + ' | ' + sorted.length + ' managers | rows ' + CFG.DATA_START_ROW + '-' + lastDataRow);
 } // END buildScheduleSheet
 
 
@@ -508,31 +578,37 @@ function applyCF_(sheet, lastDataRow, daysInMonth, year, month, holidays) {
   var tz          = Session.getScriptTimeZone();
   var rules       = [];
 
-  // Working hours (any cell containing ':') → green
+  // Working code "W" → green + bold
+  rules.push(SpreadsheetApp.newConditionalFormatRule()
+    .whenTextEqualTo(WORK)
+    .setBackground(C.WORK_BG).setFontColor(C.WORK_FG).setBold(true)
+    .setRanges([fullRange]).build());
+
+  // Explicit shift time (any cell containing ':') → green (lighter font)
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextContains(':')
     .setBackground(C.WORK_BG).setFontColor(C.WORK_FG)
     .setRanges([fullRange]).build());
 
-  // Day Off → red + bold
+  // Day Off "DO" → red + bold
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextEqualTo(DAY_OFF)
     .setBackground(C.OFF_BG).setFontColor(C.OFF_FG).setBold(true)
     .setRanges([fullRange]).build());
 
-  // Vacation → purple + bold
+  // Vacation "V" → purple + bold
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextEqualTo(VACATION)
     .setBackground(C.VAC_BG).setFontColor(C.VAC_FG).setBold(true)
     .setRanges([fullRange]).build());
 
-  // Sick → coral + bold
+  // Sick "S" → coral + bold
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextEqualTo(SICK)
     .setBackground(C.SICK_BG).setFontColor(C.SICK_FG).setBold(true)
     .setRanges([fullRange]).build());
 
-  // Half Day → yellow + bold
+  // Half Day "H" → yellow + bold
   rules.push(SpreadsheetApp.newConditionalFormatRule()
     .whenTextEqualTo(HALF_DAY)
     .setBackground(C.HALF_BG).setFontColor(C.HALF_FG).setBold(true)
@@ -557,25 +633,41 @@ function applyCF_(sheet, lastDataRow, daysInMonth, year, month, holidays) {
 // Managers are stored in a hidden sheet '_Managers_' so you can
 // add / remove people without touching the script code.
 
+// v5.0 schema: [Name, Region, Procedure, DefaultHours, SlackID]
 function getManagersList_(ss) {
   var ms = ss.getSheetByName('_Managers_');
   if (!ms || ms.getLastRow() < 2) return initManagersSheet_(ss);
 
-  // Auto-migrate from v4.0 (5 cols including ID) to v4.1 (4 cols, no ID).
-  // We detect the old schema by looking for an "ID" header in column 4.
-  var headerVals = ms.getRange(1, 1, 1, Math.max(4, ms.getLastColumn())).getValues()[0];
-  if (String(headerVals[3] || '').toUpperCase() === 'ID') {
-    var old = ms.getRange(2, 1, ms.getLastRow() - 1, 5).getValues();
-    var migrated = old.filter(function(r){return String(r[0]).trim();})
-                      .map(function(r){return [r[0], r[1], r[2], r[4] || ''];});
+  var header = ms.getRange(1, 1, 1, Math.max(5, ms.getLastColumn())).getValues()[0];
+  var h3 = String(header[3] || '').toUpperCase();   // 4th column header
+
+  // ── Auto-migrate older schemas to v5.0 ───────────────────
+  if (h3 !== 'DEFAULTHOURS' && h3 !== 'DEFAULT HRS') {
+    var old = ms.getRange(2, 1, ms.getLastRow() - 1, ms.getLastColumn()).getValues();
+    var migrated;
+    if (h3 === 'ID') {
+      // very old v4.0: [Name,Region,Procedure,?,ID] → keep ID as SlackID
+      migrated = old.filter(function(r){return String(r[0]).trim();})
+        .map(function(r){return [r[0], r[1], r[2], DEFAULT_HOURS, r[4] || ''];});
+    } else {
+      // v4.1: [Name,Region,Procedure,SlackID] → insert DefaultHours
+      migrated = old.filter(function(r){return String(r[0]).trim();})
+        .map(function(r){return [r[0], r[1], r[2], DEFAULT_HOURS, r[3] || ''];});
+    }
     ms.clear();
-    ms.appendRow(['Name','Region','Procedure','SlackID']);
-    if (migrated.length) ms.getRange(2, 1, migrated.length, 4).setValues(migrated);
+    ms.appendRow(['Name','Region','Procedure','DefaultHours','SlackID']);
+    if (migrated.length) ms.getRange(2, 1, migrated.length, 5).setValues(migrated);
   }
 
-  var data = ms.getRange(2, 1, ms.getLastRow() - 1, 4).getValues();
+  var data = ms.getRange(2, 1, ms.getLastRow() - 1, 5).getValues();
   return data.filter(function(r){return String(r[0]).trim();}).map(function(r){
-    return {name:String(r[0]),region:String(r[1]),procedure:String(r[2]),slackId:String(r[3])};
+    return {
+      name        : String(r[0]),
+      region      : String(r[1]),
+      procedure   : String(r[2]),
+      defaultHours: String(r[3] || '').trim() || DEFAULT_HOURS,
+      slackId     : String(r[4] || '')
+    };
   });
 }
 
@@ -583,10 +675,12 @@ function initManagersSheet_(ss) {
   var ms = ss.getSheetByName('_Managers_') || ss.insertSheet('_Managers_');
   ms.hideSheet();
   ms.clearContents();
-  ms.appendRow(['Name','Region','Procedure','SlackID']);
-  var rows = MANAGERS.map(function(m){return [m.name,m.region,m.procedure,''];});
-  if (rows.length) ms.getRange(2,1,rows.length,4).setValues(rows);
-  return MANAGERS;
+  ms.appendRow(['Name','Region','Procedure','DefaultHours','SlackID']);
+  var rows = MANAGERS.map(function(m){return [m.name,m.region,m.procedure,DEFAULT_HOURS,''];});
+  if (rows.length) ms.getRange(2,1,rows.length,5).setValues(rows);
+  return MANAGERS.map(function(m){
+    return {name:m.name,region:m.region,procedure:m.procedure,defaultHours:DEFAULT_HOURS,slackId:''};
+  });
 }
 
 // ─── ADD NEW MANAGER ─────────────────────────────────────────
@@ -609,7 +703,7 @@ function addNewManager() {
 
   var ss = getSpreadsheet_();
   var ms = ss.getSheetByName('_Managers_') || (initManagersSheet_(ss), ss.getSheetByName('_Managers_'));
-  ms.appendRow([name,region,procedure,'']);
+  ms.appendRow([name,region,procedure,DEFAULT_HOURS,'']);
 
   var rebuild = ui.alert('Manager Added!',name+' ('+region+') added.\nRebuild schedule now?',ui.ButtonSet.YES_NO);
   if (rebuild===ui.Button.YES) buildScheduleSheet();
@@ -761,7 +855,7 @@ function replayScheduleData_(ss, snap, year, month, daysInMonth) {
       if      (holidays[ds])       newDays.push(DAY_OFF);
       else if (pv)                 newDays.push(pv);
       else if (dow===0||dow===6)   newDays.push(DAY_OFF);
-      else                         newDays.push(DEFAULT_HOURS);
+      else                         newDays.push(WORK);
     }
     sched.getRange(CFG.DATA_START_ROW + ri, CFG.DAY_COL_START, 1, daysInMonth).setValues([newDays]);
     applied++;
@@ -865,7 +959,7 @@ function copyWeekPattern() {
       var dayIdx=(w-1)*7+d;
       if (dayIdx>=dim) break;
       var sv = String(srcVals[d]||'').trim();
-      if (!sv) { wVals.push((new Date(year,month,dayIdx+1).getDay()===0||new Date(year,month,dayIdx+1).getDay()===6)?DAY_OFF:DEFAULT_HOURS); continue; }
+      if (!sv) { wVals.push((new Date(year,month,dayIdx+1).getDay()===0||new Date(year,month,dayIdx+1).getDay()===6)?DAY_OFF:WORK); continue; }
       var dObj=new Date(year,month,dayIdx+1);
       var ds=Utilities.formatDate(dObj,tz,'yyyy-MM-dd');
       wVals.push(holidays[ds]?DAY_OFF:sv);
@@ -904,15 +998,17 @@ function postScheduleToSlack() {
   for (var r=CFG.DATA_START_ROW-1;r<lastRow;r++) {
     var row=data[r], name=String(row[0]||'').trim(), reg=String(row[1]||'').trim();
     var proc=String(row[2]||'').trim();
+    var defHrs=String(row[3]||'').trim()||DEFAULT_HOURS;   // col D = Default Hrs
     // Manager rows have a valid procedure; separator rows do not.
     if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
     var val=String(row[todayCol-1]||'').trim();
     var tag='*'+name+'*  _('+proc+')_';
-    if (val===DAY_OFF) status[reg].o.push('• '+tag);
-    else if (val===VACATION) status[reg].v.push('• '+tag);
-    else if (val===SICK) status[reg].s.push('• '+tag);
-    else if (val===HALF_DAY) status[reg].h.push('• '+tag);
-    else if (val) status[reg].w.push('• '+tag+'  `'+val+'`');
+    var kind=classifyStatus_(val);
+    if      (kind==='off')  status[reg].o.push('• '+tag);
+    else if (kind==='vac')  status[reg].v.push('• '+tag);
+    else if (kind==='sick') status[reg].s.push('• '+tag);
+    else if (kind==='half') status[reg].h.push('• '+tag+'  `½ '+shiftText_(val,defHrs)+'`');
+    else if (kind==='work') status[reg].w.push('• '+tag+'  `'+shiftText_(val,defHrs)+'`');
   }
 
   var tw=0,to=0,tv=0,ts=0,th=0;
@@ -1022,12 +1118,13 @@ function buildDashboard() {
     for (var dd = 0; dd < dim; dd++) {
       var ci  = CFG.DAY_COL_START - 1 + dd;
       if (ci >= sLastCol) break;
-      var val = String(row[ci]||'').trim();
-      if      (val===DAY_OFF)              { ms.o++; dayTotals[dd].o++; }
-      else if (val===VACATION)             { ms.v++; dayTotals[dd].v++; }
-      else if (val===SICK)                 { ms.s++; dayTotals[dd].s++; }
-      else if (val===HALF_DAY)             { ms.h++; dayTotals[dd].h++; }
-      else if (val.indexOf(':')>=0)        { ms.w++; dayTotals[dd].w++; }
+      var val  = String(row[ci]||'').trim();
+      var kind = classifyStatus_(val);
+      if      (kind==='off')  { ms.o++; dayTotals[dd].o++; }
+      else if (kind==='vac')  { ms.v++; dayTotals[dd].v++; }
+      else if (kind==='sick') { ms.s++; dayTotals[dd].s++; }
+      else if (kind==='half') { ms.h++; dayTotals[dd].h++; }
+      else if (kind==='work') { ms.w++; dayTotals[dd].w++; }
       if (dd === todayDayIdx) ms.todayVal = val;
     }
     mgrStats.push(ms);
