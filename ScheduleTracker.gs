@@ -1,5 +1,5 @@
 // ============================================================
-//  MANAGER SCHEDULE TRACKER  — Command Center  v5.1
+//  MANAGER SCHEDULE TRACKER  — Command Center  v5.4
 //  Single-file Google Apps Script
 //
 //  Compact, professional, easy to fill & read:
@@ -102,14 +102,30 @@ function shiftText_(val, defaultHours) {
 }
 
 // ─── PROCEDURE HELPERS (support multi-select) ────────────────
-// A Procedure cell may hold several procedures, e.g. "Refunds, Upsells".
-// These helpers parse such a cell consistently everywhere.
+// A Procedure cell may hold several procedures, e.g. "Refunds, Upsells",
+// or the shorthand "ALL" meaning every procedure.
+// Resolves one token (full name OR 2-letter abbreviation) to a full
+// procedure name, or '' if it isn't a procedure.
+function resolveProc_(token) {
+  var t = String(token || '').trim();
+  if (!t) return '';
+  if (PROCEDURE_ORDER.indexOf(t) >= 0) return t;
+  var up = t.toUpperCase();
+  for (var i = 0; i < PROCEDURE_ORDER.length; i++)
+    if (procAbbr_(PROCEDURE_ORDER[i]) === up) return PROCEDURE_ORDER[i];
+  return '';
+}
+// Parses a Procedure cell into an array of full procedure names. Accepts
+// full names, 2-letter abbreviations, "·"/comma/slash separators, and the
+// "ALL" shorthand (with or without a ★). Unknown tokens are ignored.
 function parseProcs_(val) {
-  var parts = String(val || '').split(/[,/]+/);
+  var raw = String(val || '').trim();
+  if (raw.replace(/[^A-Za-z]/g, '').toUpperCase() === 'ALL') return PROCEDURE_ORDER.slice();
+  var parts = raw.split(/[,/·]+/);
   var out = [];
   for (var i = 0; i < parts.length; i++) {
-    var p = parts[i].trim();
-    if (PROCEDURE_ORDER.indexOf(p) >= 0 && out.indexOf(p) < 0) out.push(p);
+    var full = resolveProc_(parts[i]);
+    if (full && out.indexOf(full) < 0) out.push(full);
   }
   return out;
 }
@@ -117,6 +133,16 @@ function parseProcs_(val) {
 function isManagerProc_(val) { return parseProcs_(val).length > 0; }
 // First valid procedure in the cell (used for sorting / tint), or ''.
 function primaryProc_(val) { var a = parseProcs_(val); return a.length ? a[0] : ''; }
+// True if the cell covers every procedure.
+function isAllProcs_(val) { return parseProcs_(val).length === PROCEDURE_ORDER.length && PROCEDURE_ORDER.length > 0; }
+// Full-name friendly text for Slack / dashboard, regardless of how the
+// cell is stored (compact abbreviations, ALL, etc.).
+function procDisplay_(val) {
+  var ps = parseProcs_(val);
+  if (ps.length === PROCEDURE_ORDER.length && PROCEDURE_ORDER.length) return 'All procedures';
+  if (ps.length > 1) return ps.join(', ');
+  return ps.length ? ps[0] : String(val || '').trim();
+}
 
 // ─── COLOUR PALETTE ──────────────────────────────────────────
 var C = {
@@ -292,6 +318,38 @@ function procBg_(procedure) {
   return null;
 }
 
+// Renders a Procedure cell with clear styling for single / multi / ALL.
+//   • ALL           -> gold "★ ALL" badge
+//   • 2+ procedures -> indigo, bold, compact count + abbreviations
+//                      (e.g. "▣ 3 · CP · RF · UP"), full names in a cell note
+//   • single        -> its procedure tint
+// The stored value stays parseable by parseProcs_() in every case.
+function renderProcedureCell_(range, val, rowBg) {
+  range.setVerticalAlignment('middle').setHorizontalAlignment('center').setWrap(true);
+  if (isAllProcs_(val)) {
+    range.setValue('★ ALL')
+      .setBackground('#FFC107').setFontColor('#4E342E').setFontWeight('bold').setFontSize(10);
+    return;
+  }
+  var procs = parseProcs_(val);
+  if (procs.length > 1) {
+    // Compact, readable: count + abbreviations, full names kept as a note
+    range.setValue('▣ ' + procs.length + ' · ' + procs.map(procAbbr_).join(' · '))
+      .setBackground('#D1C4E9').setFontColor('#311B92').setFontWeight('bold').setFontSize(9)
+      .setNote('Procedures:\n• ' + procs.join('\n• '));
+    return;
+  }
+  range.setValue(val)
+    .setBackground(procBg_(primaryProc_(val)) || rowBg).setFontSize(9).setFontWeight('normal').setNote('');
+}
+
+// Short 2-letter tag for a procedure (used in multi-procedure cells).
+function procAbbr_(p) {
+  var M = {'Churn Prevention':'CP','Killer Base':'KB','Active Retention':'AR',
+           'Refunds':'RF','Upsells':'UP','Cancellations':'CX'};
+  return M[p] || p.slice(0,2).toUpperCase();
+}
+
 // Returns the stored theme object (defaults to Classic).
 function getActiveTheme_() {
   var name = PropertiesService.getScriptProperties().getProperty('THEME') || 'Classic';
@@ -345,7 +403,11 @@ function onOpen() {
 }
 
 // ─── MAIN BUILD ──────────────────────────────────────────────
-function buildScheduleSheet(targetDate) {
+// targetDate  : optional Date for the month to build (defaults to today).
+// rosterOverride : optional array of {name,region,procedure,defaultHours}.
+//   When provided (e.g. from Refresh), it is used INSTEAD of the hidden
+//   _Managers_ sheet, so the live grid stays the source of truth.
+function buildScheduleSheet(targetDate, rosterOverride) {
   applyThemeToPalette_();   // load active theme into C before any rendering
   var ss   = getSpreadsheet_();
   var tz   = Session.getScriptTimeZone();
@@ -374,8 +436,8 @@ function buildScheduleSheet(targetDate) {
     sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart();
   }
 
-  // Load manager list (from _Managers_ sheet, or seed from defaults)
-  var managers = getManagersList_(ss);
+  // Load manager list: override (live grid) wins, else the _Managers_ sheet
+  var managers = (rosterOverride && rosterOverride.length) ? rosterOverride : getManagersList_(ss);
 
   // Sort by region order then procedure order
   var sorted = managers.slice().sort(function(a, b) {
@@ -478,7 +540,6 @@ function buildScheduleSheet(targetDate) {
     for (var mi = 0; mi < mgrs.length; mi++) {
       var mgr    = mgrs[mi];
       var rowBg  = (mi % 2 === 0) ? rc.odd : rc.even;
-      var pBg    = procBg_(primaryProc_(mgr.procedure)) || rowBg;
       managerRows.push(currentRow);
       var rowR   = currentRow;
 
@@ -489,9 +550,8 @@ function buildScheduleSheet(targetDate) {
       sheet.getRange(rowR, 2).setValue(mgr.region)
         .setBackground(rowBg).setFontSize(10)
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
-      sheet.getRange(rowR, 3).setValue(mgr.procedure)
-        .setBackground(pBg).setFontSize(9)
-        .setHorizontalAlignment('center').setVerticalAlignment('middle');
+      // Procedure cell — single / multi / ALL styling
+      renderProcedureCell_(sheet.getRange(rowR, 3), mgr.procedure, rowBg);
       sheet.getRange(rowR, 4).setValue(mgr.defaultHours || DEFAULT_HOURS)
         .setBackground('#FFFFFF').setFontSize(9).setFontColor('#37474F')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
@@ -1176,39 +1236,48 @@ function setProcedures() {
   if (!mgr) return;
 
   var menu = PROCEDURE_ORDER.map(function(p,i){return '   '+(i+1)+'. '+p;}).join('\n');
-  var cur  = String(sched.getRange(mgr.row, 3).getValue()||'').trim();
+  var cur  = procDisplay_(sched.getRange(mgr.row, 3).getValue());
   var r = ui.prompt('Set Procedures — ' + mgr.name,
     'Current: ' + (cur||'(none)') + '\n\n' + menu + '\n\n' +
-    'Enter one or more numbers separated by commas (e.g. 1,4,5):',
+    'Enter one or more numbers separated by commas (e.g. 1,4,5),\n' +
+    'or type  A  for ALL procedures:',
     ui.ButtonSet.OK_CANCEL);
   if (r.getSelectedButton() !== ui.Button.OK) return;
 
-  var nums = (r.getResponseText().match(/\d+/g) || []).map(Number);
-  var picked = [];
-  nums.forEach(function(n){
-    if (n>=1 && n<=PROCEDURE_ORDER.length && picked.indexOf(PROCEDURE_ORDER[n-1])<0)
-      picked.push(PROCEDURE_ORDER[n-1]);
-  });
-  if (!picked.length) { ui.alert('No valid procedure numbers entered.'); return; }
+  var txt = r.getResponseText().trim();
+  var val;
+  if (/^a(ll)?$/i.test(txt)) {
+    val = 'ALL';
+  } else {
+    var nums = (txt.match(/\d+/g) || []).map(Number);
+    var picked = [];
+    nums.forEach(function(n){
+      if (n>=1 && n<=PROCEDURE_ORDER.length && picked.indexOf(PROCEDURE_ORDER[n-1])<0)
+        picked.push(PROCEDURE_ORDER[n-1]);
+    });
+    if (!picked.length) { ui.alert('No valid procedure numbers entered.'); return; }
+    val = (picked.length === PROCEDURE_ORDER.length) ? 'ALL' : picked.join(', ');
+  }
 
-  var val = picked.join(', ');
-  sched.getRange(mgr.row, 3).setValue(val);
-  var bg = procBg_(primaryProc_(val));
-  if (bg) sched.getRange(mgr.row, 3).setBackground(bg);
+  renderProcedureCell_(sched.getRange(mgr.row, 3), val, '#FFFFFF');
   SpreadsheetApp.flush();
-  ss.toast(mgr.name + ' → ' + val, 'Procedures updated', 5);
+  ss.toast(mgr.name + ' → ' + procDisplay_(val), 'Procedures updated', 5);
 }
 
 // ─── REFRESH CURRENT SHEET (keep data) ───────────────────────
 // Re-applies the latest layout / colours / dropdowns / columns to the
-// CURRENT month WITHOUT wiping what you've filled in. It snapshots the
-// grid (shifts, leave, default hours, procedures) by manager name,
-// rebuilds, then replays the snapshot. Use this after pulling new code.
+// CURRENT month WITHOUT wiping what you've filled in.
+//
+// Unlike Build/Rebuild, this uses the LIVE GRID as the source of truth
+// (not the hidden _Managers_ list), so manager names, regions, procedures,
+// default hours, AND the day cells you've entered are all preserved —
+// including any you edited directly in the grid.
 function refreshCurrentSheet() {
   var ui = SpreadsheetApp.getUi();
   var res = ui.alert('Refresh Current Sheet',
     'Re-applies the latest layout, colours, dropdowns and columns to THIS month, '+
-    'keeping everything you have filled in (shifts, leave, default hours, procedures).\n\nContinue?',
+    'keeping everything currently in the sheet (managers, procedures, default '+
+    'hours, shifts, leave).\n\nContinue?',
     ui.ButtonSet.YES_NO);
   if (res !== ui.Button.YES) return;
 
@@ -1216,50 +1285,36 @@ function refreshCurrentSheet() {
   var sched = ss.getSheetByName(CFG.SHEET_NAME);
   if (!sched || sched.getLastRow() < CFG.DATA_START_ROW) { buildScheduleSheet(); return; }
 
-  // Snapshot the current grid by manager name (in memory)
+  // Snapshot the current grid: roster (in display order) + day values by name
   var lastRow = sched.getLastRow(), lastCol = sched.getLastColumn();
   var raw = sched.getRange(1, 1, lastRow, lastCol).getValues();
-  var days = {}, hours = {}, procs = {};
+  var roster = [];      // {name,region,procedure,defaultHours} in current order
+  var days   = {};      // name -> [day values]
   for (var r = CFG.DATA_START_ROW - 1; r < lastRow; r++) {
     var name = String(raw[r][0]||'').trim();
     var reg  = String(raw[r][1]||'').trim();
     var proc = String(raw[r][2]||'').trim();
     if (!name || REGION_ORDER.indexOf(reg)<0 || !isManagerProc_(proc)) continue;
-    hours[name] = String(raw[r][3]||'').trim();
-    procs[name] = proc;
+    roster.push({
+      name: name, region: reg, procedure: proc,
+      defaultHours: String(raw[r][3]||'').trim() || DEFAULT_HOURS
+    });
     var dv = [];
     for (var ci = CFG.DAY_COL_START - 1; ci < lastCol; ci++) dv.push(String(raw[r][ci]||'').trim());
     days[name] = dv;
   }
 
-  // Rebuild current month with the latest code
-  buildScheduleSheet();
+  if (!roster.length) { buildScheduleSheet(); return; }  // nothing to preserve
 
-  // Replay day cells
+  // Rebuild THIS month from the live roster (latest layout), then replay days
   var now = new Date();
-  var year = now.getFullYear(), month = now.getMonth();
-  var dim  = new Date(year, month+1, 0).getDate();
-  replayScheduleData_(ss, days, year, month, dim);
-
-  // Replay default hours + procedures by name
-  var sched2 = ss.getSheetByName(CFG.SHEET_NAME);
-  var lr = sched2.getLastRow();
-  var info = sched2.getRange(CFG.DATA_START_ROW, 1, lr - CFG.DATA_START_ROW + 1, 3).getValues();
-  for (var i = 0; i < info.length; i++) {
-    var nm = String(info[i][0]||'').trim();
-    if (!nm) continue;
-    var rr = CFG.DATA_START_ROW + i;
-    if (hours[nm]) sched2.getRange(rr, 4).setValue(hours[nm]);
-    if (procs[nm]) {
-      sched2.getRange(rr, 3).setValue(procs[nm]);
-      var bg = procBg_(primaryProc_(procs[nm]));
-      if (bg) sched2.getRange(rr, 3).setBackground(bg);
-    }
-  }
+  buildScheduleSheet(now, roster);
+  replayScheduleData_(ss, days, now.getFullYear(), now.getMonth(),
+                      new Date(now.getFullYear(), now.getMonth()+1, 0).getDate());
 
   buildDashboard();
   SpreadsheetApp.flush();
-  ss.toast('Sheet refreshed with the latest layout — your data was preserved.', 'Done', 6);
+  ss.toast('Sheet refreshed with the latest layout — nothing was lost.', 'Done', 6);
 }
 
 // ─── POST TO SLACK ────────────────────────────────────────────
@@ -1291,7 +1346,7 @@ function postScheduleToSlack() {
     // Manager rows have a valid procedure; separator rows do not.
     if (!name || REGION_ORDER.indexOf(reg)<0 || !isManagerProc_(proc)) continue;
     var val=String(row[todayCol-1]||'').trim();
-    var tag='*'+name+'*  _('+proc+')_';
+    var tag='*'+name+'*  _('+procDisplay_(proc)+')_';
     var kind=classifyStatus_(val);
     if      (kind==='off')  status[reg].o.push('• '+tag);
     else if (kind==='vac')  status[reg].v.push('• '+tag);
@@ -1525,7 +1580,7 @@ function buildDashboard() {
     var att   = daysElapsed>0 ? Math.round((m.w + m.h*0.5)/daysElapsed*100) : 0;
     var attFg = att>=75 ? '#1B5E20' : att>=50 ? '#E65100' : '#B71C1C';
 
-    dash.getRange(cr, 1, 1, 9).setValues([[m.name,m.region,m.procedure,m.w,m.o,m.v,m.s,m.h,att+'%']])
+    dash.getRange(cr, 1, 1, 9).setValues([[m.name,m.region,procDisplay_(m.procedure),m.w,m.o,m.v,m.s,m.h,att+'%']])
       .setBackground(altBg).setFontSize(10).setHorizontalAlignment('center').setVerticalAlignment('middle');
     dash.getRange(cr,1).setFontWeight('bold').setHorizontalAlignment('left');
     dash.getRange(cr,4).setFontColor('#1B5E20').setFontWeight('bold');
