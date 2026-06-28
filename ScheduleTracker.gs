@@ -1,16 +1,20 @@
 // ============================================================
-//  MANAGER SCHEDULE TRACKER  — Command Center  v5.0
+//  MANAGER SCHEDULE TRACKER  — Command Center  v5.1
 //  Single-file Google Apps Script
 //
-//  v5.0 redesign — compact, professional, easy to fill & read:
-//   • Day cells now hold short STATUS CODES (W / DO / V / S / H)
+//  Compact, professional, easy to fill & read:
+//   • Day cells hold short STATUS CODES (W / DO / V / S / H)
 //     instead of long time strings → far faster to scan and fill.
 //   • Each manager has one editable "Default Hrs" column; a "W"
 //     cell means "working those hours" so you set the time once.
-//   • Day columns are narrow and grouped into week blocks with
-//     subtle separators so the eye can navigate weeks quickly.
-//   • Header has a clean title band, a one-line colour key, and a
-//     live "today / this month" status strip.
+//   • A day worked at NON-DEFAULT hours: just type the time in
+//     that cell (e.g. 11:00-16:00) — counts as working, Slack
+//     shows the exact hours.
+//   • Per-row summary shows WORK / OFF / VAC / SICK separately.
+//   • "Set Shift / Leave for Dates" applies a value (custom hours
+//     or multi-day sick/vacation) across a day range in one step.
+//   • Day columns are narrow and grouped into week blocks; header
+//     has a title band, colour key, and live counts.
 // ============================================================
 
 // ─── CONFIGURATION ───────────────────────────────────────────
@@ -19,13 +23,15 @@ var CFG = {
   SLACK_WEBHOOK : 'YOUR_SLACK_WEBHOOK_URL_HERE',
   SHEET_URL     : '',           // optional: paste your sheet URL for Slack button
   POST_HOUR     : 8,
-  FROZEN_COLS   : 7,            // Name·Region·Procedure·DefaultHrs·Working·Off·Away
+  FROZEN_COLS   : 8,            // Name·Region·Procedure·DefaultHrs·Work·Off·Vac·Sick
   HEADER_ROW    : 3,           // column-header row (row 1 title, row 2 key)
   TITLE_ROW     : 1,
   KEY_ROW       : 2,
   DATA_START_ROW: 4,           // first manager/region row
-  DAY_COL_START : 8,           // day columns begin at col 8 (H)
+  DAY_COL_START : 9,           // day columns begin at col 9 (I)
 };
+// Fixed panel: A Name · B Region · C Procedure · D Default Hrs
+//              E Work · F Off · G Vac · H Sick   (FROZEN_COLS = 8)
 
 // ─── STATUS CODES (what a day cell actually holds) ────────────
 // Short codes keep the grid scannable. "W" = working the manager's
@@ -39,14 +45,20 @@ var HALF_DAY = 'H';            // half day
 
 var DEFAULT_HOURS = '09:00-18:00';
 
-// Dropdown shown in every day cell: codes first, then alt shift times
-// for the occasional non-standard working day.
-var OPTS = [WORK, DAY_OFF, VACATION, SICK, HALF_DAY,
-            '10:00-19:00','08:00-17:00','07:00-16:00','12:00-21:00','14:00-23:00'];
+// Common shift times offered in dropdowns. You can always TYPE any other
+// time directly into a day cell (e.g. 11:30-16:30) — it's accepted and
+// treated as a working day with those exact hours.
+var SHIFT_TIMES = ['09:00-18:00','10:00-19:00','08:00-17:00','07:00-16:00',
+                   '11:00-20:00','12:00-21:00','13:00-22:00','14:00-23:00',
+                   '09:00-13:00','14:00-18:00'];
 
-// Dropdown for the Default Hrs column.
+// Dropdown shown in every day cell: status codes first, then shift times
+// for a day worked at non-default hours.
+var OPTS = [WORK, DAY_OFF, VACATION, SICK, HALF_DAY].concat(SHIFT_TIMES);
+
+// Dropdown for the Default Hrs column (full-day shifts).
 var HOURS_OPTS = ['09:00-18:00','10:00-19:00','08:00-17:00','07:00-16:00',
-                  '11:00-20:00','12:00-21:00','14:00-23:00'];
+                  '11:00-20:00','12:00-21:00','13:00-22:00','14:00-23:00'];
 
 // Classifies a raw day-cell value into a status bucket.
 // Returns one of: 'work' | 'off' | 'vac' | 'sick' | 'half' | ''
@@ -271,6 +283,7 @@ function onOpen() {
     .addItem('Update to Next Month',          'updateMonth')
     .addItem('Reset Day Cells Only',          'resetSheet')
     .addItem('Copy Week Pattern to Month',    'copyWeekPattern')
+    .addItem('Set Shift / Leave for Dates',   'applyShiftRange')
     .addSeparator()
     .addItem('Edit Manager List',             'editManagersList')
     .addItem('Refresh Schedule from List',    'refreshFromManagerList')
@@ -358,14 +371,14 @@ function buildScheduleSheet(targetDate) {
   sheet.setRowHeight(CFG.KEY_ROW, 24);
 
   // ════ ROW 3: Column headers ═══════════════════════════════
-  var fixedHdrs = [['MANAGER','REGION','PROCEDURE','DEFAULT HRS','✅ WORK','🔴 OFF','🌴 AWAY']];
+  var fixedHdrs = [['MANAGER','REGION','PROCEDURE','DEFAULT HRS','✅ WORK','🔴 OFF','🌴 VAC','🤒 SICK']];
   sheet.getRange(CFG.HEADER_ROW, 1, 1, CFG.FROZEN_COLS)
     .setValues(fixedHdrs)
     .setBackground(C.HDR_BG).setFontColor(C.HDR_FG)
     .setFontWeight('bold').setFontSize(10)
     .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
-  // Summary header columns (E,F,G) get a darker shade
-  sheet.getRange(CFG.HEADER_ROW, 5, 1, 3)
+  // Summary header columns (E,F,G,H) get a darker shade
+  sheet.getRange(CFG.HEADER_ROW, 5, 1, 4)
     .setBackground(C.SUMHDR_BG).setFontColor(C.SUMHDR_FG);
 
   // Day-of-month headers (weekday abbr + zero-padded day number)
@@ -438,19 +451,23 @@ function buildScheduleSheet(targetDate) {
         .setBackground('#FFFFFF').setFontSize(9).setFontColor('#37474F')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
 
-      // Summary formula cols (E, F, G) — live counts of the day codes
+      // Summary formula cols (E,F,G,H) — live counts of the day codes
       var rng = dayStartLtr + rowR + ':' + dayEndLtr + rowR;
-      sheet.getRange(rowR, 5)
+      sheet.getRange(rowR, 5)   // WORK = W + explicit shift times + half days
         .setFormula('=COUNTIF(' + rng + ',"' + WORK + '")+COUNTIF(' + rng + ',"*:*")+COUNTIF(' + rng + ',"' + HALF_DAY + '")')
         .setBackground(rowBg).setFontWeight('bold').setFontSize(10).setFontColor('#1B5E20')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
-      sheet.getRange(rowR, 6)
+      sheet.getRange(rowR, 6)   // OFF
         .setFormula('=COUNTIF(' + rng + ',"' + DAY_OFF + '")')
         .setBackground(rowBg).setFontWeight('bold').setFontSize(10).setFontColor('#B71C1C')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
-      sheet.getRange(rowR, 7)
-        .setFormula('=COUNTIF(' + rng + ',"' + VACATION + '")+COUNTIF(' + rng + ',"' + SICK + '")')
+      sheet.getRange(rowR, 7)   // VAC
+        .setFormula('=COUNTIF(' + rng + ',"' + VACATION + '")')
         .setBackground(rowBg).setFontWeight('bold').setFontSize(10).setFontColor('#4A148C')
+        .setHorizontalAlignment('center').setVerticalAlignment('middle');
+      sheet.getRange(rowR, 8)   // SICK
+        .setFormula('=COUNTIF(' + rng + ',"' + SICK + '")')
+        .setBackground(rowBg).setFontWeight('bold').setFontSize(10).setFontColor('#BF360C')
         .setHorizontalAlignment('center').setVerticalAlignment('middle');
 
       // Day cells — short status codes (weekends/holidays default to DO)
@@ -475,11 +492,12 @@ function buildScheduleSheet(targetDate) {
   // ── Column widths ─────────────────────────────────────────
   sheet.setColumnWidth(1, 200);   // Name
   sheet.setColumnWidth(2, 84);    // Region
-  sheet.setColumnWidth(3, 158);   // Procedure
+  sheet.setColumnWidth(3, 150);   // Procedure
   sheet.setColumnWidth(4, 92);    // Default Hrs
-  sheet.setColumnWidth(5, 58);    // Work count
-  sheet.setColumnWidth(6, 50);    // Off count
-  sheet.setColumnWidth(7, 56);    // Away count
+  sheet.setColumnWidth(5, 56);    // Work count
+  sheet.setColumnWidth(6, 48);    // Off count
+  sheet.setColumnWidth(7, 48);    // Vac count
+  sheet.setColumnWidth(8, 52);    // Sick count
   for (var c = CFG.DAY_COL_START; c <= totalCols; c++) sheet.setColumnWidth(c, 34); // narrow day cols
 
   // ── Data validation: day cells (dropdown of codes) ────────
@@ -971,6 +989,127 @@ function copyWeekPattern() {
     'Week '+weekNum+' pattern applied to the other '+(numWeeks-1)+' week(s).\n'+
     changes+' cells updated for "'+mgrName+'".',
     ui.ButtonSet.OK);
+}
+
+// ─── MANAGER ROW FINDER (shared helper) ──────────────────────
+// Resolves a manager row from the active selection, else prompts by name.
+// Returns { row, name } or null if cancelled / not found.
+function resolveManagerRow_(ss, sched, ui, title) {
+  var lastRow  = sched.getLastRow();
+  var nameData = sched.getRange(CFG.DATA_START_ROW, 1, lastRow-CFG.DATA_START_ROW+1, 3).getValues();
+
+  // Try the currently selected row first
+  var mgrRow = -1, mgrName = '';
+  try {
+    var sel = ss.getActiveSheet().getActiveCell();
+    if (sel && sel.getRow() >= CFG.DATA_START_ROW) {
+      var ri0 = sel.getRow() - CFG.DATA_START_ROW;
+      if (ri0 >= 0 && ri0 < nameData.length) {
+        var n0 = String(nameData[ri0][0]||'').trim();
+        var p0 = String(nameData[ri0][2]||'').trim();
+        if (n0 && PROCEDURE_ORDER.indexOf(p0)>=0) { mgrRow=sel.getRow(); mgrName=n0; }
+      }
+    }
+  } catch(e) {}
+
+  if (mgrRow > 0) {
+    var ok = ui.alert(title, 'Use selected manager: "'+mgrName+'"?', ui.ButtonSet.YES_NO);
+    if (ok !== ui.Button.YES) { mgrRow=-1; mgrName=''; }
+  }
+
+  if (mgrRow < 0) {
+    var r1 = ui.prompt(title, 'Enter manager name (or part of it):', ui.ButtonSet.OK_CANCEL);
+    if (r1.getSelectedButton() !== ui.Button.OK) return null;
+    var search = r1.getResponseText().trim().toLowerCase();
+    var matches = [];
+    for (var ri=0;ri<nameData.length;ri++) {
+      var n = String(nameData[ri][0]||'').trim();
+      var p = String(nameData[ri][2]||'').trim();
+      if (n.toLowerCase().indexOf(search)>=0 && PROCEDURE_ORDER.indexOf(p)>=0)
+        matches.push({row:CFG.DATA_START_ROW+ri, name:n});
+    }
+    if (matches.length===0) { ui.alert('"'+r1.getResponseText().trim()+'" not found.'); return null; }
+    if (matches.length===1) { return matches[0]; }
+    var pickStr = matches.map(function(m,i){return (i+1)+'. '+m.name;}).join('\n');
+    var rp = ui.prompt('Multiple matches','Choose:\n'+pickStr+'\n\nEnter number:', ui.ButtonSet.OK_CANCEL);
+    if (rp.getSelectedButton()!==ui.Button.OK) return null;
+    var idx = parseInt(rp.getResponseText().trim(),10)-1;
+    if (isNaN(idx)||idx<0||idx>=matches.length){ui.alert('Invalid choice.');return null;}
+    return matches[idx];
+  }
+  return {row:mgrRow, name:mgrName};
+}
+
+// ─── SET SHIFT / LEAVE FOR A DATE RANGE ──────────────────────
+// One tool for two needs:
+//   • custom working hours over several days  (enter a time like 11:00-16:00)
+//   • multi-day leave                         (enter S, V, DO, H, or W)
+// Pick a manager, a day range (e.g. 8-12), and a value to apply.
+function applyShiftRange() {
+  var ui    = SpreadsheetApp.getUi();
+  var ss    = getSpreadsheet_();
+  var sched = ss.getSheetByName(CFG.SHEET_NAME);
+  if (!sched) { ui.alert('Build the schedule first.'); return; }
+
+  // 1) Manager
+  var mgr = resolveManagerRow_(ss, sched, ui, 'Set Shift / Leave');
+  if (!mgr) return;
+
+  // 2) Day range
+  var tz   = Session.getScriptTimeZone();
+  var now  = new Date();
+  var year = now.getFullYear(), month = now.getMonth();
+  var dim  = new Date(year, month+1, 0).getDate();
+
+  var rRange = ui.prompt('Set Shift / Leave — Dates',
+    'Manager: ' + mgr.name + '\n\n' +
+    'Enter the day or day-range this month (1–' + dim + ').\n' +
+    'Examples:   12        or   8-12        or   8 12',
+    ui.ButtonSet.OK_CANCEL);
+  if (rRange.getSelectedButton() !== ui.Button.OK) return;
+  var nums = (rRange.getResponseText().match(/\d+/g) || []).map(Number);
+  if (!nums.length) { ui.alert('No valid day number entered.'); return; }
+  var d1 = nums[0], d2 = nums.length>1 ? nums[1] : nums[0];
+  if (d1 > d2) { var tmp=d1; d1=d2; d2=tmp; }
+  if (d1 < 1 || d2 > dim) { ui.alert('Days must be between 1 and ' + dim + '.'); return; }
+
+  // 3) Value
+  var rVal = ui.prompt('Set Shift / Leave — Value',
+    'What should days ' + d1 + (d2!==d1 ? '–'+d2 : '') + ' be set to?\n\n' +
+    'Leave / status codes:\n' +
+    '   W  = Working (default hours)\n' +
+    '   DO = Day Off\n' +
+    '   V  = Vacation\n' +
+    '   S  = Sick leave\n' +
+    '   H  = Half day\n\n' +
+    'Custom working hours: type a time, e.g.  11:00-16:00',
+    ui.ButtonSet.OK_CANCEL);
+  if (rVal.getSelectedButton() !== ui.Button.OK) return;
+  var raw = rVal.getResponseText().trim();
+  if (!raw) return;
+
+  // Normalise: accept codes case-insensitively; keep time strings as typed
+  var val = raw;
+  var up  = raw.toUpperCase();
+  if (raw.indexOf(':') < 0) {
+    if      (up==='W'||up==='WORK')      val = WORK;
+    else if (up==='DO'||up==='OFF')      val = DAY_OFF;
+    else if (up==='V'||up==='VACATION')  val = VACATION;
+    else if (up==='S'||up==='SICK')      val = SICK;
+    else if (up==='H'||up==='HALF')      val = HALF_DAY;
+    else { ui.alert('Unrecognised value: "'+raw+'".\nUse W / DO / V / S / H or a time like 11:00-16:00.'); return; }
+  }
+
+  // Apply to the range in one write
+  var count  = d2 - d1 + 1;
+  var rowVals = [];
+  for (var i=0;i<count;i++) rowVals.push(val);
+  sched.getRange(mgr.row, CFG.DAY_COL_START + d1 - 1, 1, count).setValues([rowVals]);
+  SpreadsheetApp.flush();
+
+  var human = (val===WORK?'Working (default hours)':val===DAY_OFF?'Day Off':val===VACATION?'Vacation':
+               val===SICK?'Sick leave':val===HALF_DAY?'Half day':('Working '+val));
+  ss.toast(mgr.name + ': days ' + d1 + (d2!==d1?'–'+d2:'') + ' → ' + human, 'Updated', 5);
 }
 
 // ─── POST TO SLACK ────────────────────────────────────────────
