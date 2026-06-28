@@ -1,5 +1,5 @@
 // ============================================================
-//  MANAGER SCHEDULE TRACKER  — Command Center  v5.4
+//  MANAGER SCHEDULE TRACKER  — Command Center  v5.5
 //  Single-file Google Apps Script
 //
 //  Compact, professional, easy to fill & read:
@@ -326,21 +326,40 @@ function procBg_(procedure) {
 // The stored value stays parseable by parseProcs_() in every case.
 function renderProcedureCell_(range, val, rowBg) {
   range.setVerticalAlignment('middle').setHorizontalAlignment('center').setWrap(true);
+  var stored;
   if (isAllProcs_(val)) {
-    range.setValue('★ ALL')
-      .setBackground('#FFC107').setFontColor('#4E342E').setFontWeight('bold').setFontSize(10);
-    return;
+    stored = '★ ALL';
+    range.setValue(stored)
+      .setBackground('#FFC107').setFontColor('#4E342E').setFontWeight('bold').setFontSize(10).setNote('');
+  } else {
+    var procs = parseProcs_(val);
+    if (procs.length > 1) {
+      // Compact, readable: count + abbreviations, full names kept as a note
+      stored = '▣ ' + procs.length + ' · ' + procs.map(procAbbr_).join(' · ');
+      range.setValue(stored)
+        .setBackground('#D1C4E9').setFontColor('#311B92').setFontWeight('bold').setFontSize(9)
+        .setNote('Procedures:\n• ' + procs.join('\n• '));
+    } else {
+      stored = (procs.length ? procs[0] : String(val||'').trim());
+      range.setValue(stored)
+        .setBackground(procBg_(primaryProc_(val)) || rowBg).setFontSize(9).setFontWeight('normal').setNote('');
+    }
   }
-  var procs = parseProcs_(val);
-  if (procs.length > 1) {
-    // Compact, readable: count + abbreviations, full names kept as a note
-    range.setValue('▣ ' + procs.length + ' · ' + procs.map(procAbbr_).join(' · '))
-      .setBackground('#D1C4E9').setFontColor('#311B92').setFontWeight('bold').setFontSize(9)
-      .setNote('Procedures:\n• ' + procs.join('\n• '));
-    return;
-  }
-  range.setValue(val)
-    .setBackground(procBg_(primaryProc_(val)) || rowBg).setFontSize(9).setFontWeight('normal').setNote('');
+  // Validation that includes this cell's own value → dropdown stays, no warning
+  range.setDataValidation(procValidationFor_(stored));
+}
+
+// Data-validation for a Procedure cell: the single procedures + ALL + this
+// cell's own (possibly compact/multi) value, so it is never flagged invalid.
+function procValidationFor_(currentVal) {
+  var list = PROCEDURE_ORDER.slice();
+  list.push('★ ALL');
+  var cv = String(currentVal || '').trim();
+  if (cv && list.indexOf(cv) < 0) list.push(cv);
+  return SpreadsheetApp.newDataValidation()
+    .requireValueInList(list, true).setAllowInvalid(true)
+    .setHelpText('Pick one. For several: Schedule Management → Set Procedures (multi-select), '+
+                 'or type names separated by commas (e.g. Refunds, Upsells).').build();
 }
 
 // Short 2-letter tag for a procedure (used in multi-procedure cells).
@@ -400,6 +419,34 @@ function onOpen() {
     .addItem('Set Up Daily 8AM Trigger',      'createTimeDrivenTrigger')
     .addItem('Remove All Triggers',           'deleteAllTriggers')
     .addToUi();
+}
+
+// ─── LIVE PROCEDURE FORMATTING (simple onEdit trigger) ───────
+// Fires automatically on every manual edit. When a Procedure cell (col C)
+// is changed — a single pick, a typed/pasted comma list, or several values
+// from a chip dropdown — it re-renders into the compact form:
+//   1 procedure  → plain name + tint
+//   2+           → "▣ N · CP · RF · UP" indigo badge, full names in a note
+//   all          → "★ ALL" gold badge
+// and refreshes the cell's validation so it is never flagged invalid.
+function onEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    var sh = e.range.getSheet();
+    if (sh.getName() !== CFG.SHEET_NAME) return;
+
+    // Does the edited range touch the Procedure column (col 3)?
+    if (3 < e.range.getColumn() || 3 > e.range.getLastColumn()) return;
+
+    var r1 = Math.max(e.range.getRow(), CFG.DATA_START_ROW);
+    var r2 = e.range.getLastRow();
+    for (var row = r1; row <= r2; row++) {
+      if (!String(sh.getRange(row, 1).getValue()).trim()) continue;   // not a manager row
+      var cur = sh.getRange(row, 3).getValue();
+      if (!parseProcs_(cur).length) continue;                         // empty / mid-typing
+      renderProcedureCell_(sh.getRange(row, 3), cur, sh.getRange(row, 1).getBackground());
+    }
+  } catch (err) { /* never block the user's edit */ }
 }
 
 // ─── MAIN BUILD ──────────────────────────────────────────────
@@ -625,15 +672,9 @@ function buildScheduleSheet(targetDate, rosterOverride) {
   for (var i = 0; i < managerRows.length; i++)
     sheet.getRange(managerRows[i], 2).setDataValidation(regionRule);
 
-  // ── Data validation: Procedure column (col C) ────────────
-  // allowInvalid:true so a manager can hold MULTIPLE procedures typed as a
-  // comma-separated list (e.g. "Refunds, Upsells"). Use the
-  // "Set Procedures (multi)" menu tool for guided multi-select.
-  var procRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(PROCEDURE_ORDER, true).setAllowInvalid(true)
-    .setHelpText('Pick one, or type several separated by commas — e.g. Refunds, Upsells').build();
-  for (var i = 0; i < managerRows.length; i++)
-    sheet.getRange(managerRows[i], 3).setDataValidation(procRule);
+  // ── Procedure column (col C) validation is applied per-cell inside
+  //    renderProcedureCell_(), so each cell's own value (single, multi, or
+  //    ALL) is always considered valid — no "invalid" warning corners.
 
   // ── Borders: thin inner grid, thick outer frame ───────────
   var fullBlock = sheet.getRange(CFG.HEADER_ROW, 1, lastDataRow - CFG.HEADER_ROW + 1, totalCols);
