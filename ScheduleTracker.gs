@@ -45,20 +45,40 @@ var HALF_DAY = 'H';            // half day
 
 var DEFAULT_HOURS = '09:00-18:00';
 
-// Common shift times offered in dropdowns. You can always TYPE any other
-// time directly into a day cell (e.g. 11:30-16:30) — it's accepted and
-// treated as a working day with those exact hours.
-var SHIFT_TIMES = ['09:00-18:00','10:00-19:00','08:00-17:00','07:00-16:00',
-                   '11:00-20:00','12:00-21:00','13:00-22:00','14:00-23:00',
-                   '09:00-13:00','14:00-18:00'];
+// Approved shift times — sorted earliest → latest by start time, then end.
+// Used in BOTH the day-cell dropdown and the Default Hrs dropdown so the
+// list is consistent everywhere. You can still TYPE any other time into a
+// day cell (e.g. 11:30-16:30) — it's accepted as a working day at those hours.
+var SHIFT_TIMES = [
+  '08:00-17:00',
+  '09:00-13:00',
+  '09:00-17:00',
+  '09:00-17:30',
+  '09:00-18:00',
+  '09:30-17:30',
+  '09:30-18:30',
+  '10:00-14:00',
+  '10:00-18:00',
+  '10:00-19:00',
+  '10:30-19:00',
+  '10:30-19:30',
+  '11:00-19:00',
+  '11:00-20:00',
+  '12:00-20:00',
+  '12:00-21:00',
+  '13:00-21:00',
+  '13:00-22:00',
+  '15:00-17:00',
+  '16:00-01:00',
+  '17:00-01:00'
+];
 
-// Dropdown shown in every day cell: status codes first, then shift times
-// for a day worked at non-default hours.
+// Dropdown shown in every day cell: status codes first, then the shift
+// times for a day worked at non-default hours.
 var OPTS = [WORK, DAY_OFF, VACATION, SICK, HALF_DAY].concat(SHIFT_TIMES);
 
-// Dropdown for the Default Hrs column (full-day shifts).
-var HOURS_OPTS = ['09:00-18:00','10:00-19:00','08:00-17:00','07:00-16:00',
-                  '11:00-20:00','12:00-21:00','13:00-22:00','14:00-23:00'];
+// Dropdown for the Default Hrs column = the same approved shift times.
+var HOURS_OPTS = SHIFT_TIMES;
 
 // Classifies a raw day-cell value into a status bucket.
 // Returns one of: 'work' | 'off' | 'vac' | 'sick' | 'half' | ''
@@ -101,6 +121,9 @@ var C = {
   PROC_CHURN: '#E1F5FE',        // procedure tints
   PROC_KILL : '#FFF3E0',
   PROC_RETEN: '#E0F2F1',
+  PROC_REFUND: '#FCE4EC',
+  PROC_UPSELL: '#F1F8E9',
+  PROC_CANCEL: '#FBE9E7',
 };
 
 // ─── COLOUR THEMES ───────────────────────────────────────────
@@ -172,7 +195,7 @@ var REGION_EMOJIS = {
 
 // ─── SORT ORDERS ─────────────────────────────────────────────
 var REGION_ORDER    = ['TR','ES','IL','RU','IT','CZ/SK','AE/ARAB/SA','FR','PL','RO','DE'];
-var PROCEDURE_ORDER = ['Churn Prevention','Killer Base','Active Retention'];
+var PROCEDURE_ORDER = ['Churn Prevention','Killer Base','Active Retention','Refunds','Upsells','Cancellations'];
 var DAY_ABBR        = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
 // ─── PUBLIC HOLIDAYS ('YYYY-MM-DD') ──────────────────────────
@@ -246,6 +269,9 @@ function procBg_(procedure) {
   if (procedure === 'Churn Prevention') return C.PROC_CHURN;
   if (procedure === 'Killer Base')      return C.PROC_KILL;
   if (procedure === 'Active Retention') return C.PROC_RETEN;
+  if (procedure === 'Refunds')          return C.PROC_REFUND;
+  if (procedure === 'Upsells')          return C.PROC_UPSELL;
+  if (procedure === 'Cancellations')    return C.PROC_CANCEL;
   return null;
 }
 
@@ -713,10 +739,12 @@ function addNewManager() {
   var region = r2.getResponseText().trim().toUpperCase();
   if (REGION_ORDER.indexOf(region)<0){ui.alert('Invalid region: '+region); return;}
 
-  var r3 = ui.prompt('New Manager (3/3)','Procedure:\n1. Churn Prevention\n2. Killer Base\n3. Active Retention',ui.ButtonSet.OK_CANCEL);
+  var procMenu = PROCEDURE_ORDER.map(function(p,i){return (i+1)+'. '+p;}).join('\n');
+  var r3 = ui.prompt('New Manager (3/3)','Procedure:\n'+procMenu,ui.ButtonSet.OK_CANCEL);
   if (r3.getSelectedButton()!==ui.Button.OK) return;
   var pt = r3.getResponseText().trim();
-  var procedure = pt==='1'?'Churn Prevention':pt==='2'?'Killer Base':pt==='3'?'Active Retention':pt;
+  var pIdx = parseInt(pt,10);
+  var procedure = (!isNaN(pIdx) && pIdx>=1 && pIdx<=PROCEDURE_ORDER.length) ? PROCEDURE_ORDER[pIdx-1] : pt;
   if (PROCEDURE_ORDER.indexOf(procedure)<0){ui.alert('Invalid procedure: '+procedure); return;}
 
   var ss = getSpreadsheet_();
