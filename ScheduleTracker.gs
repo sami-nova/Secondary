@@ -101,6 +101,23 @@ function shiftText_(val, defaultHours) {
   return defaultHours || DEFAULT_HOURS;
 }
 
+// ─── PROCEDURE HELPERS (support multi-select) ────────────────
+// A Procedure cell may hold several procedures, e.g. "Refunds, Upsells".
+// These helpers parse such a cell consistently everywhere.
+function parseProcs_(val) {
+  var parts = String(val || '').split(/[,/]+/);
+  var out = [];
+  for (var i = 0; i < parts.length; i++) {
+    var p = parts[i].trim();
+    if (PROCEDURE_ORDER.indexOf(p) >= 0 && out.indexOf(p) < 0) out.push(p);
+  }
+  return out;
+}
+// True if the cell names at least one valid procedure (→ it's a manager row).
+function isManagerProc_(val) { return parseProcs_(val).length > 0; }
+// First valid procedure in the cell (used for sorting / tint), or ''.
+function primaryProc_(val) { var a = parseProcs_(val); return a.length ? a[0] : ''; }
+
 // ─── COLOUR PALETTE ──────────────────────────────────────────
 var C = {
   TITLE_BG  : '#0D47A1', TITLE_FG  : '#FFFFFF',
@@ -306,10 +323,12 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Schedule Management')
     .addItem('Build / Rebuild This Month',    'buildScheduleSheet')
+    .addItem('Refresh Current Sheet (Keep Data)','refreshCurrentSheet')
     .addItem('Update to Next Month',          'updateMonth')
     .addItem('Reset Day Cells Only',          'resetSheet')
     .addItem('Copy Week Pattern to Month',    'copyWeekPattern')
     .addItem('Set Shift / Leave for Dates',   'applyShiftRange')
+    .addItem('Set Procedures (multi-select)', 'setProcedures')
     .addSeparator()
     .addItem('Edit Manager List',             'editManagersList')
     .addItem('Refresh Schedule from List',    'refreshFromManagerList')
@@ -361,7 +380,7 @@ function buildScheduleSheet(targetDate) {
   // Sort by region order then procedure order
   var sorted = managers.slice().sort(function(a, b) {
     var ri = REGION_ORDER.indexOf(a.region) - REGION_ORDER.indexOf(b.region);
-    return ri !== 0 ? ri : PROCEDURE_ORDER.indexOf(a.procedure) - PROCEDURE_ORDER.indexOf(b.procedure);
+    return ri !== 0 ? ri : PROCEDURE_ORDER.indexOf(primaryProc_(a.procedure)) - PROCEDURE_ORDER.indexOf(primaryProc_(b.procedure));
   });
   var byRegion = {};
   for (var i = 0; i < REGION_ORDER.length; i++) byRegion[REGION_ORDER[i]] = [];
@@ -459,7 +478,7 @@ function buildScheduleSheet(targetDate) {
     for (var mi = 0; mi < mgrs.length; mi++) {
       var mgr    = mgrs[mi];
       var rowBg  = (mi % 2 === 0) ? rc.odd : rc.even;
-      var pBg    = procBg_(mgr.procedure) || rowBg;
+      var pBg    = procBg_(primaryProc_(mgr.procedure)) || rowBg;
       managerRows.push(currentRow);
       var rowR   = currentRow;
 
@@ -547,8 +566,12 @@ function buildScheduleSheet(targetDate) {
     sheet.getRange(managerRows[i], 2).setDataValidation(regionRule);
 
   // ── Data validation: Procedure column (col C) ────────────
+  // allowInvalid:true so a manager can hold MULTIPLE procedures typed as a
+  // comma-separated list (e.g. "Refunds, Upsells"). Use the
+  // "Set Procedures (multi)" menu tool for guided multi-select.
   var procRule = SpreadsheetApp.newDataValidation()
-    .requireValueInList(PROCEDURE_ORDER, true).setAllowInvalid(false).build();
+    .requireValueInList(PROCEDURE_ORDER, true).setAllowInvalid(true)
+    .setHelpText('Pick one, or type several separated by commas — e.g. Refunds, Upsells').build();
   for (var i = 0; i < managerRows.length; i++)
     sheet.getRange(managerRows[i], 3).setDataValidation(procRule);
 
@@ -855,7 +878,7 @@ function captureScheduleData_(ss) {
     var name = String(raw[r][0]||'').trim();
     var reg  = String(raw[r][1]||'').trim();
     var proc = String(raw[r][2]||'').trim();
-    if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
+    if (!name || REGION_ORDER.indexOf(reg)<0 || !isManagerProc_(proc)) continue;
     var dayVals = [];
     for (var ci = CFG.DAY_COL_START - 1; ci < lastCol; ci++) dayVals.push(String(raw[r][ci]||'').trim());
     snap[name] = dayVals;
@@ -887,7 +910,7 @@ function replayScheduleData_(ss, snap, year, month, daysInMonth) {
     var name = String(raw[ri][0]||'').trim();
     var reg  = String(raw[ri][1]||'').trim();
     var proc = String(raw[ri][2]||'').trim();
-    if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
+    if (!name || REGION_ORDER.indexOf(reg)<0 || !isManagerProc_(proc)) continue;
 
     var prev = snap[name];
     if (!prev || !prev.length) continue;   // manager wasn't in last month → keep defaults
@@ -931,7 +954,7 @@ function copyWeekPattern() {
       if (ri0 >= 0 && ri0 < nameData.length) {
         var n0 = String(nameData[ri0][0]||'').trim();
         var p0 = String(nameData[ri0][2]||'').trim();
-        if (n0 && PROCEDURE_ORDER.indexOf(p0)>=0) { mgrRow=sel.getRow(); mgrName=n0; }
+        if (n0 && isManagerProc_(p0)) { mgrRow=sel.getRow(); mgrName=n0; }
       }
     }
   } catch(e) {}
@@ -949,7 +972,7 @@ function copyWeekPattern() {
     for (var ri=0;ri<nameData.length;ri++) {
       var n = String(nameData[ri][0]||'').trim();
       var p = String(nameData[ri][2]||'').trim();
-      if (n.toLowerCase().indexOf(search)>=0 && PROCEDURE_ORDER.indexOf(p)>=0) matches.push({row:CFG.DATA_START_ROW+ri, name:n});
+      if (n.toLowerCase().indexOf(search)>=0 && isManagerProc_(p)) matches.push({row:CFG.DATA_START_ROW+ri, name:n});
     }
     if (matches.length===0) { ui.alert('"'+r1.getResponseText().trim()+'" not found in the schedule.'); return; }
     if (matches.length===1) {
@@ -1035,7 +1058,7 @@ function resolveManagerRow_(ss, sched, ui, title) {
       if (ri0 >= 0 && ri0 < nameData.length) {
         var n0 = String(nameData[ri0][0]||'').trim();
         var p0 = String(nameData[ri0][2]||'').trim();
-        if (n0 && PROCEDURE_ORDER.indexOf(p0)>=0) { mgrRow=sel.getRow(); mgrName=n0; }
+        if (n0 && isManagerProc_(p0)) { mgrRow=sel.getRow(); mgrName=n0; }
       }
     }
   } catch(e) {}
@@ -1053,7 +1076,7 @@ function resolveManagerRow_(ss, sched, ui, title) {
     for (var ri=0;ri<nameData.length;ri++) {
       var n = String(nameData[ri][0]||'').trim();
       var p = String(nameData[ri][2]||'').trim();
-      if (n.toLowerCase().indexOf(search)>=0 && PROCEDURE_ORDER.indexOf(p)>=0)
+      if (n.toLowerCase().indexOf(search)>=0 && isManagerProc_(p))
         matches.push({row:CFG.DATA_START_ROW+ri, name:n});
     }
     if (matches.length===0) { ui.alert('"'+r1.getResponseText().trim()+'" not found.'); return null; }
@@ -1140,6 +1163,105 @@ function applyShiftRange() {
   ss.toast(mgr.name + ': days ' + d1 + (d2!==d1?'–'+d2:'') + ' → ' + human, 'Updated', 5);
 }
 
+// ─── SET PROCEDURES (multi-select) ───────────────────────────
+// Assign one OR MORE procedures to a manager for this month. Writes a
+// comma-separated list into the Procedure cell (e.g. "Refunds, Upsells").
+function setProcedures() {
+  var ui    = SpreadsheetApp.getUi();
+  var ss    = getSpreadsheet_();
+  var sched = ss.getSheetByName(CFG.SHEET_NAME);
+  if (!sched) { ui.alert('Build the schedule first.'); return; }
+
+  var mgr = resolveManagerRow_(ss, sched, ui, 'Set Procedures');
+  if (!mgr) return;
+
+  var menu = PROCEDURE_ORDER.map(function(p,i){return '   '+(i+1)+'. '+p;}).join('\n');
+  var cur  = String(sched.getRange(mgr.row, 3).getValue()||'').trim();
+  var r = ui.prompt('Set Procedures — ' + mgr.name,
+    'Current: ' + (cur||'(none)') + '\n\n' + menu + '\n\n' +
+    'Enter one or more numbers separated by commas (e.g. 1,4,5):',
+    ui.ButtonSet.OK_CANCEL);
+  if (r.getSelectedButton() !== ui.Button.OK) return;
+
+  var nums = (r.getResponseText().match(/\d+/g) || []).map(Number);
+  var picked = [];
+  nums.forEach(function(n){
+    if (n>=1 && n<=PROCEDURE_ORDER.length && picked.indexOf(PROCEDURE_ORDER[n-1])<0)
+      picked.push(PROCEDURE_ORDER[n-1]);
+  });
+  if (!picked.length) { ui.alert('No valid procedure numbers entered.'); return; }
+
+  var val = picked.join(', ');
+  sched.getRange(mgr.row, 3).setValue(val);
+  var bg = procBg_(primaryProc_(val));
+  if (bg) sched.getRange(mgr.row, 3).setBackground(bg);
+  SpreadsheetApp.flush();
+  ss.toast(mgr.name + ' → ' + val, 'Procedures updated', 5);
+}
+
+// ─── REFRESH CURRENT SHEET (keep data) ───────────────────────
+// Re-applies the latest layout / colours / dropdowns / columns to the
+// CURRENT month WITHOUT wiping what you've filled in. It snapshots the
+// grid (shifts, leave, default hours, procedures) by manager name,
+// rebuilds, then replays the snapshot. Use this after pulling new code.
+function refreshCurrentSheet() {
+  var ui = SpreadsheetApp.getUi();
+  var res = ui.alert('Refresh Current Sheet',
+    'Re-applies the latest layout, colours, dropdowns and columns to THIS month, '+
+    'keeping everything you have filled in (shifts, leave, default hours, procedures).\n\nContinue?',
+    ui.ButtonSet.YES_NO);
+  if (res !== ui.Button.YES) return;
+
+  var ss    = getSpreadsheet_();
+  var sched = ss.getSheetByName(CFG.SHEET_NAME);
+  if (!sched || sched.getLastRow() < CFG.DATA_START_ROW) { buildScheduleSheet(); return; }
+
+  // Snapshot the current grid by manager name (in memory)
+  var lastRow = sched.getLastRow(), lastCol = sched.getLastColumn();
+  var raw = sched.getRange(1, 1, lastRow, lastCol).getValues();
+  var days = {}, hours = {}, procs = {};
+  for (var r = CFG.DATA_START_ROW - 1; r < lastRow; r++) {
+    var name = String(raw[r][0]||'').trim();
+    var reg  = String(raw[r][1]||'').trim();
+    var proc = String(raw[r][2]||'').trim();
+    if (!name || REGION_ORDER.indexOf(reg)<0 || !isManagerProc_(proc)) continue;
+    hours[name] = String(raw[r][3]||'').trim();
+    procs[name] = proc;
+    var dv = [];
+    for (var ci = CFG.DAY_COL_START - 1; ci < lastCol; ci++) dv.push(String(raw[r][ci]||'').trim());
+    days[name] = dv;
+  }
+
+  // Rebuild current month with the latest code
+  buildScheduleSheet();
+
+  // Replay day cells
+  var now = new Date();
+  var year = now.getFullYear(), month = now.getMonth();
+  var dim  = new Date(year, month+1, 0).getDate();
+  replayScheduleData_(ss, days, year, month, dim);
+
+  // Replay default hours + procedures by name
+  var sched2 = ss.getSheetByName(CFG.SHEET_NAME);
+  var lr = sched2.getLastRow();
+  var info = sched2.getRange(CFG.DATA_START_ROW, 1, lr - CFG.DATA_START_ROW + 1, 3).getValues();
+  for (var i = 0; i < info.length; i++) {
+    var nm = String(info[i][0]||'').trim();
+    if (!nm) continue;
+    var rr = CFG.DATA_START_ROW + i;
+    if (hours[nm]) sched2.getRange(rr, 4).setValue(hours[nm]);
+    if (procs[nm]) {
+      sched2.getRange(rr, 3).setValue(procs[nm]);
+      var bg = procBg_(primaryProc_(procs[nm]));
+      if (bg) sched2.getRange(rr, 3).setBackground(bg);
+    }
+  }
+
+  buildDashboard();
+  SpreadsheetApp.flush();
+  ss.toast('Sheet refreshed with the latest layout — your data was preserved.', 'Done', 6);
+}
+
 // ─── POST TO SLACK ────────────────────────────────────────────
 function postScheduleToSlack() {
   if (CFG.SLACK_WEBHOOK==='YOUR_SLACK_WEBHOOK_URL_HERE') {
@@ -1167,7 +1289,7 @@ function postScheduleToSlack() {
     var proc=String(row[2]||'').trim();
     var defHrs=String(row[3]||'').trim()||DEFAULT_HOURS;   // col D = Default Hrs
     // Manager rows have a valid procedure; separator rows do not.
-    if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
+    if (!name || REGION_ORDER.indexOf(reg)<0 || !isManagerProc_(proc)) continue;
     var val=String(row[todayCol-1]||'').trim();
     var tag='*'+name+'*  _('+proc+')_';
     var kind=classifyStatus_(val);
@@ -1279,7 +1401,7 @@ function buildDashboard() {
     var name = String(row[0]||'').trim();
     var reg  = String(row[1]||'').trim();
     var proc = String(row[2]||'').trim();
-    if (!name || REGION_ORDER.indexOf(reg)<0 || PROCEDURE_ORDER.indexOf(proc)<0) continue;
+    if (!name || REGION_ORDER.indexOf(reg)<0 || !isManagerProc_(proc)) continue;
 
     var ms = {name:name, region:reg, procedure:proc, w:0, o:0, v:0, s:0, h:0, todayVal:''};
     for (var dd = 0; dd < dim; dd++) {
@@ -1394,7 +1516,7 @@ function buildDashboard() {
   // Sort by region order then procedure order
   var sorted = mgrStats.slice().sort(function(a,b){
     var ri = REGION_ORDER.indexOf(a.region) - REGION_ORDER.indexOf(b.region);
-    return ri!==0 ? ri : PROCEDURE_ORDER.indexOf(a.procedure) - PROCEDURE_ORDER.indexOf(b.procedure);
+    return ri!==0 ? ri : PROCEDURE_ORDER.indexOf(primaryProc_(a.procedure)) - PROCEDURE_ORDER.indexOf(primaryProc_(b.procedure));
   });
 
   for (var mi=0;mi<sorted.length;mi++) {
